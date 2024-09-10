@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for, Response, send_from_directory
 from podcast_processor import process_podcast_episode
 from utils import get_podcast_episodes
-from rss_modifier import create_modified_rss_feed
+from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache
 import json
 import os
 import logging
@@ -82,6 +82,8 @@ def run_process():
                 "transcript_file": result['transcript_file'],
                 "unwanted_content_file": result['unwanted_content_file']
             })
+            # Invalidate the RSS cache when a new episode is processed
+            invalidate_rss_cache(rss_url)
             log_queue.put("Processing completed successfully.")
         except Exception as e:
             log_queue.put(f"Error: {str(e)}")
@@ -93,7 +95,7 @@ def run_process():
 def get_modified_rss(rss_url):
     try:
         processed_podcasts = load_processed_podcasts()
-        modified_rss = create_modified_rss_feed(rss_url, processed_podcasts, request.url_root)
+        modified_rss = get_or_create_modified_rss(rss_url, processed_podcasts, request.url_root)
         return modified_rss, 200, {'Content-Type': 'application/rss+xml'}
     except Exception as e:
         return jsonify({"error": str(e)}), 400
