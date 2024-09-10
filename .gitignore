@@ -26,5 +26,5 @@ Thumbs.db
 .idea/
 
 # Project-specific files
+input/
 output/
-podcast_uncut.mp3
