@@ -81,4 +81,15 @@ def get_or_create_modified_rss(original_rss_url, processed_podcasts, url_root):
 
     logging.info(f"Creating new modified RSS feed for {original_rss_url}")
     modified_rss = create_modified_rss_feed(original_rss_url, processed_podcasts, url_root)
+
+    # Ensure the RSS content is properly formatted XML
+    if not modified_rss.startswith('<?xml'):
+        modified_rss = f'<?xml version="1.0" encoding="UTF-8"?>\n{modified_rss}'
+
+    # Cache the result
+    rss_cache[original_rss_url] = {
+        'content': modified_rss,
+        'timestamp': time.time()
+    }
+
     return modified_rss

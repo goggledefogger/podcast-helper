@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, Response, send_from_directory
+from flask import Flask, request, jsonify, render_template, Response, send_from_directory, make_response
 from podcast_processor import process_podcast_episode
 from utils import get_podcast_episodes
 from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache
@@ -96,8 +96,17 @@ def get_modified_rss(rss_url):
     try:
         processed_podcasts = load_processed_podcasts()
         modified_rss = get_or_create_modified_rss(rss_url, processed_podcasts, request.url_root)
-        return modified_rss, 200, {'Content-Type': 'application/rss+xml'}
+
+        # Create a response with the XML content
+        response = make_response(modified_rss)
+
+        # Set headers to ensure proper XML rendering
+        response.headers['Content-Type'] = 'application/xml; charset=utf-8'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        return response
     except Exception as e:
+        logging.error(f"Error generating modified RSS: {str(e)}")
         return jsonify({"error": str(e)}), 400
 
 @app.route('/output/<path:filename>')
