@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, Response
+from flask import Flask, request, jsonify, render_template, redirect, url_for, Response, send_from_directory
 from podcast_processor import process_podcast_episode
 from utils import get_podcast_episodes
 from rss_modifier import create_modified_rss_feed
@@ -96,6 +96,10 @@ def get_modified_rss(rss_url):
         return modified_rss, 200, {'Content-Type': 'application/rss+xml'}
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+@app.route('/output/<path:filename>')
+def serve_output(filename):
+    return send_from_directory('output', filename)
 
 if __name__ == '__main__':
     app.run(debug=True, threaded=True)

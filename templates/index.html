@@ -24,9 +24,9 @@
         {% for podcast in podcasts %}
             <li>
                 <strong>RSS URL:</strong> {{ podcast.rss_url }}<br>
-                <strong>Edited Audio:</strong> <a href="{{ podcast.edited_url }}">Download</a><br>
-                <strong>Transcript:</strong> <a href="{{ podcast.transcript_file }}">View</a><br>
-                <strong>Unwanted Content:</strong> <a href="{{ podcast.unwanted_content_file }}">View</a>
+                <strong>Edited Audio:</strong> <a href="{{ url_for('serve_output', filename=podcast.edited_url.split('/')[-1]) }}">Download</a><br>
+                <strong>Transcript:</strong> <a href="{{ url_for('serve_output', filename=podcast.transcript_file.split('/')[-1]) }}">View</a><br>
+                <strong>Unwanted Content:</strong> <a href="{{ url_for('serve_output', filename=podcast.unwanted_content_file.split('/')[-1]) }}">View</a>
             </li>
         {% endfor %}
         </ul>
