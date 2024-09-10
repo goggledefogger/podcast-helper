@@ -10,6 +10,9 @@ import time
 import sys
 import threading
 from pydub import AudioSegment
+import feedparser
+import requests
+from tqdm import tqdm
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,8 +25,6 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
 
 logging.info(f"Using LLM provider: {LLM_PROVIDER}")
-
-PODCAST_URL = "https://pdst.fm/e/chrt.fm/track/479722/arttrk.com/p/CRMDA/claritaspod.com/measure/pscrb.fm/rss/p/pdrl.fm/b85a46/stitcher.simplecastaudio.com/9aa1e238-cbed-4305-9808-c9228fc6dd4f/episodes/807e8acc-db19-41cb-a5b4-a1258af36943/audio/128/default.mp3?aid=rss_feed&awCollectionId=9aa1e238-cbed-4305-9808-c9228fc6dd4f&awEpisodeId=807e8acc-db19-41cb-a5b4-a1258af36943&feed=dxZsm5kX"
 
 # Animation function
 def animate(stop_event):
@@ -190,37 +191,114 @@ def edit_audio(input_file, output_file, unwanted_content):
     run_with_animation(edited_audio.export, output_file, format="mp3")
     logging.info(f"Edited audio saved to {output_file}")
 
-# If the file podcast_uncut.mp3 doesn't yet exist, download the podcast and rename it to podcast_uncut.mp3
-if not os.path.exists("input/podcast_uncut.mp3"):
-    print("Downloading podcast...")
-    podcast_url = PODCAST_URL
-    run_with_animation(subprocess.run, ["wget", podcast_url, "-O", "input/podcast_uncut.mp3"])
-    print("Downloaded podcast")
+def get_podcast_episodes(rss_url):
+    feed = feedparser.parse(rss_url)
+    episodes = []
+    for entry in feed.entries:
+        for link in entry.links:
+            if link.type == 'audio/mpeg':
+                episodes.append({
+                    'title': entry.title,
+                    'url': link.href,
+                    'published': entry.published
+                })
+                break
+    return episodes
 
-# Check if transcript.txt already exists
-if not os.path.exists("output/transcript.txt"):
-    print("Running Whisper...")
+def choose_episode(episodes):
+    total_episodes = len(episodes)
+    current_page = 0
+    episodes_per_page = 10
+
+    while True:
+        start_index = current_page * episodes_per_page
+        end_index = min(start_index + episodes_per_page, total_episodes)
+
+        print(f"\nShowing episodes {start_index + 1} to {end_index} of {total_episodes}:")
+        for i, episode in enumerate(episodes[start_index:end_index], start_index + 1):
+            print(f"{i}. {episode['title']} - {episode['published']}")
+
+        print("\nOptions:")
+        print("Enter a number to select an episode")
+        if current_page > 0:
+            print("P: Previous page")
+        if end_index < total_episodes:
+            print("N: Next page")
+        print("Q: Quit")
+
+        choice = input("Enter your choice: ").strip().lower()
+
+        if choice == 'q':
+            print("Exiting...")
+            sys.exit(0)
+        elif choice == 'p' and current_page > 0:
+            current_page -= 1
+        elif choice == 'n' and end_index < total_episodes:
+            current_page += 1
+        elif choice.isdigit():
+            episode_num = int(choice)
+            if 1 <= episode_num <= total_episodes:
+                return episodes[episode_num - 1]
+            else:
+                print("Invalid episode number. Please try again.")
+        else:
+            print("Invalid input. Please try again.")
+
+def download_episode(url, filename):
+    response = requests.get(url, stream=True)
+    total_size = int(response.headers.get('content-length', 0))
+    block_size = 1024  # 1 KB
+
+    with open(filename, 'wb') as file, tqdm(
+        desc=filename,
+        total=total_size,
+        unit='iB',
+        unit_scale=True,
+        unit_divisor=1024,
+    ) as progress_bar:
+        for data in response.iter_content(block_size):
+            size = file.write(data)
+            progress_bar.update(size)
+
+if __name__ == "__main__":
+    # Load environment variables
+    load_dotenv()
+
+    # Get podcast RSS feed URL from user
+    rss_url = input("Enter the podcast RSS feed URL: ")
+
+    # Get available episodes
+    episodes = get_podcast_episodes(rss_url)
+
+    # Let user choose an episode
+    chosen_episode = choose_episode(episodes)
+
+    # Create input and output directories if they don't exist
+    os.makedirs("input", exist_ok=True)
+    os.makedirs("output", exist_ok=True)
+
+    # Download the chosen episode
+    input_filename = f"input/{chosen_episode['title'].replace(' ', '_')}.mp3"
+    print(f"Downloading episode: {chosen_episode['title']}")
+    download_episode(chosen_episode['url'], input_filename)
+    print("Download complete")
 
     # Run Whisper to transcribe
+    print("Running Whisper...")
     model = whisper.load_model("base")
-    result = run_with_animation(model.transcribe, "input/podcast_uncut.mp3")
-
+    result = run_with_animation(model.transcribe, input_filename)
     print("Whisper complete")
 
     # Output the transcription to a file that includes timestamps
-    with open("output/transcript.txt", "w") as f:
+    transcript_filename = f"output/{chosen_episode['title'].replace(' ', '_')}_transcript.txt"
+    with open(transcript_filename, "w") as f:
         for i, item in enumerate(result["segments"]):
             f.write(f"{item['start']} - {item['end']}: {item['text']}\n")
-
     print("Transcription complete")
-else:
-    print("Transcript file already exists. Skipping Whisper transcription.")
 
-# Check if unwanted_content.json already exists
-if not os.path.exists("output/unwanted_content.json"):
     # Send the transcription to the selected LLM to identify timestamps of unwanted content
     logging.info("Sending transcript to LLM for processing")
-    unwanted_content = find_unwanted_content("output/transcript.txt")
+    unwanted_content = find_unwanted_content(transcript_filename)
 
     logging.info("LLM processing complete")
 
@@ -239,22 +317,16 @@ if not os.path.exists("output/unwanted_content.json"):
         exit(1)
 
     # Write the unwanted_content_data to a file
-    with open("output/unwanted_content.json", "w") as f:
+    unwanted_content_filename = f"output/{chosen_episode['title'].replace(' ', '_')}_unwanted_content.json"
+    with open(unwanted_content_filename, "w") as f:
         json.dump(unwanted_content_data, f, indent=2)
-        logging.info("Wrote unwanted content data to output/unwanted_content.json")
-else:
-    logging.info("unwanted_content.json already exists. Skipping LLM processing.")
-    # Load existing unwanted_content data
-    with open("output/unwanted_content.json", "r") as f:
-        unwanted_content_data = json.load(f)
-    logging.info(f"Loaded existing unwanted content data with {len(unwanted_content_data['unwanted_content'])} sections")
+        logging.info(f"Wrote unwanted content data to {unwanted_content_filename}")
 
-# Edit the audio file
-input_file = "input/podcast_uncut.mp3"
-output_file = "output/podcast_edited.mp3"
+    # Edit the audio file
+    output_file = f"output/{chosen_episode['title'].replace(' ', '_')}_edited.mp3"
 
-logging.info("Starting audio editing process")
-edit_audio(input_file, output_file, unwanted_content_data['unwanted_content'])
-logging.info("Audio editing completed")
+    logging.info("Starting audio editing process")
+    edit_audio(input_filename, output_file, unwanted_content_data['unwanted_content'])
+    logging.info("Audio editing completed")
 
-logging.info("Script completed successfully")
+    logging.info("Script completed successfully")
