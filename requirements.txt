@@ -1,0 +1,5 @@
+openai
+google-generativeai
+python-dotenv
+whisper-openai
+pydub
