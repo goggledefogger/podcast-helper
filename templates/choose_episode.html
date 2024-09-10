@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Episode</title>
+</head>
+<body>
+    <h1>Choose an Episode</h1>
+
+    <form action="{{ url_for('process_podcast') }}" method="post">
+        <input type="hidden" name="rss_url" value="{{ rss_url }}">
+        <select name="episode_index">
+            {% for episode in episodes %}
+            <option value="{{ loop.index0 }}">{{ episode.title }} - {{ episode.published }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Process Episode</button>
+    </form>
+</body>
+</html>
