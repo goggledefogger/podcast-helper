@@ -26,7 +26,8 @@
                 <strong>RSS URL:</strong> {{ podcast.rss_url }}<br>
                 <strong>Edited Audio:</strong> <a href="{{ url_for('serve_output', filename=podcast.edited_url.split('/')[-1]) }}">Download</a><br>
                 <strong>Transcript:</strong> <a href="{{ url_for('serve_output', filename=podcast.transcript_file.split('/')[-1]) }}">View</a><br>
-                <strong>Unwanted Content:</strong> <a href="{{ url_for('serve_output', filename=podcast.unwanted_content_file.split('/')[-1]) }}">View</a>
+                <strong>Unwanted Content:</strong> <a href="{{ url_for('serve_output', filename=podcast.unwanted_content_file.split('/')[-1]) }}">View</a><br>
+                <strong>Modified RSS Feed:</strong> <a href="{{ url_for('get_modified_rss', rss_url=podcast.rss_url) }}">View</a>
             </li>
         {% endfor %}
         </ul>

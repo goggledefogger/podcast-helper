@@ -1,7 +1,8 @@
 import feedparser
 import xml.etree.ElementTree as ET
+from urllib.parse import urlparse, urljoin
 
-def create_modified_rss_feed(original_rss_url):
+def create_modified_rss_feed(original_rss_url, processed_podcasts, url_root):
     # Parse the original RSS feed
     feed = feedparser.parse(original_rss_url)
 
@@ -14,6 +15,9 @@ def create_modified_rss_feed(original_rss_url):
     ET.SubElement(channel, "link").text = feed.feed.link
     ET.SubElement(channel, "description").text = feed.feed.description
 
+    # Create a dictionary of processed episodes for quick lookup
+    processed_episodes = {ep['rss_url']: ep for ep in processed_podcasts}
+
     # Add items (episodes)
     for entry in feed.entries:
         item = ET.SubElement(channel, "item")
@@ -22,13 +26,21 @@ def create_modified_rss_feed(original_rss_url):
         ET.SubElement(item, "description").text = entry.description
         ET.SubElement(item, "pubDate").text = entry.published
 
-        # Replace the audio file URL with the edited version
         for link in entry.links:
             if link.type == 'audio/mpeg':
                 enclosure = ET.SubElement(item, "enclosure")
-                # Here, you would typically look up the edited URL from your database
-                edited_url = f"/output/{entry.title.replace(' ', '_')}_edited.mp3"
-                enclosure.set("url", edited_url)
+
+                # Check if this specific episode has been processed
+                processed_episode = next((ep for ep in processed_podcasts if ep['rss_url'] == original_rss_url and ep['edited_url'].split('/')[-1].startswith(entry.title.replace(' ', '_'))), None)
+
+                if processed_episode:
+                    # Use the edited audio URL for the processed episode
+                    edited_url = urljoin(url_root, processed_episode['edited_url'])
+                    enclosure.set("url", edited_url)
+                else:
+                    # Use the original URL for unprocessed episodes
+                    enclosure.set("url", link.href)
+
                 enclosure.set("type", "audio/mpeg")
                 break
 

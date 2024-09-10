@@ -92,7 +92,8 @@ def run_process():
 @app.route('/modified_rss/<path:rss_url>')
 def get_modified_rss(rss_url):
     try:
-        modified_rss = create_modified_rss_feed(rss_url)
+        processed_podcasts = load_processed_podcasts()
+        modified_rss = create_modified_rss_feed(rss_url, processed_podcasts, request.url_root)
         return modified_rss, 200, {'Content-Type': 'application/rss+xml'}
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -102,4 +103,4 @@ def serve_output(filename):
     return send_from_directory('output', filename)
 
 if __name__ == '__main__':
-    app.run(debug=True, threaded=True)
+    app.run(debug=False, threaded=True, host='0.0.0.0', port=5000)
