@@ -6,3 +6,4 @@ pydub
 feedparser
 requests
 tqdm
+mutagen

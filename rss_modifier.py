@@ -4,9 +4,18 @@ from urllib.parse import urlparse, urljoin
 import time
 import logging
 from functools import lru_cache
+import requests
+import os
+from mutagen.mp3 import MP3
 
 # Cache to store modified RSS feeds
 rss_cache = {}
+
+def get_audio_info(file_path):
+    file_size = os.path.getsize(file_path)
+    audio = MP3(file_path)
+    duration = int(audio.info.length)
+    return file_size, duration
 
 def create_modified_rss_feed(original_rss_url, processed_podcasts, url_root):
     # Check if the cached RSS feed is still valid
@@ -14,49 +23,45 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts, url_root):
     if cached_rss and time.time() - cached_rss['timestamp'] < 3600:  # 1 hour cache
         return cached_rss['content']
 
-    # If not in cache or expired, create a new modified RSS feed
-    feed = feedparser.parse(original_rss_url)
+    # If not in cache or expired, fetch the original RSS feed
+    response = requests.get(original_rss_url)
+    if response.status_code != 200:
+        raise ValueError(f"Failed to fetch RSS feed: {response.status_code}")
 
-    # Create a new RSS feed
-    rss = ET.Element("rss", version="2.0")
-    channel = ET.SubElement(rss, "channel")
-
-    # Add channel information
-    ET.SubElement(channel, "title").text = feed.feed.title
-    ET.SubElement(channel, "link").text = feed.feed.link
-    ET.SubElement(channel, "description").text = feed.feed.description
+    # Parse the XML content
+    root = ET.fromstring(response.content)
 
     # Create a dictionary of processed episodes for quick lookup
     processed_episodes = {ep['rss_url']: ep for ep in processed_podcasts}
 
-    # Add items (episodes)
-    for entry in feed.entries:
-        item = ET.SubElement(channel, "item")
-        ET.SubElement(item, "title").text = entry.title
-        ET.SubElement(item, "link").text = entry.link
-        ET.SubElement(item, "description").text = entry.description
-        ET.SubElement(item, "pubDate").text = entry.published
+    # Find all enclosure elements in the RSS feed
+    for item in root.findall('.//item'):
+        enclosure = item.find('enclosure')
+        if enclosure is not None:
+            original_url = enclosure.get('url')
 
-        for link in entry.links:
-            if link.type == 'audio/mpeg':
-                enclosure = ET.SubElement(item, "enclosure")
+            # Check if this specific episode has been processed
+            processed_episode = next((ep for ep in processed_podcasts if ep['rss_url'] == original_rss_url and ep['edited_url'].split('/')[-1].startswith(item.find('title').text.replace(' ', '_'))), None)
 
-                # Check if this specific episode has been processed
-                processed_episode = next((ep for ep in processed_podcasts if ep['rss_url'] == original_rss_url and ep['edited_url'].split('/')[-1].startswith(entry.title.replace(' ', '_'))), None)
+            if processed_episode:
+                # Use the edited audio URL for the processed episode
+                edited_url = urljoin(url_root, processed_episode['edited_url'])
+                enclosure.set("url", edited_url)
 
-                if processed_episode:
-                    # Use the edited audio URL for the processed episode
-                    edited_url = urljoin(url_root, processed_episode['edited_url'])
-                    enclosure.set("url", edited_url)
-                else:
-                    # Use the original URL for unprocessed episodes
-                    enclosure.set("url", link.href)
+                # Update the file size and duration
+                edited_file_path = os.path.join('output', os.path.basename(processed_episode['edited_url']))
+                new_size, new_duration = get_audio_info(edited_file_path)
 
-                enclosure.set("type", "audio/mpeg")
-                break
+                # Update the length attribute in the enclosure element
+                enclosure.set("length", str(new_size))
 
-    # Convert the XML tree to a string
-    modified_rss = ET.tostring(rss, encoding="unicode")
+                # Update the duration element
+                duration_elem = item.find('.//{http://www.itunes.com/dtds/podcast-1.0.dtd}duration')
+                if duration_elem is not None:
+                    duration_elem.text = str(new_duration)
+
+    # Convert the modified XML tree back to a string
+    modified_rss = ET.tostring(root, encoding="unicode")
 
     # Cache the result
     rss_cache[original_rss_url] = {
