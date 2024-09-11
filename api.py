@@ -8,6 +8,7 @@ import logging
 import queue
 import threading
 import requests
+from urllib.parse import unquote
 
 app = Flask(__name__)
 
@@ -157,8 +158,15 @@ def run_process():
 @app.route('/modified_rss/<path:rss_url>')
 def get_modified_rss(rss_url):
     try:
+        # Decode the URL-encoded rss_url
+        decoded_rss_url = unquote(rss_url)
+
+        # Check if the URL is missing a slash after 'https:'
+        if decoded_rss_url.startswith('https:/') and not decoded_rss_url.startswith('https://'):
+            decoded_rss_url = decoded_rss_url.replace('https:/', 'https://', 1)
+
         processed_podcasts = load_processed_podcasts()
-        modified_rss = get_or_create_modified_rss(rss_url, processed_podcasts, request.url_root)
+        modified_rss = get_or_create_modified_rss(decoded_rss_url, processed_podcasts, request.url_root)
 
         # Create a response with the XML content
         response = make_response(modified_rss)
