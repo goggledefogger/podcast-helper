@@ -11,7 +11,7 @@ import requests
 
 app = Flask(__name__)
 
-PROCESSED_PODCASTS_FILE = 'processed_podcasts.json'
+PROCESSED_PODCASTS_FILE = 'output/processed_podcasts.json'
 log_queue = queue.Queue()
 
 # Add Taddy API configuration
@@ -38,6 +38,9 @@ def load_processed_podcasts():
 
 def save_processed_podcast(podcast_data):
     podcasts = load_processed_podcasts()
+    # Ensure the podcast_data includes a podcast title
+    if 'podcast_title' not in podcast_data:
+        podcast_data['podcast_title'] = "Unknown Podcast"
     podcasts.append(podcast_data)
     with open(PROCESSED_PODCASTS_FILE, 'w') as f:
         json.dump(podcasts, f, indent=2)
@@ -135,6 +138,8 @@ def run_process():
         try:
             result = process_podcast_episode(rss_url, episode_index)
             save_processed_podcast({
+                "podcast_title": result['podcast_title'],
+                "episode_title": result['episode_title'],
                 "rss_url": rss_url,
                 "edited_url": result['edited_url'],
                 "transcript_file": result['transcript_file'],

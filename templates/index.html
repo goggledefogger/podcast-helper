@@ -31,6 +31,8 @@
         <ul>
         {% for podcast in podcasts %}
             <li>
+                <strong>Podcast Title:</strong> {{ podcast.podcast_title }}<br>
+                <strong>Episode Title:</strong> {{ podcast.episode_title }}<br>
                 <strong>RSS URL:</strong> {{ podcast.rss_url }}<br>
                 <strong>Edited Audio:</strong> <a href="{{ url_for('serve_output', filename=podcast.edited_url.split('/')[-1]) }}">Download</a><br>
                 <strong>Transcript:</strong> <a href="{{ url_for('serve_output', filename=podcast.transcript_file.split('/')[-1]) }}">View</a><br>

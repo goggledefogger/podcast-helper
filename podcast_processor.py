@@ -19,7 +19,8 @@ def process_podcast_episode(rss_url, episode_index=0):
         raise ValueError("Episode index out of range")
 
     chosen_episode = episodes[episode_index]
-    logging.info(f"Selected episode: {chosen_episode['title']}")
+    podcast_title = episodes[0]['podcast_title']  # Assuming the podcast title is the same for all episodes
+    logging.info(f"Selected episode: {chosen_episode['title']} from podcast: {podcast_title}")
 
     # Create input and output directories if they don't exist
     os.makedirs("input", exist_ok=True)
@@ -82,6 +83,8 @@ def process_podcast_episode(rss_url, episode_index=0):
     logging.info("Audio editing completed")
 
     result = {
+        "podcast_title": podcast_title,  # Add this line
+        "episode_title": chosen_episode['title'],
         "edited_url": f"/output/{os.path.basename(output_file)}",
         "transcript_file": transcript_filename,
         "unwanted_content_file": unwanted_content_filename

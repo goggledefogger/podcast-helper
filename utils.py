@@ -4,17 +4,25 @@ from tqdm import tqdm
 import sys
 import threading
 import time
+from datetime import datetime
 
 def get_podcast_episodes(rss_url):
     feed = feedparser.parse(rss_url)
     episodes = []
-    for entry in feed.entries:
+    podcast_title = feed.feed.title  # Get the podcast title
+    for i, entry in enumerate(feed.entries, 1):  # Start enumeration from 1
         for link in entry.links:
             if link.type == 'audio/mpeg':
+                # Parse the published date
+                published_date = datetime.strptime(entry.published, '%a, %d %b %Y %H:%M:%S %z')
+                # Format the date as YYYY-MM-DD
+                formatted_date = published_date.strftime('%Y-%m-%d')
                 episodes.append({
+                    'number': i,  # Add episode number
                     'title': entry.title,
                     'url': link.href,
-                    'published': entry.published
+                    'published': formatted_date,
+                    'podcast_title': podcast_title  # Add podcast title to each episode
                 })
                 break
     return episodes

@@ -28,3 +28,5 @@ Thumbs.db
 # Project-specific files
 input/
 output/
+
+.cloudflared/
