@@ -9,6 +9,7 @@ This project is designed to process podcast audio files, transcribe them, and id
 - Analyze transcripts using AI to identify specific content segments
 - Support for multiple AI providers (OpenAI GPT and Google Gemini)
 - Generate timestamped transcripts and content analysis reports
+- Search for podcasts using the Taddy API
 
 ## Requirements
 
@@ -34,16 +35,38 @@ This project is designed to process podcast audio files, transcribe them, and id
    ```
    Then edit the `.env` file with your preferred text editor and add your API keys.
 
+## Taddy API Setup
+
+To use the Taddy API for podcast search functionality, you need to set up the following:
+
+1. Sign up for a Taddy API account at [https://taddy.org](https://taddy.org)
+
+2. Once you have your account, obtain your API key and User ID from the Taddy dashboard.
+
+3. In your `.env` file, add the following lines:
+   ```
+   TADDY_API_URL=https://api.taddy.org
+   TADDY_API_KEY=your_taddy_api_key_here
+   TADDY_USER_ID=your_taddy_user_id_here
+   ```
+   Replace `your_taddy_api_key_here` and `your_taddy_user_id_here` with your Taddy API key and User ID.
+
+4. The application will now use the Taddy API for podcast searches when you run it.
+
 ## Usage
 
-1. Set the `PODCAST_URL` variable in `start.py` to the URL of the podcast episode you want to process.
-
-2. Run the script:
+1. Start the Flask application:
    ```
-   python start.py
+   python api.py
    ```
 
-3. The script will:
+2. Open a web browser and navigate to `http://localhost:5000`.
+
+3. Use the search functionality to find podcasts, or enter an RSS URL directly.
+
+4. Select an episode to process.
+
+5. The application will:
    - Download the podcast if it's not already present
    - Transcribe the audio
    - Analyze the transcript to identify specific content segments
@@ -53,10 +76,11 @@ This project is designed to process podcast audio files, transcribe them, and id
 
 - `transcript.txt`: A timestamped transcript of the podcast
 - `content_segments.json`: A JSON file containing identified content segments
+- `edited_audio.mp3`: An edited version of the podcast with unwanted content removed
 
 ## Customization
 
-You can customize the content identification process by modifying the prompts in the `find_content_segments` function within `start.py`.
+You can customize the content identification process by modifying the prompts in the `find_content_segments` function within `podcast_processor.py`.
 
 ## Contributing
 

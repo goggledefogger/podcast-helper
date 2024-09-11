@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podcast Search Results</title>
+</head>
+<body>
+    <h1>Podcast Search Results</h1>
+    <p>Search query: "{{ query }}"</p>
+    <p>Number of podcasts found: {{ podcasts|length }}</p>
+
+    {% if podcasts %}
+        <ul>
+        {% for podcast in podcasts %}
+            <li>
+                <h2>{{ podcast.name }}</h2>
+                {% if podcast.imageUrl %}
+                    <img src="{{ podcast.imageUrl }}" alt="{{ podcast.name }}" width="100">
+                {% else %}
+                    <p>No image available</p>
+                {% endif %}
+                <p>{{ podcast.description or 'No description available' }}</p>
+                {% if podcast.rssUrl %}
+                    <form action="{{ url_for('choose_episode') }}" method="post">
+                        <input type="hidden" name="rss_url" value="{{ podcast.rssUrl }}">
+                        <button type="submit">Select Episodes</button>
+                    </form>
+                {% else %}
+                    <p>RSS URL not available</p>
+                {% endif %}
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No podcasts found for the given search query.</p>
+    {% endif %}
+
+    <a href="{{ url_for('index') }}">Back to Home</a>
+</body>
+</html>

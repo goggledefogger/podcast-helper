@@ -12,7 +12,15 @@
     <p style="color: red;">{{ error }}</p>
     {% endif %}
 
+    <h2>Search for Podcasts</h2>
     <form action="{{ url_for('index') }}" method="post">
+        <label for="search_query">Search Query:</label>
+        <input type="text" id="search_query" name="search_query" required>
+        <button type="submit">Search</button>
+    </form>
+
+    <h2>Or Enter RSS URL Directly</h2>
+    <form action="{{ url_for('choose_episode') }}" method="post">
         <label for="rss_url">Podcast RSS URL:</label>
         <input type="text" id="rss_url" name="rss_url" required>
         <button type="submit">Get Episodes</button>

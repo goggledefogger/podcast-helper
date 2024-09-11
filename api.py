@@ -7,11 +7,17 @@ import os
 import logging
 import queue
 import threading
+import requests
 
 app = Flask(__name__)
 
 PROCESSED_PODCASTS_FILE = 'processed_podcasts.json'
 log_queue = queue.Queue()
+
+# Add Taddy API configuration
+TADDY_API_URL = os.getenv("TADDY_API_URL", "https://api.taddy.org")
+TADDY_API_KEY = os.getenv("TADDY_API_KEY")
+TADDY_USER_ID = os.getenv("TADDY_USER_ID")
 
 class QueueHandler(logging.Handler):
     def emit(self, record):
@@ -36,16 +42,68 @@ def save_processed_podcast(podcast_data):
     with open(PROCESSED_PODCASTS_FILE, 'w') as f:
         json.dump(podcasts, f, indent=2)
 
+# Add a new function to search podcasts using Taddy API
+def search_podcasts(query):
+    headers = {
+        "Content-Type": "application/json",
+        "X-USER-ID": TADDY_USER_ID,
+        "X-API-KEY": TADDY_API_KEY
+    }
+
+    graphql_query = {
+        "query": f"""
+        query {{
+          getPodcastSeries(name: "{query}") {{
+            uuid
+            name
+            description
+            imageUrl
+            rssUrl
+          }}
+        }}
+        """
+    }
+
+    response = requests.post(TADDY_API_URL, json=graphql_query, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        logging.info(f"API Response: {data}")  # Log the entire response
+        podcasts_data = data.get("data", {}).get("getPodcastSeries")
+
+        if podcasts_data is None:
+            logging.warning(f"No podcasts found for query: {query}")
+            return []
+
+        # If it's a dictionary, wrap it in a list
+        if isinstance(podcasts_data, dict):
+            podcasts = [podcasts_data]
+        elif isinstance(podcasts_data, list):
+            podcasts = podcasts_data
+        else:
+            logging.error(f"Unexpected data type for podcasts: {type(podcasts_data)}")
+            return []
+
+        logging.info(f"Found {len(podcasts)} podcasts")
+        for podcast in podcasts:
+            logging.info(f"Podcast: {podcast.get('name', 'Unknown')}")
+        return podcasts
+    else:
+        logging.error(f"Error searching podcasts: {response.text}")
+        return []
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        rss_url = request.form.get('rss_url')
-        if rss_url:
+        search_query = request.form.get('search_query')
+        if search_query:
             try:
-                episodes = get_podcast_episodes(rss_url)
-                return render_template('choose_episode.html', episodes=episodes, rss_url=rss_url)
+                podcasts = search_podcasts(search_query)
+                logging.info(f"Found {len(podcasts)} podcasts for query: {search_query}")
+                return render_template('search_results.html', podcasts=podcasts, query=search_query)
             except Exception as e:
-                return render_template('index.html', error=str(e))
+                logging.error(f"Error in podcast search: {str(e)}")
+                return render_template('index.html', error=f"An error occurred: {str(e)}")
 
     processed_podcasts = load_processed_podcasts()
     return render_template('index.html', podcasts=processed_podcasts)
@@ -112,6 +170,16 @@ def get_modified_rss(rss_url):
 @app.route('/output/<path:filename>')
 def serve_output(filename):
     return send_from_directory('output', filename)
+
+@app.route('/choose_episode', methods=['POST'])
+def choose_episode():
+    rss_url = request.form.get('rss_url')
+    if rss_url:
+        try:
+            episodes = get_podcast_episodes(rss_url)
+            return render_template('choose_episode.html', episodes=episodes, rss_url=rss_url)
+        except Exception as e:
+            return render_template('index.html', error=str(e))
 
 if __name__ == '__main__':
     app.run(debug=False, threaded=True, host='0.0.0.0', port=5000)
