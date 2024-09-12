@@ -94,8 +94,8 @@ def run_with_animation(func, *args, **kwargs):
 
     result = None
     try:
+        result = func(*args, **kwargs)
         while result is None:
-            result = func(*args, **kwargs)
             animate()
             time.sleep(0.1)
     except Exception as e:

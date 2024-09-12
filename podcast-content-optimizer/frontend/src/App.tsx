@@ -160,96 +160,120 @@ const App: React.FC = () => {
       <header className="App-header">
         <h1>Podcast Content Optimizer</h1>
       </header>
-      <main>
-        <div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search for podcasts"
-          />
-          <button onClick={searchPodcasts} disabled={isLoading}>
-            Search
-          </button>
-        </div>
+      <main className="App-main">
+        <section className="search-section" aria-labelledby="search-heading">
+          <h2 id="search-heading">Search for a Podcast</h2>
+          <div className="search-container">
+            <label htmlFor="search-input" className="visually-hidden">Search for podcasts</label>
+            <input
+              id="search-input"
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Enter podcast name"
+              aria-describedby="search-description"
+            />
+            <button onClick={searchPodcasts} disabled={isLoading || !searchQuery.trim()}>
+              Search
+            </button>
+          </div>
+          <p id="search-description" className="helper-text">Enter a podcast name to search for available episodes.</p>
+        </section>
 
         {searchResults.length > 0 && (
-          <div>
-            <h2>Search Results</h2>
-            <ul>
+          <section className="search-results" aria-labelledby="results-heading">
+            <h2 id="results-heading">Search Results</h2>
+            <ul className="podcast-list">
               {searchResults.map((podcast) => (
-                <li key={podcast.uuid}>
-                  <h3>{podcast.name}</h3>
-                  <p>{podcast.description}</p>
-                  {podcast.imageUrl && <img src={podcast.imageUrl} alt={podcast.name} style={{maxWidth: '100px'}} />}
-                  <button onClick={() => selectPodcast(podcast.rssUrl)}>Select</button>
+                <li key={podcast.uuid} className="podcast-item">
+                  <div className="podcast-info">
+                    <h3>{podcast.name}</h3>
+                    <p>{podcast.description}</p>
+                  </div>
+                  {podcast.imageUrl && (
+                    <img src={podcast.imageUrl} alt={`${podcast.name} cover`} className="podcast-image" />
+                  )}
+                  <button onClick={() => selectPodcast(podcast.rssUrl)} className="select-button">
+                    Select
+                  </button>
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         )}
 
         {rssUrl && (
-          <div>
-            <h2>Selected Podcast RSS URL</h2>
-            <p>{rssUrl}</p>
-            <button onClick={() => fetchEpisodes(rssUrl)} disabled={isLoading}>
+          <section className="selected-podcast" aria-labelledby="selected-heading">
+            <h2 id="selected-heading">Selected Podcast</h2>
+            <p className="rss-url">{rssUrl}</p>
+            <button onClick={() => fetchEpisodes(rssUrl)} disabled={isLoading} className="fetch-button">
               Fetch Episodes
             </button>
-          </div>
+          </section>
         )}
 
         {episodes.length > 0 && (
-          <div>
-            <h2>Select an Episode</h2>
-            <select
-              value={selectedEpisode ?? ''}
-              onChange={(e) => setSelectedEpisode(Number(e.target.value))}
-            >
-              <option value="">Select an episode</option>
-              {episodes.map((episode, index) => (
-                <option key={index} value={index}>
-                  {episode.title} - {episode.published}
-                </option>
-              ))}
-            </select>
-            <button onClick={processEpisode} disabled={isLoading || selectedEpisode === null}>
-              Process Episode
-            </button>
-          </div>
+          <section className="episode-selection" aria-labelledby="episode-heading">
+            <h2 id="episode-heading">Select an Episode</h2>
+            <div className="episode-container">
+              <label htmlFor="episode-select" className="visually-hidden">Choose an episode</label>
+              <select
+                id="episode-select"
+                value={selectedEpisode ?? ''}
+                onChange={(e) => setSelectedEpisode(Number(e.target.value))}
+                className="episode-select"
+              >
+                <option value="">Select an episode</option>
+                {episodes.map((episode, index) => (
+                  <option key={index} value={index}>
+                    {episode.title} - {episode.published}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={processEpisode}
+                disabled={isLoading || selectedEpisode === null}
+                className="process-button"
+              >
+                Process Episode
+              </button>
+            </div>
+          </section>
         )}
 
         {isLoading && (
-          <div>
+          <section className="processing" aria-live="polite">
             <h3>Processing...</h3>
-            <ul>
+            <ul className="log-list">
               {processingLogs.map((log, index) => (
                 <li key={index}>{log}</li>
               ))}
             </ul>
-          </div>
+          </section>
         )}
 
         {processedPodcasts.length > 0 ? (
-          <div>
-            <h2>Processed Podcasts</h2>
-            <ul>
+          <section className="processed-podcasts" aria-labelledby="processed-heading">
+            <h2 id="processed-heading">Processed Podcasts</h2>
+            <ul className="processed-list">
               {processedPodcasts.map((podcast, index) => (
-                <li key={index}>
+                <li key={index} className="processed-item">
                   <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
-                  <p>Edited Audio: <a href={podcast.edited_url} target="_blank" rel="noopener noreferrer">Download</a></p>
-                  <p>Transcript: <a href={podcast.transcript_file} target="_blank" rel="noopener noreferrer">View</a></p>
-                  <p>Unwanted Content: <a href={podcast.unwanted_content_file} target="_blank" rel="noopener noreferrer">View</a></p>
-                  <p>Modified RSS Feed: <a href={getModifiedRssFeed(podcast.rss_url)} target="_blank" rel="noopener noreferrer">View</a></p>
+                  <div className="processed-links">
+                    <a href={podcast.edited_url} target="_blank" rel="noopener noreferrer" className="download-link">Download Edited Audio</a>
+                    <a href={podcast.transcript_file} target="_blank" rel="noopener noreferrer" className="view-link">View Transcript</a>
+                    <a href={podcast.unwanted_content_file} target="_blank" rel="noopener noreferrer" className="view-link">View Unwanted Content</a>
+                    <a href={getModifiedRssFeed(podcast.rss_url)} target="_blank" rel="noopener noreferrer" className="view-link">View Modified RSS Feed</a>
+                  </div>
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         ) : (
-          <p>No processed podcasts available. Process an episode to see results here.</p>
+          <p className="no-podcasts">No processed podcasts available. Process an episode to see results here.</p>
         )}
 
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error" role="alert">{error}</p>}
       </main>
     </div>
   );

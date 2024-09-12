@@ -95,8 +95,12 @@ def process_podcast_episode(rss_url, episode_index=0):
     # Edit the audio file
     logging.info(f"Starting audio editing process. Output file: {output_file}")
     try:
-        run_with_animation(edit_audio, input_filename, output_file, unwanted_content['unwanted_content'])
-        logging.info("Audio editing completed")
+        if unwanted_content['unwanted_content']:
+            run_with_animation(edit_audio, input_filename, output_file, unwanted_content['unwanted_content'])
+            logging.info("Audio editing completed")
+        else:
+            logging.info("No unwanted content found. Skipping audio editing.")
+            output_file = input_filename
     except Exception as e:
         logging.error(f"Error during audio editing: {str(e)}")
         output_file = input_filename
