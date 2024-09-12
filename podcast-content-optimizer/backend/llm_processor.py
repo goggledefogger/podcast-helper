@@ -50,5 +50,39 @@ def process_with_openai(transcript):
     return response.choices[0].message.content
 
 def process_with_gemini(transcript):
-    # Implement Gemini processing here
-    pass
+    genai.configure(api_key=GOOGLE_API_KEY)
+    model = genai.GenerativeModel('gemini-pro')
+    response = model.generate_content(
+        "Here is a transcript, please identify the start and end times of sections that contain unwanted content.\n" +
+        "Provide the output as a JSON array where each object has 'start_time', 'end_time', and 'description' keys.\n" +
+        "Example format: [{'start_time': '00:10:15', 'end_time': '00:12:45', 'description': 'Unwanted content 1'}].\n" +
+        "Here is the transcript:\n\n" +
+        f"{transcript}"
+    )
+    return response.text
+
+def parse_llm_response(llm_response):
+    try:
+        # Attempt to parse the response as JSON
+        unwanted_content = json.loads(llm_response)
+        if isinstance(unwanted_content, list):
+            return {"unwanted_content": unwanted_content}
+        else:
+            raise ValueError("LLM response is not a list")
+    except json.JSONDecodeError:
+        # If JSON parsing fails, attempt to extract JSON-like content
+        import re
+        json_pattern = r'\[.*?\]'
+        match = re.search(json_pattern, llm_response, re.DOTALL)
+        if match:
+            try:
+                unwanted_content = json.loads(match.group())
+                return {"unwanted_content": unwanted_content}
+            except json.JSONDecodeError:
+                logging.error("Failed to parse extracted JSON-like content")
+        else:
+            logging.error("No JSON-like content found in LLM response")
+
+    # If all parsing attempts fail, return an empty list
+    logging.warning("Returning empty list due to parsing failure")
+    return {"unwanted_content": []}

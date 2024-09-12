@@ -75,22 +75,38 @@ def get_episodes():
 def process_episode():
     rss_url = request.json.get('rss_url')
     episode_index = request.json.get('episode_index')
+    logging.info(f"Received process request for RSS URL: {rss_url}, Episode Index: {episode_index}")
 
     def process():
         try:
+            log_queue.put("Starting podcast processing")
             result = process_podcast_episode(rss_url, episode_index)
+
+            if "error" in result:
+                error_message = f"Error in podcast processing: {result['error']}"
+                log_queue.put(error_message)
+                logging.error(error_message)
+                return
+
+            log_queue.put("Saving processed podcast data")
             save_processed_podcast({
                 "podcast_title": result['podcast_title'],
                 "episode_title": result['episode_title'],
                 "rss_url": rss_url,
-                "edited_url": result['edited_audio_file'],
+                "edited_url": result['edited_url'],
                 "transcript_file": result['transcript_file'],
                 "unwanted_content_file": result['unwanted_content_file']
             })
+
+            log_queue.put(f"Invalidating RSS cache for {rss_url}")
             invalidate_rss_cache(rss_url)
+
             log_queue.put("Processing completed successfully.")
         except Exception as e:
-            log_queue.put(f"Error: {str(e)}")
+            error_message = f"Error in process_episode: {str(e)}"
+            log_queue.put(error_message)
+            logging.error(error_message)
+            logging.error(traceback.format_exc())
 
     threading.Thread(target=process).start()
     return jsonify({"message": "Processing started"}), 202
@@ -98,10 +114,12 @@ def process_episode():
 @app.route('/api/stream')
 def stream():
     def generate():
+        logging.info("Starting event stream")
         while True:
             try:
                 log_entry = log_queue.get(timeout=1)
-                yield f"data: {log_entry}\n\n"
+                if log_entry:
+                    yield f"data: {log_entry}\n\n"
             except queue.Empty:
                 yield "data: \n\n"  # Send an empty message to keep the connection alive
 
