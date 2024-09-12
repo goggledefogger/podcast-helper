@@ -34,9 +34,9 @@
                 <strong>Podcast Title:</strong> {{ podcast.podcast_title }}<br>
                 <strong>Episode Title:</strong> {{ podcast.episode_title }}<br>
                 <strong>RSS URL:</strong> {{ podcast.rss_url }}<br>
-                <strong>Edited Audio:</strong> <a href="{{ url_for('serve_output', filename=podcast.edited_url.split('/')[-1]) }}">Download</a><br>
-                <strong>Transcript:</strong> <a href="{{ url_for('serve_output', filename=podcast.transcript_file.split('/')[-1]) }}">View</a><br>
-                <strong>Unwanted Content:</strong> <a href="{{ url_for('serve_output', filename=podcast.unwanted_content_file.split('/')[-1]) }}">View</a><br>
+                <strong>Edited Audio:</strong> <a href="{{ url_for('serve_episode_file', podcast_title=podcast.podcast_title, episode_title=podcast.episode_title, filename=podcast.edited_url.split('/')[-1]) }}">Download</a><br>
+                <strong>Transcript:</strong> <a href="{{ url_for('serve_episode_file', podcast_title=podcast.podcast_title, episode_title=podcast.episode_title, filename=podcast.transcript_file.split('/')[-1]) }}">View</a><br>
+                <strong>Unwanted Content:</strong> <a href="{{ url_for('serve_episode_file', podcast_title=podcast.podcast_title, episode_title=podcast.episode_title, filename='unwanted_content.json') }}">View</a><br>
                 <strong>Modified RSS Feed:</strong> <a href="{{ url_for('get_modified_rss', rss_url=podcast.rss_url) }}">View</a>
             </li>
         {% endfor %}

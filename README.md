@@ -75,7 +75,7 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
 ## Output
 
 - `transcript.txt`: A timestamped transcript of the podcast
-- `content_segments.json`: A JSON file containing identified content segments
+- `content_segments.json`: A JSON file containing identified content segments (e.g., `[{"start_time": "00:10:15", "end_time": "00:12:45", "description": "Advertisement"}]`)
 - `edited_audio.mp3`: An edited version of the podcast with unwanted content removed
 
 ## Customization

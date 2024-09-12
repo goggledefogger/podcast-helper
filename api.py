@@ -166,7 +166,13 @@ def get_modified_rss(rss_url):
             decoded_rss_url = decoded_rss_url.replace('https:/', 'https://', 1)
 
         processed_podcasts = load_processed_podcasts()
-        modified_rss = get_or_create_modified_rss(decoded_rss_url, processed_podcasts, request.url_root)
+
+        # Get the host from the request
+        host = request.headers.get('Host')
+        # Construct the URL root using the request scheme and host
+        url_root = f"{request.scheme}://{host}/"
+
+        modified_rss = get_or_create_modified_rss(decoded_rss_url, processed_podcasts, url_root)
 
         # Create a response with the XML content
         response = make_response(modified_rss)
@@ -182,7 +188,14 @@ def get_modified_rss(rss_url):
 
 @app.route('/output/<path:filename>')
 def serve_output(filename):
-    return send_from_directory('output', filename)
+    return send_from_directory('output', filename, as_attachment=True)
+
+@app.route('/output/<path:podcast_title>/<path:episode_title>/<path:filename>')
+def serve_episode_file(podcast_title, episode_title, filename):
+    safe_podcast_title = "".join([c for c in podcast_title if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+    safe_episode_title = "".join([c for c in episode_title if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+    directory = os.path.join('output', safe_podcast_title, safe_episode_title)
+    return send_from_directory(directory, filename)
 
 @app.route('/choose_episode', methods=['POST'])
 def choose_episode():
@@ -193,6 +206,10 @@ def choose_episode():
             return render_template('choose_episode.html', episodes=episodes, rss_url=rss_url)
         except Exception as e:
             return render_template('index.html', error=str(e))
+
+@app.route('/output/<path:podcast_title>/images/<path:filename>')
+def serve_image(podcast_title, filename):
+    return send_from_directory(os.path.join('output', podcast_title, 'images'), filename)
 
 if __name__ == '__main__':
     app.run(debug=False, threaded=True, host='0.0.0.0', port=5000)

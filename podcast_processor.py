@@ -7,6 +7,11 @@ import logging
 import json
 import time
 
+def get_episode_folder(podcast_title, episode_title):
+    safe_podcast_title = "".join([c for c in podcast_title if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+    safe_episode_title = "".join([c for c in episode_title if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+    return os.path.join('output', safe_podcast_title, safe_episode_title)
+
 def process_podcast_episode(rss_url, episode_index=0):
     logging.info(f"Starting to process podcast episode from RSS: {rss_url}")
 
@@ -22,72 +27,93 @@ def process_podcast_episode(rss_url, episode_index=0):
     podcast_title = episodes[0]['podcast_title']  # Assuming the podcast title is the same for all episodes
     logging.info(f"Selected episode: {chosen_episode['title']} from podcast: {podcast_title}")
 
-    # Create input and output directories if they don't exist
-    os.makedirs("input", exist_ok=True)
-    os.makedirs("output", exist_ok=True)
-    logging.info("Ensured input and output directories exist")
+    # Create episode folder
+    episode_folder = get_episode_folder(podcast_title, chosen_episode['title'])
+    os.makedirs(episode_folder, exist_ok=True)
 
-    # Download the chosen episode
-    input_filename = f"input/{chosen_episode['title'].replace(' ', '_')}.mp3"
-    logging.info(f"Downloading episode to {input_filename}")
-    run_with_animation(download_episode, chosen_episode['url'], input_filename)
-    logging.info("Episode download completed")
+    # Update file paths
+    input_filename = os.path.join(episode_folder, f"original_{chosen_episode['title'].replace(' ', '_')}.mp3")
+    transcript_filename = os.path.join(episode_folder, f"transcript.txt")
+    unwanted_content_filename = os.path.join(episode_folder, f"unwanted_content.json")
+    output_file = os.path.join(episode_folder, f"edited_{chosen_episode['title'].replace(' ', '_')}.mp3")
 
-    # Run Whisper to transcribe with animation
-    logging.info("Initializing Whisper model for transcription...")
-    model = whisper.load_model("base")
+    # Check if the original audio file exists
+    if not os.path.exists(input_filename):
+        # Download the chosen episode
+        logging.info(f"Downloading episode to {input_filename}")
+        run_with_animation(download_episode, chosen_episode['url'], input_filename)
+        logging.info("Episode download completed")
+    else:
+        logging.info(f"Using existing audio file: {input_filename}")
 
-    def transcribe():
-        logging.info("Starting transcription process...")
-        start_time = time.time()
-        result = model.transcribe(input_filename)
-        end_time = time.time()
-        logging.info(f"Transcription completed in {end_time - start_time:.2f} seconds")
-        return result
+    # Check if the transcript file exists
+    if not os.path.exists(transcript_filename):
+        # Run Whisper to transcribe with animation
+        logging.info("Initializing Whisper model for transcription...")
+        model = whisper.load_model("base")
 
-    logging.info("Running transcription with animation...")
-    result = run_with_animation(transcribe)
+        def transcribe():
+            logging.info("Starting transcription process...")
+            start_time = time.time()
+            result = model.transcribe(input_filename)
+            end_time = time.time()
+            logging.info(f"Transcription completed in {end_time - start_time:.2f} seconds")
+            return result
 
-    if result is None or "segments" not in result:
-        logging.error("Transcription failed or returned unexpected result")
-        raise ValueError("Transcription failed")
+        logging.info("Running transcription with animation...")
+        result = run_with_animation(transcribe)
 
-    # Output the transcription to a file that includes timestamps
-    transcript_filename = f"output/{chosen_episode['title'].replace(' ', '_')}_transcript.txt"
-    logging.info(f"Writing transcript to {transcript_filename}")
-    with open(transcript_filename, "w") as f:
-        for item in result["segments"]:
-            f.write(f"{item['start']} - {item['end']}: {item['text']}\n")
-    logging.info("Transcript file created successfully")
+        if result is None or "segments" not in result:
+            logging.error("Transcription failed or returned unexpected result")
+            raise ValueError("Transcription failed")
 
-    # Find unwanted content
-    logging.info("Starting unwanted content detection...")
-    llm_response = run_with_animation(find_unwanted_content, transcript_filename)
-    logging.info("Unwanted content detection completed")
+        # Output the transcription to a file that includes timestamps
+        logging.info(f"Writing transcript to {transcript_filename}")
+        with open(transcript_filename, "w") as f:
+            for item in result["segments"]:
+                f.write(f"{item['start']} - {item['end']}: {item['text']}\n")
+        logging.info("Transcript file created successfully")
+    else:
+        logging.info(f"Using existing transcript file: {transcript_filename}")
 
-    logging.info("Parsing LLM response...")
-    unwanted_content = parse_llm_response(llm_response)
-    logging.info(f"Found {len(unwanted_content['unwanted_content'])} segments of unwanted content")
+    # Check if the unwanted content file exists
+    if not os.path.exists(unwanted_content_filename):
+        # Find unwanted content
+        logging.info("Starting unwanted content detection...")
+        llm_response = run_with_animation(find_unwanted_content, transcript_filename)
+        logging.info("Unwanted content detection completed")
 
-    # Write the unwanted_content to a file
-    unwanted_content_filename = f"output/{chosen_episode['title'].replace(' ', '_')}_unwanted_content.json"
-    logging.info(f"Writing unwanted content to {unwanted_content_filename}")
-    with open(unwanted_content_filename, "w") as f:
-        json.dump(unwanted_content, f, indent=2)
-    logging.info("Unwanted content file created successfully")
+        logging.info("Parsing LLM response...")
+        unwanted_content = parse_llm_response(llm_response)
+        logging.info(f"Found {len(unwanted_content['unwanted_content'])} segments of unwanted content")
+
+        # Write the unwanted_content to a file
+        logging.info(f"Writing unwanted content to {unwanted_content_filename}")
+        with open(unwanted_content_filename, "w") as f:
+            json.dump(unwanted_content, f, indent=2)
+        logging.info("Unwanted content file created successfully")
+    else:
+        logging.info(f"Using existing unwanted content file: {unwanted_content_filename}")
+        with open(unwanted_content_filename, "r") as f:
+            unwanted_content = json.load(f)
 
     # Edit the audio file
-    output_file = f"output/{chosen_episode['title'].replace(' ', '_')}_edited.mp3"
     logging.info(f"Starting audio editing process. Output file: {output_file}")
-    run_with_animation(edit_audio, input_filename, output_file, unwanted_content['unwanted_content'])
-    logging.info("Audio editing completed")
+    try:
+        run_with_animation(edit_audio, input_filename, output_file, unwanted_content['unwanted_content'])
+        logging.info("Audio editing completed")
+    except Exception as e:
+        logging.error(f"Error during audio editing: {str(e)}")
+        # If there's an error, we'll skip the editing and use the original file
+        output_file = input_filename
+        logging.info("Using original audio file due to editing error")
 
     result = {
-        "podcast_title": podcast_title,  # Add this line
+        "podcast_title": podcast_title,  # Make sure this is included
         "episode_title": chosen_episode['title'],
-        "edited_url": f"/output/{os.path.basename(output_file)}",
-        "transcript_file": transcript_filename,
-        "unwanted_content_file": unwanted_content_filename
+        "edited_url": f"/{os.path.relpath(output_file, 'output')}",
+        "transcript_file": f"/{os.path.relpath(transcript_filename, 'output')}",
+        "unwanted_content_file": f"/{os.path.relpath(unwanted_content_filename, 'output')}"
     }
     logging.info("Podcast processing completed successfully")
     return result

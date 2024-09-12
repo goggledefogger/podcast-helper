@@ -76,11 +76,11 @@ def process_with_gemini(transcript):
                     "properties": {
                         "start_time": {
                             "type": "string",
-                            "description": "Start time of unwanted content in HH:MM:SS format"
+                            "description": "Start time of unwanted content in HH:MM:SS format (e.g., '00:02:00' for 2 minutes)"
                         },
                         "end_time": {
                             "type": "string",
-                            "description": "End time of unwanted content in HH:MM:SS format"
+                            "description": "End time of unwanted content in HH:MM:SS format (e.g., '00:03:00' for 3 minutes)"
                         },
                         "description": {
                             "type": "string",
@@ -95,7 +95,8 @@ def process_with_gemini(transcript):
     }
 
     prompt = (f"Follow JSON schema.<JSONSchema>{json.dumps(json_schema)}</JSONSchema>\n\n"
-              f"Analyze the following transcript and identify unwanted content according to the schema:\n\n{transcript}")
+              f"Analyze the following transcript and identify unwanted content according to the schema. "
+              f"Please provide all times in HH:MM:SS format (e.g., '00:02:00' for 2 minutes):\n\n{transcript}")
 
     try:
         response = model.generate_content(prompt)
