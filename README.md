@@ -10,6 +10,9 @@ This project is designed to process podcast audio files, transcribe them, and id
 - Support for multiple AI providers (OpenAI GPT and Google Gemini)
 - Generate timestamped transcripts and content analysis reports
 - Search for podcasts using the Taddy API
+- Web interface for podcast selection and processing
+- Automatic generation of new magical RSS feeds
+- Caching system for improved performance
 
 ## Requirements
 
@@ -51,8 +54,6 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
    ```
    Replace `your_taddy_api_key_here` and `your_taddy_user_id_here` with your Taddy API key and User ID.
 
-4. The application will now use the Taddy API for podcast searches when you run it.
-
 ## Usage
 
 1. Start the Flask application:
@@ -71,16 +72,26 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
    - Transcribe the audio
    - Analyze the transcript to identify specific content segments
    - Generate output files in the `output/` directory
+   - Create a modified RSS feed with links to the edited content
 
 ## Output
 
 - `transcript.txt`: A timestamped transcript of the podcast
-- `content_segments.json`: A JSON file containing identified content segments (e.g., `[{"start_time": "00:10:15", "end_time": "00:12:45", "description": "Advertisement"}]`)
+- `unwanted_content.json`: A JSON file containing identified content segments
 - `edited_audio.mp3`: An edited version of the podcast with unwanted content removed
+- Modified RSS feed: An updated RSS feed with links to the edited content
+
+## Developer Notes
+
+- The project now uses a caching system for RSS feeds to improve performance and reduce API calls.
+- The `rss_modifier.py` file contains functions for modifying RSS feeds and handling podcast images.
+- The web interface (`templates/` directory) has been updated to support podcast searching and episode selection.
+- Error handling and logging have been improved throughout the application.
+- The `utils.py` file contains helper functions, including a progress animation for long-running tasks.
 
 ## Customization
 
-You can customize the content identification process by modifying the prompts in the `find_content_segments` function within `podcast_processor.py`.
+You can customize the content identification process by modifying the prompts in the `find_unwanted_content` function within `llm_processor.py`.
 
 ## Contributing
 
