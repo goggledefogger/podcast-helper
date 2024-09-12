@@ -2,6 +2,8 @@
 
 This project is designed to process podcast audio files, transcribe them, and identify specific segments for potential removal or editing. It uses advanced speech recognition and natural language processing techniques to enhance the listening experience by focusing on the most relevant content.
 
+## Project Structure
+
 ## Features
 
 - Download podcast episodes from a given URL
