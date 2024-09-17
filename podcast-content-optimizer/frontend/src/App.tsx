@@ -274,15 +274,25 @@ const App: React.FC = () => {
             <h2 id="processed-heading">Processed Podcasts</h2>
             <ul className="processed-list">
               {processedPodcasts.map((podcast, index) => (
-                <li key={index} className="processed-item">
-                  <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
-                  <div className="processed-links">
-                    <a href={podcast.edited_url} target="_blank" rel="noopener noreferrer" className="download-link">Download Edited Audio</a>
-                    <a href={podcast.transcript_file} target="_blank" rel="noopener noreferrer" className="view-link">View Transcript</a>
-                    <a href={podcast.unwanted_content_file} target="_blank" rel="noopener noreferrer" className="view-link">View Unwanted Content</a>
-                    <a href={getModifiedRssFeed(podcast.rss_url)} target="_blank" rel="noopener noreferrer" className="view-link">View Modified RSS Feed</a>
-                  </div>
-                </li>
+                podcast && podcast.podcast_title && podcast.episode_title ? (
+                  <li key={index} className="processed-item">
+                    <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
+                    <div className="processed-links">
+                      {podcast.edited_url && (
+                        <a href={podcast.edited_url} target="_blank" rel="noopener noreferrer" className="download-link">Download Edited Audio</a>
+                      )}
+                      {podcast.transcript_file && (
+                        <a href={podcast.transcript_file} target="_blank" rel="noopener noreferrer" className="view-link">View Transcript</a>
+                      )}
+                      {podcast.unwanted_content_file && (
+                        <a href={podcast.unwanted_content_file} target="_blank" rel="noopener noreferrer" className="view-link">View Unwanted Content</a>
+                      )}
+                      {podcast.rss_url && (
+                        <a href={getModifiedRssFeed(podcast.rss_url)} target="_blank" rel="noopener noreferrer" className="view-link">View Modified RSS Feed</a>
+                      )}
+                    </div>
+                  </li>
+                ) : null
               ))}
             </ul>
           </section>
