@@ -6,6 +6,7 @@ import os
 import logging
 import json
 import time
+import torch
 
 def get_episode_folder(podcast_title, episode_title):
     safe_podcast_title = "".join([c for c in podcast_title if c.isalpha() or c.isdigit() or c==' ']).rstrip()
@@ -47,39 +48,47 @@ def process_podcast_episode(rss_url, episode_index=0):
 
     # Transcribe the audio if transcript doesn't exist
     if not os.path.exists(transcript_filename):
-        logging.info("Initializing Whisper model for transcription...")
-        model = whisper.load_model("base")
+        logging.info("STAGE:TRANSCRIPTION:Starting Whisper transcription...")
+        try:
+            model = whisper.load_model("base")
+            logging.info("Whisper model initialized successfully")
 
-        def transcribe():
-            logging.info("Starting transcription process...")
-            start_time = time.time()
-            result = model.transcribe(input_filename)
-            end_time = time.time()
-            logging.info(f"Transcription completed in {end_time - start_time:.2f} seconds")
-            return result
+            def transcribe():
+                logging.info("Transcribing audio...")
+                try:
+                    result = model.transcribe(input_filename)
+                    logging.info("Transcription completed successfully")
+                    return result
+                except Exception as e:
+                    logging.error(f"Error during transcription: {str(e)}")
+                    return None
 
-        logging.info("Running transcription with animation...")
-        result = run_with_animation(transcribe)
+            result = run_with_animation(transcribe)
 
-        if result is None or "segments" not in result:
-            logging.error("Transcription failed or returned unexpected result")
-            raise ValueError("Transcription failed")
+            if result is None or "segments" not in result:
+                logging.error("Transcription failed or returned unexpected result")
+                raise ValueError("Transcription failed")
 
-        logging.info(f"Writing transcript to {transcript_filename}")
-        with open(transcript_filename, "w") as f:
-            for item in result["segments"]:
-                f.write(f"{item['start']} - {item['end']}: {item['text']}\n")
-        logging.info("Transcript file created successfully")
+            logging.info(f"Writing transcript to {transcript_filename}")
+            with open(transcript_filename, "w") as f:
+                for item in result["segments"]:
+                    f.write(f"{item['start']:.2f} - {item['end']:.2f}: {item['text']}\n")
+            logging.info("Transcript file created successfully")
+            logging.info("STAGE:TRANSCRIPTION:Completed")
+        except Exception as e:
+            logging.error(f"Error in Whisper transcription: {str(e)}")
+            logging.info("STAGE:TRANSCRIPTION:Failed")
+            raise
     else:
         logging.info(f"Using existing transcript file: {transcript_filename}")
 
     # Find unwanted content if it doesn't exist
     if not os.path.exists(unwanted_content_filename):
-        logging.info("Starting unwanted content detection...")
+        logging.info("STAGE:CONTENT_DETECTION:Starting unwanted content detection...")
         llm_response = run_with_animation(find_unwanted_content, transcript_filename)
         logging.info("Unwanted content detection completed")
 
-        logging.info("Parsing LLM response...")
+        logging.info("Parsing Gemini response...")
         unwanted_content = parse_llm_response(llm_response)
         logging.info(f"Found {len(unwanted_content['unwanted_content'])} segments of unwanted content")
 
@@ -87,13 +96,14 @@ def process_podcast_episode(rss_url, episode_index=0):
         with open(unwanted_content_filename, "w") as f:
             json.dump(unwanted_content, f, indent=2)
         logging.info("Unwanted content file created successfully")
+        logging.info("STAGE:CONTENT_DETECTION:Completed")
     else:
         logging.info(f"Using existing unwanted content file: {unwanted_content_filename}")
         with open(unwanted_content_filename, "r") as f:
             unwanted_content = json.load(f)
 
     # Edit the audio file
-    logging.info(f"Starting audio editing process. Output file: {output_file}")
+    logging.info("STAGE:AUDIO_EDITING:Starting audio editing process...")
     try:
         if unwanted_content['unwanted_content']:
             run_with_animation(edit_audio, input_filename, output_file, unwanted_content['unwanted_content'])
@@ -105,6 +115,7 @@ def process_podcast_episode(rss_url, episode_index=0):
         logging.error(f"Error during audio editing: {str(e)}")
         output_file = input_filename
         logging.info("Using original audio file due to editing error")
+        logging.info("STAGE:AUDIO_EDITING:Failed")
 
     result = {
         "podcast_title": podcast_title,

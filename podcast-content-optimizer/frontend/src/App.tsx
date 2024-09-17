@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import ProcessingStatus from './components/ProcessingStatus';
 
 interface Episode {
   number: number;
@@ -24,7 +25,12 @@ interface SearchResult {
   rssUrl: string;
 }
 
-const API_BASE_URL = 'http://localhost:5000/api';
+interface ProcessingStage {
+  name: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+}
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
 const App: React.FC = () => {
   const [rssUrl, setRssUrl] = useState('');
@@ -36,6 +42,12 @@ const App: React.FC = () => {
   const [processingLogs, setProcessingLogs] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([
+    { name: 'Transcription', status: 'pending' },
+    { name: 'Content Detection', status: 'pending' },
+    { name: 'Audio Editing', status: 'pending' },
+  ]);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProcessedPodcasts();
@@ -90,6 +102,11 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError('');
     setProcessingLogs([]);
+    setProcessingStages([
+      { name: 'Transcription', status: 'pending' },
+      { name: 'Content Detection', status: 'pending' },
+      { name: 'Audio Editing', status: 'pending' },
+    ]);
 
     try {
       const response = await fetch(`${API_BASE_URL}/process`, {
@@ -100,25 +117,9 @@ const App: React.FC = () => {
 
       if (!response.ok) throw new Error('Failed to start processing');
 
-      // Start listening to the event stream
-      const eventSource = new EventSource(`${API_BASE_URL}/stream?rss_url=${encodeURIComponent(rssUrl)}&episode_index=${selectedEpisode}`);
+      const data = await response.json();
+      setCurrentJobId(data.job_id);
 
-      eventSource.onmessage = (event) => {
-        const log = event.data;
-        setProcessingLogs((prevLogs) => [...prevLogs, log]);
-
-        if (log.includes("Processing completed successfully.") || log.includes("Error:")) {
-          eventSource.close();
-          setIsLoading(false);
-          fetchProcessedPodcasts(); // Refresh the list of processed podcasts
-        }
-      };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        setIsLoading(false);
-        setError('Error in processing stream');
-      };
     } catch (err) {
       setError('Error processing episode: ' + (err as Error).message);
       setIsLoading(false);
@@ -154,6 +155,13 @@ const App: React.FC = () => {
     setSearchResults([]);
     fetchEpisodes(rssUrl);
   };
+
+  useEffect(() => {
+    const logContainer = document.querySelector('.log-container');
+    if (logContainer) {
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+  }, [processingLogs]);
 
   return (
     <div className="App">
@@ -244,11 +252,20 @@ const App: React.FC = () => {
         {isLoading && (
           <section className="processing" aria-live="polite">
             <h3>Processing...</h3>
-            <ul className="log-list">
-              {processingLogs.map((log, index) => (
-                <li key={index}>{log}</li>
+            <div className="processing-stages">
+              {processingStages.map((stage) => (
+                <div key={stage.name} className={`stage ${stage.status}`}>
+                  <span className="stage-name">{stage.name}</span>
+                  <span className="stage-status">{stage.status}</span>
+                </div>
               ))}
-            </ul>
+            </div>
+            <div className="loading-spinner"></div>
+            <div className="log-container">
+              {processingLogs.map((log, index) => (
+                <p key={index} className="log-entry">{log}</p>
+              ))}
+            </div>
           </section>
         )}
 
@@ -274,6 +291,17 @@ const App: React.FC = () => {
         )}
 
         {error && <p className="error" role="alert">{error}</p>}
+
+        {currentJobId && (
+          <ProcessingStatus
+            jobId={currentJobId}
+            onComplete={() => {
+              setIsLoading(false);
+              setCurrentJobId(null);
+              fetchProcessedPodcasts();
+            }}
+          />
+        )}
       </main>
     </div>
   );

@@ -143,3 +143,91 @@ button:disabled {
     margin-bottom: 10px;
   }
 }
+
+.processing {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.loading-spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.log-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-top: 10px;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.log-entry {
+  margin-bottom: 5px;
+}
+
+.processing-status {
+  font-style: italic;
+  color: #666;
+}
+
+.processing-stages {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: #f0f0f0;
+  min-width: 120px;
+}
+
+.stage-name {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.stage-status {
+  font-size: 0.9em;
+  text-transform: capitalize;
+}
+
+.stage.pending {
+  opacity: 0.5;
+}
+
+.stage.in_progress {
+  background-color: #fff9c4;
+}
+
+.stage.completed {
+  background-color: #c8e6c9;
+}
+
+.stage.failed {
+  background-color: #ffcdd2;
+}
+
+.processing-status {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f0f0f0;
+  border-radius: 5px;
+}
