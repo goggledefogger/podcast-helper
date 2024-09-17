@@ -146,3 +146,6 @@ def process_podcast_episode(rss_url, episode_index=0):
         logging.error(f"Error in process_podcast_episode: {str(e)}")
         logging.error(traceback.format_exc())
         raise
+
+    logging.info(f"Finished processing podcast episode. Current stage: {processing_status[job_id]['current_stage']}")
+    return result

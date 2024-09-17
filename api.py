@@ -137,20 +137,36 @@ def run_process():
 
     def process():
         try:
-            result = process_podcast_episode(rss_url, episode_index)
-            save_processed_podcast({
-                "podcast_title": result['podcast_title'],
-                "episode_title": result['episode_title'],
-                "rss_url": rss_url,
-                "edited_url": result['edited_url'],
-                "transcript_file": result['transcript_file'],
-                "unwanted_content_file": result['unwanted_content_file']
-            })
-            # Invalidate the RSS cache when a new episode is processed
-            invalidate_rss_cache(rss_url)
-            log_queue.put("Processing completed successfully.")
+            job_queue_handler = QueueHandler(job_id)
+            for handler in logging.root.handlers[:]:
+                logging.root.removeHandler(handler)
+            logging.root.addHandler(job_queue_handler)
+
+            processing_status[job_id]['status'] = 'in_progress'
+            processing_status[job_id]['start_time'] = datetime.now().isoformat()
+
+            result = process_podcast_episode_wrapper(rss_url, episode_index, job_id)
+
+            if isinstance(result, dict) and "error" in result:
+                processing_status[job_id]['status'] = 'failed'
+                processing_status[job_id]['logs'].append(f"Error: {result['error']}")
+            else:
+                save_processed_podcast(result)
+                processing_status[job_id]['status'] = 'completed'
+                processing_status[job_id]['logs'].append("Podcast processing completed successfully")
+
+            logging.info(f"Final processing status for job {job_id}: {processing_status[job_id]}")  # Add this debug log
+
         except Exception as e:
-            log_queue.put(f"Error: {str(e)}")
+            processing_status[job_id]['status'] = 'failed'
+            processing_status[job_id]['logs'].append(f"Error: {str(e)}")
+            logging.error(f"Error in processing thread: {str(e)}")
+            logging.error(traceback.format_exc())
+        finally:
+            processing_status[job_id]['end_time'] = datetime.now().isoformat()
+            for handler in logging.root.handlers[:]:
+                logging.root.removeHandler(handler)
+            logging.root.addHandler(queue_handler)
 
     threading.Thread(target=process).start()
     return "", 204
@@ -210,6 +226,16 @@ def choose_episode():
 @app.route('/output/<path:podcast_title>/images/<path:filename>')
 def serve_image(podcast_title, filename):
     return send_from_directory(os.path.join('output', podcast_title, 'images'), filename)
+
+@app.route('/api/process_status/<job_id>', methods=['GET'])
+def get_process_status(job_id):
+    if job_id in processing_status:
+        status = processing_status[job_id]
+        logging.info(f"Returning process status for job {job_id}: {status}")  # Add this debug log
+        return jsonify(status)
+    else:
+        logging.warning(f"Job not found: {job_id}")  # Add this debug log
+        return jsonify({"error": "Job not found"}), 404
 
 if __name__ == '__main__':
     app.run(debug=False, threaded=True, host='0.0.0.0', port=5000)

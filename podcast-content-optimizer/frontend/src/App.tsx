@@ -25,11 +25,6 @@ interface SearchResult {
   rssUrl: string;
 }
 
-interface ProcessingStage {
-  name: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-}
-
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
 const App: React.FC = () => {
@@ -39,14 +34,8 @@ const App: React.FC = () => {
   const [processedPodcasts, setProcessedPodcasts] = useState<ProcessedPodcast[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [processingLogs, setProcessingLogs] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [processingStages, setProcessingStages] = useState<ProcessingStage[]>([
-    { name: 'Transcription', status: 'pending' },
-    { name: 'Content Detection', status: 'pending' },
-    { name: 'Audio Editing', status: 'pending' },
-  ]);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -101,12 +90,6 @@ const App: React.FC = () => {
     if (selectedEpisode === null) return;
     setIsLoading(true);
     setError('');
-    setProcessingLogs([]);
-    setProcessingStages([
-      { name: 'Transcription', status: 'pending' },
-      { name: 'Content Detection', status: 'pending' },
-      { name: 'Audio Editing', status: 'pending' },
-    ]);
 
     try {
       const response = await fetch(`${API_BASE_URL}/process`, {
@@ -155,13 +138,6 @@ const App: React.FC = () => {
     setSearchResults([]);
     fetchEpisodes(rssUrl);
   };
-
-  useEffect(() => {
-    const logContainer = document.querySelector('.log-container');
-    if (logContainer) {
-      logContainer.scrollTop = logContainer.scrollHeight;
-    }
-  }, [processingLogs]);
 
   return (
     <div className="App">
@@ -245,26 +221,6 @@ const App: React.FC = () => {
               >
                 Process Episode
               </button>
-            </div>
-          </section>
-        )}
-
-        {isLoading && (
-          <section className="processing" aria-live="polite">
-            <h3>Processing...</h3>
-            <div className="processing-stages">
-              {processingStages.map((stage) => (
-                <div key={stage.name} className={`stage ${stage.status}`}>
-                  <span className="stage-name">{stage.name}</span>
-                  <span className="stage-status">{stage.status}</span>
-                </div>
-              ))}
-            </div>
-            <div className="loading-spinner"></div>
-            <div className="log-container">
-              {processingLogs.map((log, index) => (
-                <p key={index} className="log-entry">{log}</p>
-              ))}
             </div>
           </section>
         )}
