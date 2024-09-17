@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 from urllib.parse import urlparse, urljoin
 import time
 import logging
+import traceback  # Add this import
 from functools import lru_cache
 import requests
 import os
@@ -43,41 +44,34 @@ def download_image(image_url, podcast_title):
 def create_modified_rss_feed(original_rss_url, processed_podcasts, url_root):
     logging.info(f"Creating modified RSS feed for {original_rss_url}")
 
-    # Parse the original RSS feed
-    feed = feedparser.parse(original_rss_url)
+    try:
+        # Parse the original RSS feed
+        response = requests.get(original_rss_url)
+        response.raise_for_status()
+        original_xml = response.text
 
-    # Create a new RSS feed
-    rss = ET.Element('rss', {'version': '2.0'})
-    channel = ET.SubElement(rss, 'channel')
+        # Parse the XML while preserving namespaces
+        ET.register_namespace('', "http://www.w3.org/2005/Atom")
+        for prefix, uri in NAMESPACES.items():
+            ET.register_namespace(prefix, uri)
 
-    # Copy channel-level elements
-    for elem in feed.feed:
-        if elem not in ('items', 'links'):
-            ET.SubElement(channel, elem).text = str(feed.feed[elem])
+        root = ET.fromstring(original_xml)
 
-    # Handle image
-    if 'image' in feed.feed:
-        image_url = feed.feed.image.get('href') or feed.feed.image.get('url')
-        if image_url:
-            local_image_path = download_image(image_url, feed.feed.title)
-            if local_image_path:
-                image_elem = ET.SubElement(channel, 'image')
-                ET.SubElement(image_elem, 'url').text = urljoin(url_root, local_image_path)
-                ET.SubElement(image_elem, 'title').text = feed.feed.title
-                ET.SubElement(image_elem, 'link').text = feed.feed.link
+        # Find the channel element
+        channel = root.find('channel')
+        if channel is None:
+            logging.error("No channel element found in the RSS feed")
+            return None
 
-    # Process items
-    for item in feed.entries:
-        new_item = ET.SubElement(channel, 'item')
-        for elem in item:
-            if elem not in ('links'):
-                ET.SubElement(new_item, elem).text = str(item[elem])
-
-        # Handle enclosure
-        for link in item.links:
-            if link.rel == 'enclosure':
-                enclosure = ET.SubElement(new_item, 'enclosure')
-                processed_episode = next((ep for ep in processed_podcasts if ep['rss_url'] == original_rss_url and ep['episode_title'] == item.title), None)
+        # Process items
+        for item in channel.findall('item'):
+            enclosure = item.find('enclosure')
+            if enclosure is not None:
+                processed_episode = next(
+                    (ep for ep in processed_podcasts
+                     if ep.get('rss_url') == original_rss_url and ep.get('episode_title') == item.findtext('title')),
+                    None
+                )
 
                 if processed_episode:
                     relative_path = f"output/{processed_episode['podcast_title']}/{processed_episode['episode_title']}/{os.path.basename(processed_episode['edited_url'])}"
@@ -88,19 +82,24 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts, url_root):
                     if os.path.exists(edited_file_path):
                         new_size, new_duration = get_audio_info(edited_file_path)
                         enclosure.set('length', str(new_size))
-                        duration_elem = new_item.find('itunes:duration', namespaces=NAMESPACES)
+                        duration_elem = item.find('itunes:duration', namespaces=NAMESPACES)
                         if duration_elem is not None:
                             duration_elem.text = str(new_duration)
-                else:
-                    enclosure.set('url', link.href)
-                    enclosure.set('type', link.type)
-                    enclosure.set('length', str(link.length))
 
-    # Convert the modified XML tree to a string
-    modified_rss = ET.tostring(rss, encoding='unicode')
-    return modified_rss
+        # Convert the modified XML tree to a string, preserving the original structure
+        modified_rss = ET.tostring(root, encoding='unicode', method='xml')
+        logging.info(f"Modified RSS feed created. Length: {len(modified_rss)}")
+        return modified_rss
+    except Exception as e:
+        logging.error(f"Error in create_modified_rss_feed: {str(e)}")
+        logging.error(traceback.format_exc())
+        return None
 
 def get_or_create_modified_rss(original_rss_url, processed_podcasts, url_root):
+    logging.info(f"Entering get_or_create_modified_rss with URL: {original_rss_url}")
+    logging.info(f"Number of processed podcasts: {len(processed_podcasts)}")
+    logging.info(f"URL root: {url_root}")
+
     cache_key = f"modified_rss:{original_rss_url}"
     cached_rss = rss_cache.get(cache_key)
 
@@ -109,15 +108,26 @@ def get_or_create_modified_rss(original_rss_url, processed_podcasts, url_root):
         return cached_rss['content']
 
     logging.info(f"Creating new modified RSS feed for {original_rss_url}")
-    modified_rss = create_modified_rss_feed(original_rss_url, processed_podcasts, url_root)
+    try:
+        modified_rss = create_modified_rss_feed(original_rss_url, processed_podcasts, url_root)
+        if not modified_rss:
+            logging.error("create_modified_rss_feed returned None or empty string")
+            return None
 
-    # Cache the result
-    rss_cache[cache_key] = {
-        'content': modified_rss,
-        'timestamp': time.time()
-    }
+        logging.info(f"Modified RSS created successfully. Length: {len(modified_rss)}")
 
-    return modified_rss
+        # Cache the result
+        rss_cache[cache_key] = {
+            'content': modified_rss,
+            'timestamp': time.time()
+        }
+        logging.info("RSS feed cached")
+
+        return modified_rss
+    except Exception as e:
+        logging.error(f"Error creating modified RSS feed: {str(e)}")
+        logging.error(traceback.format_exc())
+        return None
 
 def invalidate_rss_cache(rss_url):
     cache_key = f"modified_rss:{rss_url}"

@@ -109,10 +109,6 @@ const App: React.FC = () => {
     }
   };
 
-  const getModifiedRssFeed = (rssUrl: string) => {
-    return `/api/modified_rss/${encodeURIComponent(rssUrl)}`;
-  };
-
   const searchPodcasts = async () => {
     setIsLoading(true);
     setError('');

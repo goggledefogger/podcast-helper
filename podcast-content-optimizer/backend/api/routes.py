@@ -136,13 +136,33 @@ def serve_episode_file(podcast_title, episode_title, filename):
 def get_modified_rss(rss_url):
     try:
         logging.info(f"Attempting to get modified RSS for URL: {rss_url}")
-        decoded_rss_url = unquote(rss_url)
+
+        # Decode the URL twice to handle double encoding
+        decoded_rss_url = unquote(unquote(rss_url))
+        logging.info(f"Decoded RSS URL: {decoded_rss_url}")
+
+        # Check if the decoded URL starts with 'http://' or 'https://'
+        if not decoded_rss_url.startswith(('http://', 'https://')):
+            # If not, assume it's missing the scheme and prepend 'https://'
+            decoded_rss_url = 'https://' + decoded_rss_url
+            logging.info(f"Added https:// to URL: {decoded_rss_url}")
+
         processed_podcasts = load_processed_podcasts()
+        logging.info(f"Loaded {len(processed_podcasts)} processed podcasts")
+
         host = request.headers.get('Host')
         url_root = f"{request.scheme}://{host}/"
+        logging.info(f"URL root: {url_root}")
+
         modified_rss = get_or_create_modified_rss(decoded_rss_url, processed_podcasts, url_root)
+
+        if not modified_rss:
+            logging.error("Failed to generate modified RSS")
+            return jsonify({"error": "Failed to generate modified RSS"}), 400
+
         logging.info("Successfully generated modified RSS")
-        return modified_rss, 200, {'Content-Type': 'application/xml; charset=utf-8'}
+        logging.info(f"Modified RSS content (first 200 chars): {modified_rss[:200]}")
+        return Response(modified_rss, content_type='application/xml; charset=utf-8')
     except Exception as e:
         logging.error(f"Error generating modified RSS: {str(e)}")
         logging.error(traceback.format_exc())
