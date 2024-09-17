@@ -279,16 +279,16 @@ const App: React.FC = () => {
                     <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
                     <div className="processed-links">
                       {podcast.edited_url && (
-                        <a href={podcast.edited_url} target="_blank" rel="noopener noreferrer" className="download-link">Download Edited Audio</a>
+                        <a href={`${API_BASE_URL}${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="download-link">Download Edited Audio</a>
                       )}
                       {podcast.transcript_file && (
-                        <a href={podcast.transcript_file} target="_blank" rel="noopener noreferrer" className="view-link">View Transcript</a>
+                        <a href={`${API_BASE_URL}${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">View Transcript</a>
                       )}
                       {podcast.unwanted_content_file && (
-                        <a href={podcast.unwanted_content_file} target="_blank" rel="noopener noreferrer" className="view-link">View Unwanted Content</a>
+                        <a href={`${API_BASE_URL}${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">View Unwanted Content</a>
                       )}
                       {podcast.rss_url && (
-                        <a href={getModifiedRssFeed(podcast.rss_url)} target="_blank" rel="noopener noreferrer" className="view-link">View Modified RSS Feed</a>
+                        <a href={`${API_BASE_URL}/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">View Modified RSS Feed</a>
                       )}
                     </div>
                   </li>

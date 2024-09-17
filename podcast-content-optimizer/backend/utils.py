@@ -82,28 +82,11 @@ def download_episode(url, filename):
         raise
 
 def run_with_animation(func, *args, **kwargs):
-    animation = "|/-\\"
-    idx = 0
-    start_time = time.time()
-
-    def animate():
-        nonlocal idx
-        sys.stdout.write(f"\r{animation[idx % len(animation)]} Processing... ")
-        sys.stdout.flush()
-        idx += 1
-
-    result = None
     try:
         result = func(*args, **kwargs)
-        while result is None:
-            animate()
-            time.sleep(0.1)
+        logging.info(f"Function {func.__name__} completed successfully")
+        return result
     except Exception as e:
         logging.error(f"Error in {func.__name__}: {str(e)}")
+        logging.error(traceback.format_exc())
         raise
-    finally:
-        end_time = time.time()
-        sys.stdout.write(f"\rCompleted in {end_time - start_time:.2f} seconds.\n")
-        sys.stdout.flush()
-
-    return result

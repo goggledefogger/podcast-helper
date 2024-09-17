@@ -1,10 +1,9 @@
-from flask import jsonify, request, Response
+from flask import jsonify, request, Response, send_file, abort, current_app
 from api.app import app
 from podcast_processor import process_podcast_episode
 from utils import get_podcast_episodes
 from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache
 import json
-import os
 import logging
 import queue
 import threading
@@ -13,7 +12,8 @@ import requests
 import traceback
 import uuid
 from queue import Queue
-from datetime import datetime  # Add this import
+from datetime import datetime
+import os
 
 PROCESSED_PODCASTS_FILE = 'output/processed_podcasts.json'
 log_queue = queue.Queue()
@@ -59,8 +59,10 @@ def load_processed_podcasts():
 def save_processed_podcast(podcast_data):
     podcasts = load_processed_podcasts()
     podcasts.append(podcast_data)
+    logging.info(f"Saving processed podcast: {podcast_data}")
     with open(PROCESSED_PODCASTS_FILE, 'w') as f:
         json.dump(podcasts, f, indent=2)
+    logging.info(f"Saved processed podcast to {PROCESSED_PODCASTS_FILE}")
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -89,15 +91,95 @@ def get_episodes():
         logging.error(traceback.format_exc())
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
+@app.route('/api/processed_podcasts', methods=['GET'])
+def get_processed_podcasts():
+    processed_podcasts = load_processed_podcasts()
+    logging.info(f"Fetched {len(processed_podcasts)} processed podcasts")
+    return jsonify(processed_podcasts), 200
+
+@app.route('/output/<path:filename>')
+def serve_output_file(filename):
+    logging.info(f"Attempting to serve file: {filename}")
+
+    # Split the filename into parts
+    parts = filename.split('/')
+
+    if len(parts) >= 3:
+        podcast_title, episode_title, file_name = parts[:3]
+        file_path = os.path.join(current_app.root_path, '..', 'output', podcast_title, episode_title, file_name)
+    else:
+        file_path = os.path.join(current_app.root_path, '..', 'output', filename)
+
+    logging.info(f"Full file path: {file_path}")
+
+    if os.path.exists(file_path):
+        logging.info(f"File found, serving: {file_path}")
+        return send_file(file_path, as_attachment=True)
+    else:
+        logging.error(f"File not found: {file_path}")
+        return jsonify({"error": "File not found"}), 404
+
+@app.route('/output/<path:podcast_title>/<path:episode_title>/<path:filename>')
+def serve_episode_file(podcast_title, episode_title, filename):
+    logging.info(f"Attempting to serve file: {podcast_title}/{episode_title}/{filename}")
+    file_path = os.path.join(current_app.root_path, '..', 'output', podcast_title, episode_title, filename)
+    logging.info(f"Full file path: {file_path}")
+
+    if os.path.exists(file_path):
+        logging.info(f"File found, serving: {file_path}")
+        return send_file(file_path, as_attachment=True)
+    else:
+        logging.error(f"File not found: {file_path}")
+        return jsonify({"error": "File not found"}), 404
+
+@app.route('/api/modified_rss/<path:rss_url>')
+def get_modified_rss(rss_url):
+    try:
+        logging.info(f"Attempting to get modified RSS for URL: {rss_url}")
+        decoded_rss_url = unquote(rss_url)
+        processed_podcasts = load_processed_podcasts()
+        host = request.headers.get('Host')
+        url_root = f"{request.scheme}://{host}/"
+        modified_rss = get_or_create_modified_rss(decoded_rss_url, processed_podcasts, url_root)
+        logging.info("Successfully generated modified RSS")
+        return modified_rss, 200, {'Content-Type': 'application/xml; charset=utf-8'}
+    except Exception as e:
+        logging.error(f"Error generating modified RSS: {str(e)}")
+        logging.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 400
+
+def process_podcast_episode_wrapper(rss_url, episode_index, job_id):
+    try:
+        logging.info(f"Starting podcast processing for RSS URL: {rss_url}, Episode Index: {episode_index}")
+        processing_status[job_id]['current_stage'] = 'Initializing'
+        processing_status[job_id]['logs'].append(f"Initializing podcast processing for RSS URL: {rss_url}")
+
+        result = process_podcast_episode(rss_url, episode_index)
+
+        logging.info("Podcast processing completed successfully")
+        logging.info(f"Processing result: {result}")
+        processing_status[job_id]['current_stage'] = 'Completed'
+        processing_status[job_id]['logs'].append("Podcast processing completed successfully")
+        return result
+    except Exception as e:
+        logging.error(f"Error in podcast processing: {str(e)}")
+        logging.error(traceback.format_exc())
+        processing_status[job_id]['current_stage'] = 'Failed'
+        processing_status[job_id]['logs'].append(f"Error in podcast processing: {str(e)}")
+        processing_status[job_id]['error'] = str(e)
+        return {"error": str(e)}
+
 @app.route('/api/process', methods=['POST'])
 def process_episode():
     rss_url = request.json.get('rss_url')
     episode_index = request.json.get('episode_index')
 
     if not rss_url or episode_index is None:
+        logging.error("Missing RSS URL or episode index in request")
         return jsonify({"error": "Missing RSS URL or episode index"}), 400
 
-    job_id = str(uuid.uuid4())  # Generate a unique job ID
+    job_id = str(uuid.uuid4())
+    logging.info(f"Created job ID: {job_id} for RSS URL: {rss_url}, Episode Index: {episode_index}")
 
     processing_status[job_id] = {
         'status': 'queued',
@@ -110,10 +192,7 @@ def process_episode():
 
     def process():
         try:
-            # Create a job-specific QueueHandler
             job_queue_handler = QueueHandler(job_id)
-
-            # Redirect all logs to the job-specific handler
             for handler in logging.root.handlers[:]:
                 logging.root.removeHandler(handler)
             logging.root.addHandler(job_queue_handler)
@@ -121,7 +200,7 @@ def process_episode():
             processing_status[job_id]['status'] = 'in_progress'
             processing_status[job_id]['start_time'] = datetime.now().isoformat()
 
-            result = process_podcast_episode(rss_url, episode_index)
+            result = process_podcast_episode_wrapper(rss_url, episode_index, job_id)
 
             if isinstance(result, dict) and "error" in result:
                 processing_status[job_id]['status'] = 'failed'
@@ -134,10 +213,10 @@ def process_episode():
         except Exception as e:
             processing_status[job_id]['status'] = 'failed'
             processing_status[job_id]['logs'].append(f"Error: {str(e)}")
+            logging.error(f"Error in processing thread: {str(e)}")
+            logging.error(traceback.format_exc())
         finally:
-            processing_status[job_id]['current_stage'] = 'Finished'
             processing_status[job_id]['end_time'] = datetime.now().isoformat()
-            # Restore the global logger configuration
             for handler in logging.root.handlers[:]:
                 logging.root.removeHandler(handler)
             logging.root.addHandler(queue_handler)
@@ -157,24 +236,6 @@ def stream():
                 yield "data: \n\n"  # Send an empty message to keep the connection alive
 
     return Response(generate(), mimetype='text/event-stream')
-
-@app.route('/api/processed_podcasts', methods=['GET'])
-def get_processed_podcasts():
-    processed_podcasts = load_processed_podcasts()
-    return jsonify(processed_podcasts), 200
-
-@app.route('/api/modified_rss/<path:rss_url>')
-def get_modified_rss(rss_url):
-    try:
-        decoded_rss_url = unquote(rss_url)
-        processed_podcasts = load_processed_podcasts()
-        host = request.headers.get('Host')
-        url_root = f"{request.scheme}://{host}/"
-        modified_rss = get_or_create_modified_rss(decoded_rss_url, processed_podcasts, url_root)
-        return modified_rss, 200, {'Content-Type': 'application/xml; charset=utf-8'}
-    except Exception as e:
-        logging.error(f"Error generating modified RSS: {str(e)}")
-        return jsonify({"error": str(e)}), 400
 
 @app.route('/api/search', methods=['POST'])
 def search():
@@ -236,4 +297,5 @@ def get_process_status(job_id):
     else:
         return jsonify({"error": "Job not found"}), 404
 
-# Remove the /api/search route as we've removed the search_podcasts function
+if __name__ == '__main__':
+    app.run(debug=True)
