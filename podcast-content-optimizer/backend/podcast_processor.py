@@ -8,10 +8,11 @@ import json
 import time
 import torch
 import traceback
+import urllib.parse
 
 def get_episode_folder(podcast_title, episode_title):
-    safe_podcast_title = "".join([c for c in podcast_title if c.isalpha() or c.isdigit() or c==' ']).rstrip()
-    safe_episode_title = "".join([c for c in episode_title if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+    safe_podcast_title = podcast_title.replace('/', '_').replace('\\', '_')
+    safe_episode_title = episode_title.replace('/', '_').replace('\\', '_')
     return os.path.join('output', safe_podcast_title, safe_episode_title)
 
 def process_podcast_episode(rss_url, episode_index=0):
@@ -135,9 +136,10 @@ def process_podcast_episode(rss_url, episode_index=0):
         result = {
             "podcast_title": podcast_title,
             "episode_title": chosen_episode['title'],
-            "edited_url": f"/output/{podcast_title}/{chosen_episode['title']}/{os.path.basename(output_file)}",
-            "transcript_file": f"/output/{podcast_title}/{chosen_episode['title']}/{os.path.basename(transcript_filename)}",
-            "unwanted_content_file": f"/output/{podcast_title}/{chosen_episode['title']}/{os.path.basename(unwanted_content_filename)}"
+            "rss_url": rss_url,
+            "edited_url": f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(output_file))}",
+            "transcript_file": f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(transcript_filename))}",
+            "unwanted_content_file": f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(unwanted_content_filename))}"
         }
         logging.info(f"Podcast processing completed successfully. Result: {result}")
         return result

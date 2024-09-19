@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
+import { encodeFilePath, decodeFilePath } from './utils';
 
 interface Episode {
   number: number;
@@ -135,6 +136,11 @@ const App: React.FC = () => {
     fetchEpisodes(rssUrl);
   };
 
+  const handleDownload = (url: string) => {
+    // The URL is already encoded, so we don't need to encode it again
+    window.open(`${API_BASE_URL}${url}`, '_blank');
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -231,16 +237,24 @@ const App: React.FC = () => {
                     <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
                     <div className="processed-links">
                       {podcast.edited_url && (
-                        <a href={`${API_BASE_URL}${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="download-link">Download Edited Audio</a>
+                        <button onClick={() => handleDownload(podcast.edited_url)} className="download-link">
+                          Download Edited Audio
+                        </button>
                       )}
                       {podcast.transcript_file && (
-                        <a href={`${API_BASE_URL}${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">View Transcript</a>
+                        <button onClick={() => handleDownload(podcast.transcript_file)} className="view-link">
+                          View Transcript
+                        </button>
                       )}
                       {podcast.unwanted_content_file && (
-                        <a href={`${API_BASE_URL}${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">View Unwanted Content</a>
+                        <button onClick={() => handleDownload(podcast.unwanted_content_file)} className="view-link">
+                          View Unwanted Content
+                        </button>
                       )}
                       {podcast.rss_url && (
-                        <a href={`${API_BASE_URL}/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">View Modified RSS Feed</a>
+                        <a href={`${API_BASE_URL}/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                          View Modified RSS Feed
+                        </a>
                       )}
                     </div>
                   </li>

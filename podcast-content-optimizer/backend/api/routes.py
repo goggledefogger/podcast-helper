@@ -1,4 +1,4 @@
-from flask import jsonify, request, Response, send_file, abort, current_app
+from flask import jsonify, request, Response, send_from_directory, abort, current_app
 from api.app import app
 from podcast_processor import process_podcast_episode
 from utils import get_podcast_episodes
@@ -97,37 +97,25 @@ def get_processed_podcasts():
     logging.info(f"Fetched {len(processed_podcasts)} processed podcasts")
     return jsonify(processed_podcasts), 200
 
-@app.route('/output/<path:filename>')
+@app.route('/api/output/<path:filename>')
 def serve_output_file(filename):
     logging.info(f"Attempting to serve file: {filename}")
 
-    # Split the filename into parts
-    parts = filename.split('/')
+    # Decode the filename
+    decoded_filename = unquote(filename)
 
-    if len(parts) >= 3:
-        podcast_title, episode_title, file_name = parts[:3]
-        file_path = os.path.join(current_app.root_path, '..', 'output', podcast_title, episode_title, file_name)
-    else:
-        file_path = os.path.join(current_app.root_path, '..', 'output', filename)
+    # Construct the full file path
+    file_path = os.path.join(current_app.root_path, '..', 'output', decoded_filename)
 
     logging.info(f"Full file path: {file_path}")
 
-    if os.path.exists(file_path):
-        logging.info(f"File found, serving: {file_path}")
-        return send_file(file_path, as_attachment=True)
-    else:
-        logging.error(f"File not found: {file_path}")
-        return jsonify({"error": "File not found"}), 404
-
-@app.route('/output/<path:podcast_title>/<path:episode_title>/<path:filename>')
-def serve_episode_file(podcast_title, episode_title, filename):
-    logging.info(f"Attempting to serve file: {podcast_title}/{episode_title}/{filename}")
-    file_path = os.path.join(current_app.root_path, '..', 'output', podcast_title, episode_title, filename)
-    logging.info(f"Full file path: {file_path}")
+    # Get the directory and file name
+    directory = os.path.dirname(file_path)
+    file_name = os.path.basename(file_path)
 
     if os.path.exists(file_path):
         logging.info(f"File found, serving: {file_path}")
-        return send_file(file_path, as_attachment=True)
+        return send_from_directory(directory, file_name, as_attachment=True)
     else:
         logging.error(f"File not found: {file_path}")
         return jsonify({"error": "File not found"}), 404
