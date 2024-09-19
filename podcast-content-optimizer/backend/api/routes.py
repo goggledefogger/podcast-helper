@@ -1,8 +1,11 @@
 from flask import jsonify, request, Response, send_from_directory, abort, current_app
+from celery_app import app as celery_app
 from api.app import app
 from podcast_processor import process_podcast_episode
 from utils import get_podcast_episodes
 from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache
+from llm_processor import find_unwanted_content
+from audio_editor import edit_audio
 import json
 import logging
 import queue
@@ -14,6 +17,7 @@ import uuid
 from queue import Queue
 from datetime import datetime
 import os
+import time
 
 PROCESSED_PODCASTS_FILE = 'output/processed_podcasts.json'
 log_queue = queue.Queue()
@@ -26,26 +30,6 @@ TADDY_USER_ID = os.getenv("TADDY_USER_ID")
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
-
-class QueueHandler(logging.Handler):
-    def __init__(self, job_id=None):
-        super().__init__()
-        self.job_id = job_id
-
-    def emit(self, record):
-        log_entry = self.format(record)
-        if self.job_id:
-            processing_status[self.job_id]['logs'].append(log_entry)
-            if "STAGE:" in log_entry:
-                stage = log_entry.split("STAGE:")[1].split(":")[0]
-                processing_status[self.job_id]['current_stage'] = stage
-        else:
-            # Handle global logging (not associated with a specific job)
-            print(log_entry)  # or use another method to store/display logs
-
-# Initialize a global QueueHandler without a job_id
-queue_handler = QueueHandler()
-logger.addHandler(queue_handler)
 
 # Initialize the processing_status dictionary
 processing_status = {}
@@ -156,26 +140,7 @@ def get_modified_rss(rss_url):
         logging.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 400
 
-def process_podcast_episode_wrapper(rss_url, episode_index, job_id):
-    try:
-        logging.info(f"Starting podcast processing for RSS URL: {rss_url}, Episode Index: {episode_index}")
-        processing_status[job_id]['current_stage'] = 'Initializing'
-        processing_status[job_id]['logs'].append(f"Initializing podcast processing for RSS URL: {rss_url}")
-
-        result = process_podcast_episode(rss_url, episode_index)
-
-        logging.info("Podcast processing completed successfully")
-        logging.info(f"Processing result: {result}")
-        processing_status[job_id]['current_stage'] = 'Completed'
-        processing_status[job_id]['logs'].append("Podcast processing completed successfully")
-        return result
-    except Exception as e:
-        logging.error(f"Error in podcast processing: {str(e)}")
-        logging.error(traceback.format_exc())
-        processing_status[job_id]['current_stage'] = 'Failed'
-        processing_status[job_id]['logs'].append(f"Error in podcast processing: {str(e)}")
-        processing_status[job_id]['error'] = str(e)
-        return {"error": str(e)}
+from api.tasks import process_podcast_task  # Import the task directly
 
 @app.route('/api/process', methods=['POST'])
 def process_episode():
@@ -183,67 +148,30 @@ def process_episode():
     episode_index = request.json.get('episode_index')
 
     if not rss_url or episode_index is None:
-        logging.error("Missing RSS URL or episode index in request")
         return jsonify({"error": "Missing RSS URL or episode index"}), 400
 
     job_id = str(uuid.uuid4())
-    logging.info(f"Created job ID: {job_id} for RSS URL: {rss_url}, Episode Index: {episode_index}")
-
     processing_status[job_id] = {
         'status': 'queued',
         'progress': 0,
         'logs': [],
         'current_stage': 'Queued',
-        'start_time': None,
+        'start_time': datetime.now().isoformat(),
         'end_time': None
     }
 
-    def process():
-        try:
-            job_queue_handler = QueueHandler(job_id)
-            for handler in logging.root.handlers[:]:
-                logging.root.removeHandler(handler)
-            logging.root.addHandler(job_queue_handler)
+    logging.info(f"Queueing task for job_id: {job_id}")
+    task = process_podcast_task.delay(rss_url, episode_index, job_id)
+    logging.info(f"Task queued with task_id: {task.id} for job_id: {job_id}")
 
-            processing_status[job_id]['status'] = 'in_progress'
-            processing_status[job_id]['start_time'] = datetime.now().isoformat()
-
-            result = process_podcast_episode_wrapper(rss_url, episode_index, job_id)
-
-            if isinstance(result, dict) and "error" in result:
-                processing_status[job_id]['status'] = 'failed'
-                processing_status[job_id]['logs'].append(f"Error: {result['error']}")
-            else:
-                save_processed_podcast(result)
-                processing_status[job_id]['status'] = 'completed'
-                processing_status[job_id]['logs'].append("Podcast processing completed successfully")
-
-        except Exception as e:
-            processing_status[job_id]['status'] = 'failed'
-            processing_status[job_id]['logs'].append(f"Error: {str(e)}")
-            logging.error(f"Error in processing thread: {str(e)}")
-            logging.error(traceback.format_exc())
-        finally:
-            processing_status[job_id]['end_time'] = datetime.now().isoformat()
-            for handler in logging.root.handlers[:]:
-                logging.root.removeHandler(handler)
-            logging.root.addHandler(queue_handler)
-
-    threading.Thread(target=process).start()
     return jsonify({"message": "Processing started", "job_id": job_id}), 202
 
-@app.route('/api/stream')
-def stream():
-    def generate():
-        while True:
-            try:
-                log_entry = log_queue.get(timeout=1)
-                if log_entry:
-                    yield f"data: {log_entry}\n\n"
-            except queue.Empty:
-                yield "data: \n\n"  # Send an empty message to keep the connection alive
-
-    return Response(generate(), mimetype='text/event-stream')
+@app.route('/api/process_status/<job_id>', methods=['GET'])
+def get_process_status(job_id):
+    if job_id in processing_status:
+        return jsonify(processing_status[job_id])
+    else:
+        return jsonify({"error": "Job not found"}), 404
 
 @app.route('/api/search', methods=['POST'])
 def search():
@@ -298,12 +226,26 @@ def search_podcasts(query):
         logging.error(f"Error searching podcasts: {response.text}")
         return []
 
-@app.route('/api/process_status/<job_id>', methods=['GET'])
-def get_process_status(job_id):
-    if job_id in processing_status:
-        return jsonify(processing_status[job_id])
-    else:
-        return jsonify({"error": "Job not found"}), 404
+def update_job_status(job_id, status, stage, error=None):
+    if job_id not in processing_status:
+        logging.error(f"Job ID {job_id} not found in processing_status")
+        processing_status[job_id] = {
+            'status': 'unknown',
+            'progress': 0,
+            'logs': [],
+            'current_stage': 'Unknown',
+            'start_time': datetime.now().isoformat(),
+            'end_time': None
+        }
+
+    processing_status[job_id]['status'] = status
+    processing_status[job_id]['current_stage'] = stage
+    processing_status[job_id]['logs'].append(f"STAGE:{stage}:{status.capitalize()}")
+    if error:
+        processing_status[job_id]['error'] = error
+    if status in ['completed', 'failed']:
+        processing_status[job_id]['end_time'] = datetime.now().isoformat()
+    logging.info(f"Updated job status: {processing_status[job_id]}")
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -10,3 +10,4 @@ tqdm==4.66.1
 mutagen==1.47.0
 Werkzeug==3.0.1
 redis==5.0.8
+celery==5.4.0

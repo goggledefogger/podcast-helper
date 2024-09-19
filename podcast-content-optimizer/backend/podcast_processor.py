@@ -98,25 +98,25 @@ def process_podcast_episode(rss_url, episode_index=0):
         else:
             logging.info(f"Using existing transcript file: {transcript_filename}")
 
-        # Find unwanted content if it doesn't exist
-        if not os.path.exists(unwanted_content_filename):
-            logging.info("STAGE:CONTENT_DETECTION:Starting unwanted content detection...")
-            llm_response = run_with_animation(find_unwanted_content, transcript_filename)
-            logging.info("Unwanted content detection completed")
+        # Always find unwanted content
+        logging.info("STAGE:CONTENT_DETECTION:Starting unwanted content detection...")
+        start_time = time.time()
+        llm_response = run_with_animation(find_unwanted_content, transcript_filename)
+        end_time = time.time()
+        logging.info(f"Unwanted content detection completed in {end_time - start_time:.2f} seconds")
 
-            logging.info("Parsing Gemini response...")
-            unwanted_content = parse_llm_response(llm_response)
-            logging.info(f"Found {len(unwanted_content['unwanted_content'])} segments of unwanted content")
+        # Change this line:
+        logging.info(f"LLM response: {str(llm_response)[:500]}...")  # Log first 500 characters of the response
 
-            logging.info(f"Writing unwanted content to {unwanted_content_filename}")
-            with open(unwanted_content_filename, "w") as f:
-                json.dump(unwanted_content, f, indent=2)
-            logging.info("Unwanted content file created successfully")
-            logging.info("STAGE:CONTENT_DETECTION:Completed")
-        else:
-            logging.info(f"Using existing unwanted content file: {unwanted_content_filename}")
-            with open(unwanted_content_filename, "r") as f:
-                unwanted_content = json.load(f)
+        logging.info("Parsing LLM response...")
+        unwanted_content = llm_response  # The response is already parsed in find_unwanted_content
+        logging.info(f"Found {len(unwanted_content['unwanted_content'])} segments of unwanted content")
+
+        logging.info(f"Writing unwanted content to {unwanted_content_filename}")
+        with open(unwanted_content_filename, "w") as f:
+            json.dump(unwanted_content, f, indent=2)
+        logging.info("Unwanted content file created successfully")
+        logging.info("STAGE:CONTENT_DETECTION:Completed")
 
         # Edit the audio file
         logging.info("STAGE:AUDIO_EDITING:Starting audio editing process...")
