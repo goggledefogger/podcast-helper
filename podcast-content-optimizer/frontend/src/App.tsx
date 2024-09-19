@@ -237,19 +237,19 @@ const App: React.FC = () => {
                     <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
                     <div className="processed-links">
                       {podcast.edited_url && (
-                        <button onClick={() => handleDownload(podcast.edited_url)} className="download-link">
+                        <a href={`${API_BASE_URL}${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           Download Edited Audio
-                        </button>
+                        </a>
                       )}
                       {podcast.transcript_file && (
-                        <button onClick={() => handleDownload(podcast.transcript_file)} className="view-link">
+                        <a href={`${API_BASE_URL}${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Transcript
-                        </button>
+                        </a>
                       )}
                       {podcast.unwanted_content_file && (
-                        <button onClick={() => handleDownload(podcast.unwanted_content_file)} className="view-link">
+                        <a href={`${API_BASE_URL}${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Unwanted Content
-                        </button>
+                        </a>
                       )}
                       {podcast.rss_url && (
                         <a href={`${API_BASE_URL}/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
