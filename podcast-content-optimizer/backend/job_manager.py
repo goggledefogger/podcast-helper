@@ -27,3 +27,16 @@ def get_job_logs(job_id):
     key = f"job_log:{job_id}"
     logs = redis_client.lrange(key, 0, -1)
     return [json.loads(log) for log in logs]
+
+def get_current_jobs():
+    jobs = []
+    for key in redis_client.scan_iter("job_status:*"):
+        job_id = key.decode('utf-8').split(':')[1]
+        status = get_job_status(job_id)
+        if status and status['status'] in ['queued', 'in_progress']:
+            jobs.append({'job_id': job_id, 'status': status})
+    return jobs
+
+def delete_job(job_id):
+    redis_client.delete(f"job_status:{job_id}")
+    redis_client.delete(f"job_log:{job_id}")

@@ -1,12 +1,12 @@
 from flask import jsonify, request, Response, send_from_directory, abort, current_app
 from celery_app import app as celery_app
-from api.app import app
+from api.app import app, CORS
 from podcast_processor import process_podcast_episode
 from utils import get_podcast_episodes
 from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache
 from llm_processor import find_unwanted_content
 from audio_editor import edit_audio
-from job_manager import update_job_status, get_job_status, append_job_log, get_job_logs
+from job_manager import update_job_status, get_job_status, append_job_log, get_job_logs, get_current_jobs, delete_job
 import json
 import logging
 import queue
@@ -222,6 +222,26 @@ def search_podcasts(query):
     else:
         logging.error(f"Error searching podcasts: {response.text}")
         return []
+
+@app.route('/api/current_jobs', methods=['GET'])
+def get_current_jobs_route():
+    jobs = get_current_jobs()
+    return jsonify(jobs), 200
+
+@app.route('/api/delete_job/<job_id>', methods=['DELETE', 'OPTIONS'])
+def delete_job_route(job_id):
+    if request.method == 'OPTIONS':
+        return '', 204
+    try:
+        delete_job(job_id)
+        return jsonify({"message": f"Job {job_id} deleted successfully"}), 200
+    except Exception as e:
+        logging.error(f"Error deleting job {job_id}: {str(e)}")
+        return jsonify({"error": f"Failed to delete job: {str(e)}"}), 500
+
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    return '', 204
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -26,6 +26,14 @@ interface SearchResult {
   rssUrl: string;
 }
 
+interface JobStatus {
+  status: 'queued' | 'in_progress' | 'completed' | 'failed';
+  current_stage: string;
+  progress: number;
+  message: string;
+  timestamp: number;
+}
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
 const App: React.FC = () => {
@@ -38,14 +46,18 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [currentJobs, setCurrentJobs] = useState<{ job_id: string; status: JobStatus }[]>([]);
 
   useEffect(() => {
     fetchProcessedPodcasts();
+    fetchCurrentJobs();
   }, []);
 
   const fetchProcessedPodcasts = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/processed_podcasts`);
+      const response = await fetch(`${API_BASE_URL}/processed_podcasts`, {
+        credentials: 'include',
+      });
       if (!response.ok) {
         if (response.status === 404) {
           console.warn('Processed podcasts endpoint not found. This feature may not be implemented yet.');
@@ -70,6 +82,7 @@ const App: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rss_url: url }),
+        credentials: 'include',
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -97,6 +110,7 @@ const App: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rss_url: rssUrl, episode_index: selectedEpisode }),
+        credentials: 'include',
       });
 
       if (!response.ok) throw new Error('Failed to start processing');
@@ -118,6 +132,7 @@ const App: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: searchQuery }),
+        credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to search podcasts');
       const data = await response.json();
@@ -139,6 +154,47 @@ const App: React.FC = () => {
   const handleDownload = (url: string) => {
     // The URL is already encoded, so we don't need to encode it again
     window.open(`${API_BASE_URL}${url}`, '_blank');
+  };
+
+  const fetchCurrentJobs = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/current_jobs`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setCurrentJobs(data);
+    } catch (err) {
+      console.error('Error fetching current jobs:', err);
+    }
+  };
+
+  const deleteJob = async (jobId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/delete_job/${jobId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      // Remove the job from the currentJobs state
+      setCurrentJobs((prevJobs) => prevJobs.filter((job) => job.job_id !== jobId));
+      // If the deleted job was the current job, clear the currentJobId
+      if (jobId === currentJobId) {
+        setCurrentJobId(null);
+      }
+    } catch (err) {
+      console.error('Error deleting job:', err);
+      setError('Error deleting job: ' + (err as Error).message);
+    }
   };
 
   return (
@@ -278,6 +334,30 @@ const App: React.FC = () => {
             }}
           />
         )}
+
+        {currentJobs.length > 0 && (
+          <section className="current-jobs" aria-labelledby="current-jobs-heading">
+            <h2 id="current-jobs-heading">Current Jobs</h2>
+            {currentJobs.map((job) => (
+              <div key={job.job_id} className="job-item">
+                <ProcessingStatus
+                  jobId={job.job_id}
+                  onComplete={() => {
+                    setCurrentJobs((prevJobs) => prevJobs.filter((j) => j.job_id !== job.job_id));
+                    fetchProcessedPodcasts();
+                  }}
+                />
+                <button
+                  onClick={() => deleteJob(job.job_id)}
+                  className="delete-job-button"
+                >
+                  Delete Job
+                </button>
+              </div>
+            ))}
+          </section>
+        )}
+
       </main>
     </div>
   );

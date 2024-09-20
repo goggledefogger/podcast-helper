@@ -16,6 +16,8 @@ const STAGES = [
 interface ProcessingStatusProps {
   jobId: string;
   onComplete: () => void;
+  onDelete?: () => void;
+  showDeleteButton?: boolean;
 }
 
 interface JobStatus {
@@ -31,14 +33,16 @@ interface JobLog {
   message: string;
 }
 
-const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, onComplete }) => {
+const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, onComplete, onDelete, showDeleteButton = false }) => {
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [jobLogs, setJobLogs] = useState<JobLog[]>([]);
 
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/process_status/${jobId}`);
+        const response = await fetch(`${API_BASE_URL}/process_status/${jobId}`, {
+          credentials: 'include',
+        });
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -111,6 +115,11 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, onComplete }
           </div>
         ))}
       </div>
+      {showDeleteButton && onDelete && (
+        <button onClick={onDelete} className="delete-job-button">
+          Delete Job
+        </button>
+      )}
     </div>
   );
 };
