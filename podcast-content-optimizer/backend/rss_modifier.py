@@ -9,6 +9,7 @@ import requests
 import os
 from mutagen.mp3 import MP3
 from cache import cache_get, cache_set
+from utils.time_utils import format_duration  # Add this import
 
 # Define common namespace prefixes
 NAMESPACES = {
@@ -22,9 +23,8 @@ NAMESPACES = {
 rss_cache = {}
 
 def get_audio_info(file_path):
-    # Implement this function to get audio file size and duration
-    # For now, we'll return placeholder values
-    return 1000000, 600  # 1MB, 10 minutes
+    audio = MP3(file_path)
+    return audio.info.filesize, audio.info.length  # Returns (file_size, duration_in_seconds)
 
 def download_image(image_url, podcast_title):
     try:
@@ -84,7 +84,7 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts, url_root):
                         enclosure.set('length', str(new_size))
                         duration_elem = item.find('itunes:duration', namespaces=NAMESPACES)
                         if duration_elem is not None:
-                            duration_elem.text = str(new_duration)
+                            duration_elem.text = format_duration(new_duration)
 
         # Convert the modified XML tree to a string, preserving the original structure
         modified_rss = ET.tostring(root, encoding='unicode', method='xml')

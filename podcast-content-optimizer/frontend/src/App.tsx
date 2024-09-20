@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
 import { encodeFilePath, decodeFilePath } from './utils';
+import { formatDuration } from './utils/timeUtils';
 
 interface Episode {
   number: number;
   title: string;
   published: string;
+  duration: number;  // Duration in seconds
 }
 
 interface ProcessedPodcast {
@@ -102,7 +104,6 @@ const App: React.FC = () => {
 
   const processEpisode = async () => {
     if (selectedEpisode === null) return;
-    setIsLoading(true);
     setError('');
 
     try {
@@ -117,10 +118,8 @@ const App: React.FC = () => {
 
       const data = await response.json();
       setCurrentJobId(data.job_id);
-
     } catch (err) {
       setError('Error processing episode: ' + (err as Error).message);
-      setIsLoading(false);
     }
   };
 
@@ -185,9 +184,7 @@ const App: React.FC = () => {
         const errorData = await response.json();
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
-      // Remove the job from the currentJobs state
       setCurrentJobs((prevJobs) => prevJobs.filter((job) => job.job_id !== jobId));
-      // If the deleted job was the current job, clear the currentJobId
       if (jobId === currentJobId) {
         setCurrentJobId(null);
       }
@@ -268,7 +265,7 @@ const App: React.FC = () => {
                 <option value="">Select an episode</option>
                 {episodes.map((episode, index) => (
                   <option key={index} value={index}>
-                    {episode.title} - {episode.published}
+                    {episode.title} - {episode.published} ({formatDuration(episode.duration, 'MM:SS')})
                   </option>
                 ))}
               </select>
@@ -322,13 +319,17 @@ const App: React.FC = () => {
           <p className="no-podcasts">No processed podcasts available. Process an episode to see results here.</p>
         )}
 
-        {error && <p className="error" role="alert">{error}</p>}
+        {error && (
+          <div className="error-message" role="alert">
+            {error}
+            <button onClick={() => setError('')} className="close-error">×</button>
+          </div>
+        )}
 
         {currentJobId && (
           <ProcessingStatus
             jobId={currentJobId}
             onComplete={() => {
-              setIsLoading(false);
               setCurrentJobId(null);
               fetchProcessedPodcasts();
             }}

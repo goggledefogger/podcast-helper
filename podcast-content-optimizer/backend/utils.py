@@ -5,6 +5,7 @@ import logging
 import traceback
 import time
 import sys
+from mutagen.mp3 import MP3
 
 def get_podcast_episodes(rss_url):
     try:
@@ -27,7 +28,8 @@ def get_podcast_episodes(rss_url):
                 'title': entry.get('title', 'Untitled'),
                 'published': entry.get('published', 'Unknown date'),
                 'podcast_title': podcast_title,
-                'url': entry.get('enclosures', [{}])[0].get('href') or entry.get('link')
+                'url': entry.get('enclosures', [{}])[0].get('href') or entry.get('link'),
+                'duration': get_episode_duration(entry)
             }
             if not episode['url']:
                 logging.warning(f"No URL found for episode: {episode['title']}")
@@ -39,6 +41,24 @@ def get_podcast_episodes(rss_url):
         logging.error(f"Error in get_podcast_episodes: {str(e)}")
         logging.error(traceback.format_exc())
         raise ValueError(f"Failed to parse podcast episodes: {str(e)}")
+
+def get_episode_duration(entry):
+    # Try to get duration from the RSS feed
+    duration = entry.get('itunes_duration')
+    if duration:
+        return parse_duration(duration)
+
+    # If not available, try to get it from the audio file (if accessible)
+    audio_url = entry.get('enclosures', [{}])[0].get('href')
+    if audio_url:
+        try:
+            audio = MP3(audio_url)
+            return audio.info.length
+        except:
+            pass
+
+    # If all else fails, return None
+    return None
 
 def download_episode(url, filename):
     try:

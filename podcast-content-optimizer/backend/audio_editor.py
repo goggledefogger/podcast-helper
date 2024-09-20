@@ -1,5 +1,6 @@
 import logging
 from pydub import AudioSegment
+from utils.time_utils import parse_duration
 
 def edit_audio(input_file, output_file, unwanted_content):
     logging.info(f"Editing audio file: {input_file}")
@@ -13,12 +14,12 @@ def edit_audio(input_file, output_file, unwanted_content):
         edited_audio = audio
 
         # Sort unwanted content by start time
-        unwanted_content.sort(key=lambda x: time_to_ms(x['start_time']))
+        unwanted_content.sort(key=lambda x: parse_duration(x['start_time']))
 
         # Remove unwanted segments
         for segment in reversed(unwanted_content):
-            start_time = time_to_ms(segment['start_time'])
-            end_time = time_to_ms(segment['end_time'])
+            start_time = parse_duration(segment['start_time']) * 1000  # Convert to milliseconds
+            end_time = parse_duration(segment['end_time']) * 1000  # Convert to milliseconds
             edited_audio = edited_audio[:start_time] + edited_audio[end_time:]
 
         # Export the edited audio
@@ -27,7 +28,3 @@ def edit_audio(input_file, output_file, unwanted_content):
     except Exception as e:
         logging.error(f"Error editing audio: {str(e)}")
         raise
-
-def time_to_ms(time_str):
-    h, m, s = time_str.split(':')
-    return (int(h) * 3600 + int(m) * 60 + float(s)) * 1000
