@@ -9,7 +9,7 @@ import requests
 import os
 from mutagen.mp3 import MP3
 from cache import cache_get, cache_set
-from utils.time_utils import format_duration  # Add this import
+from utils import format_duration  # Update this import
 
 # Define common namespace prefixes
 NAMESPACES = {

@@ -72,6 +72,11 @@ button:disabled {
   cursor: not-allowed;
 }
 
+button:disabled, select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .helper-text {
   font-size: 14px;
   color: #666;

@@ -1,6 +1,6 @@
 from audio_editor import edit_audio
 from llm_processor import find_unwanted_content, parse_llm_response
-from utils import get_podcast_episodes, download_episode, run_with_animation
+from utils import get_podcast_episodes, download_episode, run_with_animation, save_processed_podcast
 from job_manager import update_job_status
 import whisper
 import os
@@ -10,6 +10,7 @@ import time
 import torch
 import traceback
 import urllib.parse
+from datetime import datetime
 
 def get_episode_folder(podcast_title, episode_title):
     safe_podcast_title = podcast_title.replace('/', '_').replace('\\', '_')
@@ -46,6 +47,17 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         unwanted_content_filename = os.path.join(episode_folder, f"unwanted_content.json")
         output_file = os.path.join(episode_folder, f"edited_{chosen_episode['title'].replace(' ', '_')}.mp3")
 
+        # Create initial podcast data
+        podcast_data = {
+            "podcast_title": podcast_title,
+            "episode_title": chosen_episode['title'],
+            "rss_url": rss_url,
+            "status": "processing",
+            "job_id": job_id,
+            "timestamp": datetime.now().isoformat()
+        }
+        save_processed_podcast(podcast_data)
+
         # Download the episode if it doesn't exist
         if not os.path.exists(input_filename):
             logging.info("STAGE:DOWNLOAD:Starting")
@@ -54,8 +66,13 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
             run_with_animation(download_episode, chosen_episode['url'], input_filename)
             logging.info("STAGE:DOWNLOAD:Completed")
             update_job_status(job_id, 'in_progress', 'DOWNLOAD', 40, 'Episode downloaded')
+            podcast_data['status'] = 'downloaded'
+            podcast_data['input_file'] = input_filename
+            save_processed_podcast(podcast_data)
         else:
             logging.info(f"Using existing audio file: {input_filename}")
+            podcast_data['input_file'] = input_filename
+            save_processed_podcast(podcast_data)
 
         # Check if the file was actually downloaded
         if not os.path.exists(input_filename):
@@ -97,6 +114,9 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
                 logging.info("Transcript file created successfully")
                 logging.info("STAGE:TRANSCRIPTION:Completed")
                 update_job_status(job_id, 'in_progress', 'TRANSCRIPTION', 60, 'Transcription completed')
+                podcast_data['status'] = 'transcribed'
+                podcast_data['transcript_file'] = transcript_filename
+                save_processed_podcast(podcast_data)
             except Exception as e:
                 logging.error(f"Error in Whisper transcription: {str(e)}")
                 logging.error(traceback.format_exc())
@@ -105,6 +125,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
                 raise
         else:
             logging.info(f"Using existing transcript file: {transcript_filename}")
+            podcast_data['transcript_file'] = transcript_filename
+            save_processed_podcast(podcast_data)
 
         # Always find unwanted content
         logging.info("STAGE:CONTENT_DETECTION:Starting unwanted content detection...")
@@ -114,11 +136,10 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         end_time = time.time()
         logging.info(f"Unwanted content detection completed in {end_time - start_time:.2f} seconds")
 
-        # Change this line:
         logging.info(f"LLM response: {str(llm_response)[:500]}...")  # Log first 500 characters of the response
 
         logging.info("Parsing LLM response...")
-        unwanted_content = llm_response  # The response is already parsed in find_unwanted_content
+        unwanted_content = llm_response
         logging.info(f"Found {len(unwanted_content['unwanted_content'])} segments of unwanted content")
 
         logging.info(f"Writing unwanted content to {unwanted_content_filename}")
@@ -127,6 +148,9 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         logging.info("Unwanted content file created successfully")
         logging.info("STAGE:CONTENT_DETECTION:Completed")
         update_job_status(job_id, 'in_progress', 'CONTENT_DETECTION', 80, 'Unwanted content detection completed')
+        podcast_data['status'] = 'content_detected'
+        podcast_data['unwanted_content_file'] = unwanted_content_filename
+        save_processed_podcast(podcast_data)
 
         # Edit the audio file
         logging.info("STAGE:AUDIO_EDITING:Starting audio editing process...")
@@ -135,12 +159,17 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
             if unwanted_content['unwanted_content']:
                 run_with_animation(edit_audio, input_filename, output_file, unwanted_content['unwanted_content'])
                 logging.info("Audio editing completed")
+                podcast_data['output_file'] = output_file
             else:
                 logging.info("No unwanted content found. Skipping audio editing.")
                 output_file = input_filename
+                podcast_data['output_file'] = input_filename
+            podcast_data['status'] = 'edited'
+            save_processed_podcast(podcast_data)
         except Exception as e:
             logging.error(f"Error during audio editing: {str(e)}")
             output_file = input_filename
+            podcast_data['output_file'] = input_filename
             logging.info("Using original audio file due to editing error")
             logging.info("STAGE:AUDIO_EDITING:Failed")
             update_job_status(job_id, 'in_progress', 'AUDIO_EDITING', 90, f'Audio editing failed: {str(e)}')
@@ -149,16 +178,42 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
             "podcast_title": podcast_title,
             "episode_title": chosen_episode['title'],
             "rss_url": rss_url,
-            "edited_url": f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(output_file))}",
-            "transcript_file": f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(transcript_filename))}",
-            "unwanted_content_file": f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(unwanted_content_filename))}"
+            "status": "completed",
+            "job_id": job_id,
+            "timestamp": datetime.now().isoformat()
         }
+
+        # Add file references only if they exist
+        if os.path.exists(output_file):
+            result["edited_url"] = f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(output_file))}"
+        if os.path.exists(transcript_filename):
+            result["transcript_file"] = f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(transcript_filename))}"
+        if os.path.exists(unwanted_content_filename):
+            result["unwanted_content_file"] = f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(unwanted_content_filename))}"
+
         logging.info(f"Podcast processing completed successfully. Result: {result}")
+
+        # Update and save the final processed podcast data
+        podcast_data.update(result)
+        save_processed_podcast(podcast_data)
+
         update_job_status(job_id, 'completed', 'COMPLETION', 100, 'Podcast processing completed')
         return result
 
     except Exception as e:
         logging.error(f"Error in process_podcast_episode: {str(e)}")
         logging.error(traceback.format_exc())
-        update_job_status(job_id, 'failed', 'FAILED', 0, f'Error: {str(e)}')
+        update_job_status(job_id, 'failed', 'ERROR', 0, f'Error: {str(e)}')
+
+        # Update the processed podcast entry with failed status
+        failed_result = {
+            "rss_url": rss_url,
+            "episode_title": chosen_episode['title'] if 'chosen_episode' in locals() else "Unknown",
+            "status": "failed",
+            "job_id": job_id,
+            "error_message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+        save_processed_podcast(failed_result)
+
         raise

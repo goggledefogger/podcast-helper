@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
 import { encodeFilePath, decodeFilePath } from './utils';
@@ -49,6 +49,8 @@ const App: React.FC = () => {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [currentJobs, setCurrentJobs] = useState<{ job_id: string; status: JobStatus }[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [jobStatuses, setJobStatuses] = useState<{ [key: string]: JobStatus }>({});
 
   useEffect(() => {
     fetchProcessedPodcasts();
@@ -74,6 +76,73 @@ const App: React.FC = () => {
       setError('Error fetching processed podcasts. This feature may not be implemented yet.');
     }
   };
+
+  const fetchJobStatuses = useCallback(async () => {
+    const jobIds = [...currentJobs.map(job => job.job_id), currentJobId].filter(Boolean) as string[];
+
+    if (jobIds.length === 0) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/batch_process_status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_ids: jobIds }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      const data: { [key: string]: JobStatus } = await response.json();
+
+      setJobStatuses(prevStatuses => ({
+        ...prevStatuses,
+        ...data
+      }));
+
+      // Check for completed or failed jobs
+      Object.entries(data).forEach(([jobId, status]) => {
+        if (status.status === 'completed' || status.status === 'failed') {
+          if (jobId === currentJobId) {
+            setCurrentJobId(null);
+            setIsProcessing(false);
+          }
+          setCurrentJobs(prevJobs => prevJobs.filter(job => job.job_id !== jobId));
+        }
+      });
+
+      if (Object.values(data).some(status => status.status === 'completed' || status.status === 'failed')) {
+        fetchProcessedPodcasts();
+      }
+    } catch (error) {
+      console.error('Error fetching job statuses:', error);
+    }
+  }, [currentJobs, currentJobId]);
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+
+    const startPolling = () => {
+      fetchJobStatuses();
+      intervalId = setInterval(fetchJobStatuses, 5000);
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    if (currentJobs.length > 0 || currentJobId) {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+
+    return () => {
+      stopPolling();
+    };
+  }, [currentJobs, currentJobId, fetchJobStatuses]);
 
   const fetchEpisodes = async (url: string) => {
     setIsLoading(true);
@@ -105,6 +174,7 @@ const App: React.FC = () => {
   const processEpisode = async () => {
     if (selectedEpisode === null) return;
     setError('');
+    setIsProcessing(true);
 
     try {
       const response = await fetch(`${API_BASE_URL}/process`, {
@@ -120,6 +190,7 @@ const App: React.FC = () => {
       setCurrentJobId(data.job_id);
     } catch (err) {
       setError('Error processing episode: ' + (err as Error).message);
+      setIsProcessing(false);
     }
   };
 
@@ -194,6 +265,13 @@ const App: React.FC = () => {
     }
   };
 
+  const handleStatusUpdate = (jobId: string, status: JobStatus) => {
+    setJobStatuses(prevStatuses => ({
+      ...prevStatuses,
+      [jobId]: status
+    }));
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -261,6 +339,7 @@ const App: React.FC = () => {
                 value={selectedEpisode ?? ''}
                 onChange={(e) => setSelectedEpisode(Number(e.target.value))}
                 className="episode-select"
+                disabled={isProcessing}
               >
                 <option value="">Select an episode</option>
                 {episodes.map((episode, index) => (
@@ -271,10 +350,10 @@ const App: React.FC = () => {
               </select>
               <button
                 onClick={processEpisode}
-                disabled={isLoading || selectedEpisode === null}
+                disabled={isLoading || selectedEpisode === null || isProcessing}
                 className="process-button"
               >
-                Process Episode
+                {isProcessing ? 'Processing...' : 'Process Episode'}
               </button>
             </div>
           </section>
@@ -329,10 +408,8 @@ const App: React.FC = () => {
         {currentJobId && (
           <ProcessingStatus
             jobId={currentJobId}
-            onComplete={() => {
-              setCurrentJobId(null);
-              fetchProcessedPodcasts();
-            }}
+            status={jobStatuses[currentJobId]}
+            onDelete={() => deleteJob(currentJobId)}
           />
         )}
 
@@ -343,17 +420,9 @@ const App: React.FC = () => {
               <div key={job.job_id} className="job-item">
                 <ProcessingStatus
                   jobId={job.job_id}
-                  onComplete={() => {
-                    setCurrentJobs((prevJobs) => prevJobs.filter((j) => j.job_id !== job.job_id));
-                    fetchProcessedPodcasts();
-                  }}
+                  status={jobStatuses[job.job_id]}
+                  onDelete={() => deleteJob(job.job_id)}
                 />
-                <button
-                  onClick={() => deleteJob(job.job_id)}
-                  className="delete-job-button"
-                >
-                  Delete Job
-                </button>
               </div>
             ))}
           </section>

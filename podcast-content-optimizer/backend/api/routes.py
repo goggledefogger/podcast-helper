@@ -42,12 +42,25 @@ def load_processed_podcasts():
     return []
 
 def save_processed_podcast(podcast_data):
-    podcasts = load_processed_podcasts()
-    podcasts.append(podcast_data)
-    logging.info(f"Saving processed podcast: {podcast_data}")
-    with open(PROCESSED_PODCASTS_FILE, 'w') as f:
-        json.dump(podcasts, f, indent=2)
-    logging.info(f"Saved processed podcast to {PROCESSED_PODCASTS_FILE}")
+    try:
+        # Ensure the output directory exists
+        os.makedirs(os.path.dirname(PROCESSED_PODCASTS_FILE), exist_ok=True)
+
+        podcasts = load_processed_podcasts()
+        existing_podcast = next((p for p in podcasts if p['rss_url'] == podcast_data['rss_url'] and p['episode_title'] == podcast_data['episode_title']), None)
+
+        if existing_podcast:
+            existing_podcast.update(podcast_data)
+        else:
+            podcasts.append(podcast_data)
+
+        logging.info(f"Saving processed podcast: {podcast_data}")
+        with open(PROCESSED_PODCASTS_FILE, 'w') as f:
+            json.dump(podcasts, f, indent=2)
+        logging.info(f"Saved processed podcast to {PROCESSED_PODCASTS_FILE}")
+    except Exception as e:
+        logging.error(f"Error saving processed podcast: {str(e)}")
+        logging.error(traceback.format_exc())
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -155,6 +168,20 @@ def process_episode():
     update_job_status(job_id, 'queued', 'INITIALIZATION', 0, 'Job queued')
     append_job_log(job_id, {'stage': 'INITIALIZATION', 'message': 'Job queued'})
 
+    # Add the podcast to processed_podcasts.json with 'processing' status
+    episodes = get_podcast_episodes(rss_url)
+    if episode_index < len(episodes):
+        episode = episodes[episode_index]
+        podcast_data = {
+            "podcast_title": episode['podcast_title'],
+            "episode_title": episode['title'],
+            "rss_url": rss_url,
+            "status": "processing",
+            "job_id": job_id,
+            "timestamp": datetime.now().isoformat()
+        }
+        save_processed_podcast(podcast_data)
+
     logging.info(f"Queueing task for job_id: {job_id}")
     task = process_podcast_task.delay(rss_url, episode_index, job_id)
     logging.info(f"Task queued with task_id: {task.id} for job_id: {job_id}")
@@ -242,6 +269,26 @@ def delete_job_route(job_id):
 @app.route('/api/<path:path>', methods=['OPTIONS'])
 def handle_options(path):
     return '', 204
+
+@app.route('/api/batch_process_status', methods=['POST'])
+def batch_process_status():
+    try:
+        data = request.json
+        job_ids = data.get('job_ids', [])
+
+        if not job_ids:
+            return jsonify({"error": "No job IDs provided"}), 400
+
+        statuses = {}
+        for job_id in job_ids:
+            status = get_job_status(job_id)
+            if status:
+                statuses[job_id] = status
+
+        return jsonify(statuses), 200
+    except Exception as e:
+        logging.error(f"Error in batch_process_status: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

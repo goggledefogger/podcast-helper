@@ -6,6 +6,10 @@ import traceback
 import time
 import sys
 from mutagen.mp3 import MP3
+import json
+import os
+
+PROCESSED_PODCASTS_FILE = 'output/processed_podcasts.json'
 
 def get_podcast_episodes(rss_url):
     try:
@@ -110,3 +114,76 @@ def run_with_animation(func, *args, **kwargs):
         logging.error(f"Error in {func.__name__}: {str(e)}")
         logging.error(traceback.format_exc())
         raise
+
+def load_processed_podcasts():
+    if os.path.exists(PROCESSED_PODCASTS_FILE):
+        with open(PROCESSED_PODCASTS_FILE, 'r') as f:
+            return json.load(f)
+    return []
+
+def save_processed_podcast(podcast_data):
+    try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(PROCESSED_PODCASTS_FILE), exist_ok=True)
+
+        # Load existing data or create an empty list
+        if os.path.exists(PROCESSED_PODCASTS_FILE):
+            with open(PROCESSED_PODCASTS_FILE, 'r') as f:
+                podcasts = json.load(f)
+        else:
+            podcasts = []
+
+        # Check if the podcast already exists in the list
+        existing_podcast = next((p for p in podcasts if p['rss_url'] == podcast_data['rss_url'] and p['episode_title'] == podcast_data['episode_title']), None)
+
+        if existing_podcast:
+            # Update the existing podcast data
+            existing_podcast.update(podcast_data)
+        else:
+            # Append new data
+            podcasts.append(podcast_data)
+
+        logging.info(f"Saving processed podcast: {podcast_data}")
+
+        # Write updated data
+        with open(PROCESSED_PODCASTS_FILE, 'w') as f:
+            json.dump(podcasts, f, indent=2)
+
+        logging.info(f"Saved processed podcast to {PROCESSED_PODCASTS_FILE}")
+    except Exception as e:
+        logging.error(f"Error saving processed podcast: {str(e)}")
+        logging.error(traceback.format_exc())
+
+def parse_duration(time_str):
+    """
+    Parse a time string (e.g. "1:23:45" or "1:23") into seconds.
+    """
+    parts = time_str.split(':')
+    if len(parts) == 3:
+        hours, minutes, seconds = parts
+        return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    elif len(parts) == 2:
+        minutes, seconds = parts
+        return int(minutes) * 60 + float(seconds)
+    else:
+        return float(time_str)
+
+def format_duration(seconds: float, format: str = 'HH:MM:SS') -> str:
+    """
+    Format duration in seconds to a string.
+    Formats:
+    - 'HH:MM:SS'
+    - 'MM:SS'
+    - 'SS'
+    """
+    hours, remainder = divmod(int(seconds), 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    if format == 'HH:MM:SS':
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    elif format == 'MM:SS':
+        return f"{minutes:02d}:{seconds:02d}"
+    elif format == 'SS':
+        return str(int(seconds))
+    else:
+        raise ValueError(f"Invalid format: {format}")
