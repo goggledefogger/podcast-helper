@@ -1,6 +1,7 @@
 from audio_editor import edit_audio
 from llm_processor import find_unwanted_content, parse_llm_response
 from utils import get_podcast_episodes, download_episode, run_with_animation
+from job_manager import update_job_status
 import whisper
 import os
 import logging
@@ -15,15 +16,17 @@ def get_episode_folder(podcast_title, episode_title):
     safe_episode_title = episode_title.replace('/', '_').replace('\\', '_')
     return os.path.join('output', safe_podcast_title, safe_episode_title)
 
-def process_podcast_episode(rss_url, episode_index=0):
+def process_podcast_episode(rss_url, episode_index=0, job_id=None):
     logging.info(f"Starting to process podcast episode from RSS: {rss_url}")
 
     try:
         # Get available episodes
         logging.info("STAGE:FETCH_EPISODES:Starting")
+        update_job_status(job_id, 'in_progress', 'FETCH_EPISODES', 10, 'Fetching episodes')
         episodes = run_with_animation(get_podcast_episodes, rss_url)
         logging.info(f"Found {len(episodes)} episodes")
         logging.info("STAGE:FETCH_EPISODES:Completed")
+        update_job_status(job_id, 'in_progress', 'FETCH_EPISODES', 20, 'Episodes fetched')
 
         if episode_index >= len(episodes):
             raise ValueError("Episode index out of range")
@@ -47,8 +50,10 @@ def process_podcast_episode(rss_url, episode_index=0):
         if not os.path.exists(input_filename):
             logging.info("STAGE:DOWNLOAD:Starting")
             logging.info(f"Downloading episode to {input_filename}")
+            update_job_status(job_id, 'in_progress', 'DOWNLOAD', 30, 'Downloading episode')
             run_with_animation(download_episode, chosen_episode['url'], input_filename)
             logging.info("STAGE:DOWNLOAD:Completed")
+            update_job_status(job_id, 'in_progress', 'DOWNLOAD', 40, 'Episode downloaded')
         else:
             logging.info(f"Using existing audio file: {input_filename}")
 
@@ -63,6 +68,7 @@ def process_podcast_episode(rss_url, episode_index=0):
             logging.info("STAGE:TRANSCRIPTION:Starting")
             try:
                 logging.info("Initializing Whisper model...")
+                update_job_status(job_id, 'in_progress', 'TRANSCRIPTION', 50, 'Initializing Whisper model')
                 model = whisper.load_model("base")
                 logging.info("Whisper model initialized successfully")
 
@@ -90,16 +96,19 @@ def process_podcast_episode(rss_url, episode_index=0):
                         f.write(f"{item['start']:.2f} - {item['end']:.2f}: {item['text']}\n")
                 logging.info("Transcript file created successfully")
                 logging.info("STAGE:TRANSCRIPTION:Completed")
+                update_job_status(job_id, 'in_progress', 'TRANSCRIPTION', 60, 'Transcription completed')
             except Exception as e:
                 logging.error(f"Error in Whisper transcription: {str(e)}")
                 logging.error(traceback.format_exc())
                 logging.info("STAGE:TRANSCRIPTION:Failed")
+                update_job_status(job_id, 'in_progress', 'TRANSCRIPTION', 60, f'Transcription failed: {str(e)}')
                 raise
         else:
             logging.info(f"Using existing transcript file: {transcript_filename}")
 
         # Always find unwanted content
         logging.info("STAGE:CONTENT_DETECTION:Starting unwanted content detection...")
+        update_job_status(job_id, 'in_progress', 'CONTENT_DETECTION', 70, 'Starting unwanted content detection')
         start_time = time.time()
         llm_response = run_with_animation(find_unwanted_content, transcript_filename)
         end_time = time.time()
@@ -117,9 +126,11 @@ def process_podcast_episode(rss_url, episode_index=0):
             json.dump(unwanted_content, f, indent=2)
         logging.info("Unwanted content file created successfully")
         logging.info("STAGE:CONTENT_DETECTION:Completed")
+        update_job_status(job_id, 'in_progress', 'CONTENT_DETECTION', 80, 'Unwanted content detection completed')
 
         # Edit the audio file
         logging.info("STAGE:AUDIO_EDITING:Starting audio editing process...")
+        update_job_status(job_id, 'in_progress', 'AUDIO_EDITING', 90, 'Starting audio editing')
         try:
             if unwanted_content['unwanted_content']:
                 run_with_animation(edit_audio, input_filename, output_file, unwanted_content['unwanted_content'])
@@ -132,6 +143,7 @@ def process_podcast_episode(rss_url, episode_index=0):
             output_file = input_filename
             logging.info("Using original audio file due to editing error")
             logging.info("STAGE:AUDIO_EDITING:Failed")
+            update_job_status(job_id, 'in_progress', 'AUDIO_EDITING', 90, f'Audio editing failed: {str(e)}')
 
         result = {
             "podcast_title": podcast_title,
@@ -142,12 +154,11 @@ def process_podcast_episode(rss_url, episode_index=0):
             "unwanted_content_file": f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(unwanted_content_filename))}"
         }
         logging.info(f"Podcast processing completed successfully. Result: {result}")
+        update_job_status(job_id, 'completed', 'COMPLETION', 100, 'Podcast processing completed')
         return result
 
     except Exception as e:
         logging.error(f"Error in process_podcast_episode: {str(e)}")
         logging.error(traceback.format_exc())
+        update_job_status(job_id, 'failed', 'FAILED', 0, f'Error: {str(e)}')
         raise
-
-    logging.info(f"Finished processing podcast episode. Current stage: {processing_status[job_id]['current_stage']}")
-    return result

@@ -2,6 +2,17 @@ import React, { useEffect, useState } from 'react';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
+const STAGES = [
+  'INITIALIZATION',
+  'FETCH_EPISODES',
+  'DOWNLOAD',
+  'TRANSCRIPTION',
+  'CONTENT_ANALYSIS',
+  'AUDIO_EDITING',
+  'RSS_MODIFICATION',
+  'COMPLETION'
+];
+
 interface ProcessingStatusProps {
   jobId: string;
   onComplete: () => void;
@@ -9,18 +20,20 @@ interface ProcessingStatusProps {
 
 interface JobStatus {
   status: 'queued' | 'in_progress' | 'completed' | 'failed';
-  progress: number;
-  logs: string[];
   current_stage: string;
-  start_time: string | null;
-  end_time: string | null;
-  error?: string;
+  progress: number;
+  message: string;
+  timestamp: number;
 }
 
-const stageOrder = ['FETCH_EPISODES', 'DOWNLOAD', 'TRANSCRIPTION', 'CONTENT_DETECTION', 'AUDIO_EDITING'];
+interface JobLog {
+  stage: string;
+  message: string;
+}
 
 const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, onComplete }) => {
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+  const [jobLogs, setJobLogs] = useState<JobLog[]>([]);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -30,10 +43,10 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, onComplete }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        console.log('Received job status:', data);
-        setJobStatus(data);
+        setJobStatus(data.status);
+        setJobLogs(data.logs);
 
-        if (data.status === 'completed' || data.status === 'failed') {
+        if (data.status.status === 'completed' || data.status.status === 'failed') {
           onComplete();
         } else {
           setTimeout(fetchStatus, 5000); // Poll every 5 seconds
@@ -54,8 +67,8 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, onComplete }
   console.log('Rendering ProcessingStatus with jobStatus:', jobStatus);
 
   const getStageStatus = (stage: string) => {
-    const currentStageIndex = stageOrder.indexOf(jobStatus.current_stage);
-    const stageIndex = stageOrder.indexOf(stage);
+    const currentStageIndex = STAGES.indexOf(jobStatus.current_stage);
+    const stageIndex = STAGES.indexOf(stage);
 
     if (currentStageIndex === -1 || stageIndex === -1) {
       return 'pending';
@@ -75,7 +88,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, onComplete }
       <h3>Processing Status: {jobStatus.status}</h3>
       <h4>Current Stage: {jobStatus.current_stage}</h4>
       <div className="processing-stages">
-        {stageOrder.map((stage) => (
+        {STAGES.map((stage) => (
           <div
             key={stage}
             className={`stage ${getStageStatus(stage)}`}
@@ -88,18 +101,14 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, onComplete }
         ))}
       </div>
       <p>Progress: {jobStatus.progress}%</p>
-      {jobStatus.start_time && <p>Started: {new Date(jobStatus.start_time).toLocaleString()}</p>}
-      {jobStatus.end_time && <p>Ended: {new Date(jobStatus.end_time).toLocaleString()}</p>}
-      {jobStatus.error && (
-        <div className="error">
-          <h4>Error:</h4>
-          <p>{jobStatus.error}</p>
-        </div>
-      )}
+      <p>Last Updated: {new Date(jobStatus.timestamp * 1000).toLocaleString()}</p>
+      {jobStatus.message && <p>Message: {jobStatus.message}</p>}
       <div className="log-container">
         <h4>Processing Logs:</h4>
-        {jobStatus.logs.map((log, index) => (
-          <div key={index} className="log-entry">{log}</div>
+        {jobLogs.map((log, index) => (
+          <div key={index} className="log-entry">
+            <strong>{log.stage}:</strong> {log.message}
+          </div>
         ))}
       </div>
     </div>

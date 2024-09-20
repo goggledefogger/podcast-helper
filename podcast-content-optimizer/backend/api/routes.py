@@ -6,6 +6,7 @@ from utils import get_podcast_episodes
 from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache
 from llm_processor import find_unwanted_content
 from audio_editor import edit_audio
+from job_manager import update_job_status, get_job_status, append_job_log, get_job_logs
 import json
 import logging
 import queue
@@ -151,14 +152,8 @@ def process_episode():
         return jsonify({"error": "Missing RSS URL or episode index"}), 400
 
     job_id = str(uuid.uuid4())
-    processing_status[job_id] = {
-        'status': 'queued',
-        'progress': 0,
-        'logs': [],
-        'current_stage': 'Queued',
-        'start_time': datetime.now().isoformat(),
-        'end_time': None
-    }
+    update_job_status(job_id, 'queued', 'INITIALIZATION', 0, 'Job queued')
+    append_job_log(job_id, {'stage': 'INITIALIZATION', 'message': 'Job queued'})
 
     logging.info(f"Queueing task for job_id: {job_id}")
     task = process_podcast_task.delay(rss_url, episode_index, job_id)
@@ -168,8 +163,10 @@ def process_episode():
 
 @app.route('/api/process_status/<job_id>', methods=['GET'])
 def get_process_status(job_id):
-    if job_id in processing_status:
-        return jsonify(processing_status[job_id])
+    status = get_job_status(job_id)
+    logs = get_job_logs(job_id)
+    if status:
+        return jsonify({"status": status, "logs": logs})
     else:
         return jsonify({"error": "Job not found"}), 404
 
@@ -225,27 +222,6 @@ def search_podcasts(query):
     else:
         logging.error(f"Error searching podcasts: {response.text}")
         return []
-
-def update_job_status(job_id, status, stage, error=None):
-    if job_id not in processing_status:
-        logging.error(f"Job ID {job_id} not found in processing_status")
-        processing_status[job_id] = {
-            'status': 'unknown',
-            'progress': 0,
-            'logs': [],
-            'current_stage': 'Unknown',
-            'start_time': datetime.now().isoformat(),
-            'end_time': None
-        }
-
-    processing_status[job_id]['status'] = status
-    processing_status[job_id]['current_stage'] = stage
-    processing_status[job_id]['logs'].append(f"STAGE:{stage}:{status.capitalize()}")
-    if error:
-        processing_status[job_id]['error'] = error
-    if status in ['completed', 'failed']:
-        processing_status[job_id]['end_time'] = datetime.now().isoformat()
-    logging.info(f"Updated job status: {processing_status[job_id]}")
 
 if __name__ == '__main__':
     app.run(debug=True)

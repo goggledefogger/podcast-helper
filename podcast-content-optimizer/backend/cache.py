@@ -8,6 +8,4 @@ def cache_set(key, value, expiration=3600):
 
 def cache_get(key):
     value = redis_client.get(key)
-    if value:
-        return json.loads(value)
-    return None
+    return json.loads(value) if value else None
