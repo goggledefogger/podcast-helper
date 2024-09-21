@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
-import { encodeFilePath, decodeFilePath } from './utils';
 import { formatDuration } from './utils/timeUtils';
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001/api';
 
 interface Episode {
   number: number;
@@ -35,9 +36,6 @@ interface JobStatus {
   message: string;
   timestamp: number;
 }
-
-// grab the base url from the environment variable
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001/api';
 
 const fetchWithCredentials = (url: string, options: RequestInit = {}) => {
   console.log('Fetching URL:', url);

@@ -65,7 +65,7 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
 
 1. Start the Flask application:
    ```
-   python -m flask --app wsgi run
+   python -m flask --app wsgi run --host 0.0.0.0
    ```
 
 2. Start the React frontend:
