@@ -2,7 +2,7 @@ from flask import jsonify, request, Response, send_from_directory, abort, curren
 from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
-from utils import get_podcast_episodes
+from utils import get_podcast_episodes, url_to_file_path, file_path_to_url
 from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache
 from llm_processor import find_unwanted_content
 from audio_editor import edit_audio
@@ -11,7 +11,7 @@ import json
 import logging
 import queue
 import threading
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
 import requests
 import traceback
 import uuid
@@ -19,6 +19,9 @@ from queue import Queue
 from datetime import datetime
 import os
 import time
+
+# Update the OUTPUT_DIR definition
+OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'output'))
 
 PROCESSED_PODCASTS_FILE = 'output/processed_podcasts.json'
 log_queue = queue.Queue()
@@ -95,30 +98,28 @@ def get_processed_podcasts():
     logging.info(f"Fetched {len(processed_podcasts)} processed podcasts")
     return jsonify(processed_podcasts), 200
 
-@app.route('/api/output/<path:filename>')
+@app.route('/output/<path:filename>')
 def serve_output_file(filename):
     logging.info(f"Attempting to serve file: {filename}")
 
-    # Decode the filename
-    decoded_filename = unquote(filename)
-
-    # Construct the full file path
-    file_path = os.path.join(current_app.root_path, '..', 'output', decoded_filename)
+    # Convert URL path to file system path
+    file_path = os.path.join(OUTPUT_DIR, filename)
 
     logging.info(f"Full file path: {file_path}")
 
-    # Get the directory and file name
-    directory = os.path.dirname(file_path)
-    file_name = os.path.basename(file_path)
-
-    if os.path.exists(file_path):
+    if os.path.exists(file_path) and os.path.isfile(file_path):
         logging.info(f"File found, serving: {file_path}")
-        return send_from_directory(directory, file_name, as_attachment=True)
+        try:
+            return send_from_directory(OUTPUT_DIR, filename, as_attachment=True)
+        except Exception as e:
+            logging.error(f"Error serving file: {str(e)}")
+            logging.error(traceback.format_exc())
+            return jsonify({"error": f"Error serving file: {str(e)}"}), 500
     else:
         logging.error(f"File not found: {file_path}")
         return jsonify({"error": "File not found"}), 404
 
-@app.route('/api/modified_rss/<path:rss_url>')
+@app.route('/api/modified_rss/<path:rss_url>', methods=['GET'])
 def get_modified_rss(rss_url):
     try:
         logging.info(f"Attempting to get modified RSS for URL: {rss_url}")
@@ -143,7 +144,6 @@ def get_modified_rss(rss_url):
             return jsonify({"error": "Failed to generate modified RSS"}), 400
 
         logging.info("Successfully generated modified RSS")
-        logging.info(f"Modified RSS content (first 200 chars): {modified_rss[:200]}")
         return Response(modified_rss, content_type='application/xml; charset=utf-8')
     except Exception as e:
         logging.error(f"Error generating modified RSS: {str(e)}")

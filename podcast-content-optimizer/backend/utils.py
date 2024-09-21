@@ -8,6 +8,8 @@ import sys
 from mutagen.mp3 import MP3
 import json
 import os
+import urllib.parse
+import re
 
 PROCESSED_PODCASTS_FILE = 'output/processed_podcasts.json'
 
@@ -150,6 +152,14 @@ def save_processed_podcast(podcast_data):
             json.dump(podcasts, f, indent=2)
 
         logging.info(f"Saved processed podcast to {PROCESSED_PODCASTS_FILE}")
+
+        if 'edited_url' in podcast_data:
+            podcast_data['edited_url'] = file_path_to_url(podcast_data['edited_url'])
+        if 'transcript_file' in podcast_data:
+            podcast_data['transcript_file'] = file_path_to_url(podcast_data['transcript_file'])
+        if 'unwanted_content_file' in podcast_data:
+            podcast_data['unwanted_content_file'] = file_path_to_url(podcast_data['unwanted_content_file'])
+
     except Exception as e:
         logging.error(f"Error saving processed podcast: {str(e)}")
         logging.error(traceback.format_exc())
@@ -205,3 +215,39 @@ def format_duration(seconds: float, format: str = 'HH:MM:SS') -> str:
         return str(int(seconds))
     else:
         raise ValueError(f"Invalid format: {format}")
+
+def safe_filename(filename):
+    # Replace spaces and colons with underscores, remove other non-alphanumeric characters
+    return re.sub(r'[^\w\-_\. ]', '', filename.replace(' ', '_').replace(':', '_'))
+
+def encode_url_path(component):
+    return urllib.parse.quote(component)
+
+def decode_url_path(encoded_path):
+    return urllib.parse.unquote(encoded_path)
+
+def url_to_file_path(url_path, base_dir='output'):
+    logging.info(f"Converting URL path to file path: {url_path}")
+    decoded_path = decode_url_path(url_path)
+    path_components = decoded_path.split('/')
+    safe_components = [safe_filename(component) for component in path_components]
+    safe_path = os.path.join(*safe_components)
+    full_path = os.path.join(base_dir, safe_path)
+    logging.info(f"Converted to file path: {full_path}")
+    return full_path
+
+def file_path_to_url(file_path, base_dir='output'):
+    logging.info(f"Converting file path to URL: {file_path}")
+    relative_path = os.path.relpath(file_path, base_dir)
+    url_components = relative_path.split(os.path.sep)
+    # Use safe_filename here to ensure consistency with file system paths
+    safe_components = [safe_filename(component) for component in url_components]
+    encoded_components = [encode_url_path(component) for component in safe_components]
+    url_path = '/'.join(encoded_components)
+    logging.info(f"Converted to URL path: {url_path}")
+    return url_path
+
+def get_episode_folder(podcast_title, episode_title):
+    safe_podcast_title = safe_filename(podcast_title)
+    safe_episode_title = safe_filename(episode_title)
+    return os.path.join('output', safe_podcast_title, safe_episode_title)

@@ -229,8 +229,8 @@ const App: React.FC = () => {
   };
 
   const handleDownload = (url: string) => {
-    // The URL is already encoded, so we don't need to encode it again
-    window.open(`${API_BASE_URL}${url}`, '_blank');
+    // Open the URL directly
+    window.open(url, "_blank");
   };
 
   const fetchCurrentJobs = async () => {
@@ -383,17 +383,17 @@ const App: React.FC = () => {
                     <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
                     <div className="processed-links">
                       {podcast.edited_url && (
-                        <a href={`${API_BASE_URL}${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href="#" onClick={() => handleDownload(podcast.edited_url)} className="view-link">
                           Download Edited Audio
                         </a>
                       )}
                       {podcast.transcript_file && (
-                        <a href={`${API_BASE_URL}${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href="#" onClick={() => handleDownload(podcast.transcript_file)} className="view-link">
                           View Transcript
                         </a>
                       )}
                       {podcast.unwanted_content_file && (
-                        <a href={`${API_BASE_URL}${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href="#" onClick={() => handleDownload(podcast.unwanted_content_file)} className="view-link">
                           View Unwanted Content
                         </a>
                       )}

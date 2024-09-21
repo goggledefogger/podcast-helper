@@ -1,6 +1,6 @@
 from audio_editor import edit_audio
 from llm_processor import find_unwanted_content, parse_llm_response
-from utils import get_podcast_episodes, download_episode, run_with_animation, save_processed_podcast
+from utils import get_podcast_episodes, download_episode, run_with_animation, save_processed_podcast, file_path_to_url, safe_filename, get_episode_folder
 from job_manager import update_job_status
 import whisper
 import os
@@ -11,11 +11,6 @@ import torch
 import traceback
 import urllib.parse
 from datetime import datetime
-
-def get_episode_folder(podcast_title, episode_title):
-    safe_podcast_title = podcast_title.replace('/', '_').replace('\\', '_')
-    safe_episode_title = episode_title.replace('/', '_').replace('\\', '_')
-    return os.path.join('output', safe_podcast_title, safe_episode_title)
 
 def process_podcast_episode(rss_url, episode_index=0, job_id=None):
     logging.info(f"Starting to process podcast episode from RSS: {rss_url}")
@@ -42,10 +37,10 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         logging.info(f"Created episode folder: {episode_folder}")
 
         # Update file paths
-        input_filename = os.path.join(episode_folder, f"original_{chosen_episode['title'].replace(' ', '_')}.mp3")
-        transcript_filename = os.path.join(episode_folder, f"transcript.txt")
-        unwanted_content_filename = os.path.join(episode_folder, f"unwanted_content.json")
-        output_file = os.path.join(episode_folder, f"edited_{chosen_episode['title'].replace(' ', '_')}.mp3")
+        input_filename = os.path.join(episode_folder, safe_filename(f"original_{chosen_episode['title']}.mp3"))
+        transcript_filename = os.path.join(episode_folder, "transcript.txt")
+        unwanted_content_filename = os.path.join(episode_folder, "unwanted_content.json")
+        output_file = os.path.join(episode_folder, safe_filename(f"edited_{chosen_episode['title']}.mp3"))
 
         # Create initial podcast data
         podcast_data = {
@@ -183,11 +178,11 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
 
         # Add file references only if they exist
         if os.path.exists(output_file):
-            result["edited_url"] = f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(output_file))}"
+            result["edited_url"] = file_path_to_url(output_file)
         if os.path.exists(transcript_filename):
-            result["transcript_file"] = f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(transcript_filename))}"
+            result["transcript_file"] = file_path_to_url(transcript_filename)
         if os.path.exists(unwanted_content_filename):
-            result["unwanted_content_file"] = f"/output/{urllib.parse.quote(podcast_title)}/{urllib.parse.quote(chosen_episode['title'])}/{urllib.parse.quote(os.path.basename(unwanted_content_filename))}"
+            result["unwanted_content_file"] = file_path_to_url(unwanted_content_filename)
 
         logging.info(f"Podcast processing completed successfully. Result: {result}")
 
