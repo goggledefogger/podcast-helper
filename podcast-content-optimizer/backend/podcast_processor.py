@@ -74,7 +74,6 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
             podcast_data['input_file'] = input_filename
             save_processed_podcast(podcast_data)
 
-        # Check if the file was actually downloaded
         if not os.path.exists(input_filename):
             raise FileNotFoundError(f"Downloaded file not found: {input_filename}")
 
@@ -128,7 +127,7 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
             podcast_data['transcript_file'] = transcript_filename
             save_processed_podcast(podcast_data)
 
-        # Always find unwanted content
+        # Always perform content detection
         logging.info("STAGE:CONTENT_DETECTION:Starting unwanted content detection...")
         update_job_status(job_id, 'in_progress', 'CONTENT_DETECTION', 70, 'Starting unwanted content detection')
         start_time = time.time()
@@ -162,7 +161,6 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
                 podcast_data['output_file'] = output_file
             else:
                 logging.info("No unwanted content found. Skipping audio editing.")
-                output_file = input_filename
                 podcast_data['output_file'] = input_filename
             podcast_data['status'] = 'edited'
             save_processed_podcast(podcast_data)
@@ -201,19 +199,7 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         return result
 
     except Exception as e:
-        logging.error(f"Error in process_podcast_episode: {str(e)}")
+        logging.error(f"Error in podcast processing: {str(e)}")
         logging.error(traceback.format_exc())
         update_job_status(job_id, 'failed', 'ERROR', 0, f'Error: {str(e)}')
-
-        # Update the processed podcast entry with failed status
-        failed_result = {
-            "rss_url": rss_url,
-            "episode_title": chosen_episode['title'] if 'chosen_episode' in locals() else "Unknown",
-            "status": "failed",
-            "job_id": job_id,
-            "error_message": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
-        save_processed_podcast(failed_result)
-
         raise

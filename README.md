@@ -58,12 +58,22 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
 
 ## Usage
 
-1. Start the Flask application:
+1. Start the celery worker:
    ```
-   python api.py
+   celery -A celery_app worker --loglevel=info
    ```
 
-2. Open a web browser and navigate to `http://localhost:5000`.
+1. Start the Flask application:
+   ```
+   python -m flask --app wsgi run
+   ```
+
+2. Start the React frontend:
+   ```
+   npm start
+   ```
+
+3. Open a web browser and navigate to `http://localhost:3000`.
 
 3. Use the search functionality to find podcasts, or enter an RSS URL directly.
 
@@ -82,14 +92,6 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
 - `unwanted_content.json`: A JSON file containing identified content segments
 - `edited_audio.mp3`: An edited version of the podcast with unwanted content removed
 - Modified RSS feed: An updated RSS feed with links to the edited content
-
-## Developer Notes
-
-- The project now uses a caching system for RSS feeds to improve performance and reduce API calls.
-- The `rss_modifier.py` file contains functions for modifying RSS feeds and handling podcast images.
-- The web interface (`templates/` directory) has been updated to support podcast searching and episode selection.
-- Error handling and logging have been improved throughout the application.
-- The `utils.py` file contains helper functions, including a progress animation for long-running tasks.
 
 ## Customization
 

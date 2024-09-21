@@ -36,7 +36,21 @@ interface JobStatus {
   timestamp: number;
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+// grab the base url from the environment variable
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001/api';
+
+const fetchWithCredentials = (url: string, options: RequestInit = {}) => {
+  console.log('Fetching URL:', url);
+  return fetch(url, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...options.headers,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+  });
+};
 
 const App: React.FC = () => {
   const [rssUrl, setRssUrl] = useState('');
@@ -59,21 +73,15 @@ const App: React.FC = () => {
 
   const fetchProcessedPodcasts = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/processed_podcasts`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithCredentials(`${API_BASE_URL}/processed_podcasts`);
       if (!response.ok) {
-        if (response.status === 404) {
-          console.warn('Processed podcasts endpoint not found. This feature may not be implemented yet.');
-          return;
-        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
       setProcessedPodcasts(data);
     } catch (err) {
       console.error('Error fetching processed podcasts:', err);
-      setError('Error fetching processed podcasts. This feature may not be implemented yet.');
+      setError('Error fetching processed podcasts. Please try again later.');
     }
   };
 
@@ -83,11 +91,9 @@ const App: React.FC = () => {
     if (jobIds.length === 0) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/batch_process_status`, {
+      const response = await fetchWithCredentials(`${API_BASE_URL}/batch_process_status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ job_ids: jobIds }),
-        credentials: 'include',
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -123,7 +129,7 @@ const App: React.FC = () => {
 
     const startPolling = () => {
       fetchJobStatuses();
-      intervalId = setInterval(fetchJobStatuses, 5000);
+      intervalId = setInterval(fetchJobStatuses, 10000);
     };
 
     const stopPolling = () => {
@@ -148,12 +154,10 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError('');
     try {
-      console.log(`Fetching episodes for RSS URL: ${url}`);
-      const response = await fetch(`${API_BASE_URL}/episodes`, {
+      console.log('Fetching episodes for URL:', `${API_BASE_URL}/episodes`);
+      const response = await fetchWithCredentials(`${API_BASE_URL}/episodes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rss_url: url }),
-        credentials: 'include',
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -177,11 +181,9 @@ const App: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/process`, {
+      const response = await fetchWithCredentials(`${API_BASE_URL}/process`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rss_url: rssUrl, episode_index: selectedEpisode }),
-        credentials: 'include',
       });
 
       if (!response.ok) throw new Error('Failed to start processing');
@@ -198,11 +200,9 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/search`, {
+      const response = await fetchWithCredentials(`${API_BASE_URL}/search`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: searchQuery }),
-        credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to search podcasts');
       const data = await response.json();
@@ -228,28 +228,25 @@ const App: React.FC = () => {
 
   const fetchCurrentJobs = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/current_jobs`, {
-        credentials: 'include',
-      });
+      console.log('Fetching current jobs from:', `${API_BASE_URL}/current_jobs`);
+      const response = await fetchWithCredentials(`${API_BASE_URL}/current_jobs`);
+      console.log('Response:', response);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
+      console.log('Current jobs data:', data);
       setCurrentJobs(data);
     } catch (err) {
       console.error('Error fetching current jobs:', err);
+      // Don't set an error message for this, as it's not critical for the user experience
     }
   };
 
   const deleteJob = async (jobId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/delete_job/${jobId}`, {
+      const response = await fetchWithCredentials(`${API_BASE_URL}/delete_job/${jobId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        credentials: 'include',
       });
       if (!response.ok) {
         const errorData = await response.json();

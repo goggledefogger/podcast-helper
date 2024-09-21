@@ -154,19 +154,37 @@ def save_processed_podcast(podcast_data):
         logging.error(f"Error saving processed podcast: {str(e)}")
         logging.error(traceback.format_exc())
 
-def parse_duration(time_str):
+def parse_duration(duration):
     """
-    Parse a time string (e.g. "1:23:45" or "1:23") into seconds.
+    Parse a time string into seconds.
+    Accepts:
+    - "HH:MM:SS" format
+    - "MM:SS" format
+    - Seconds as a string (e.g., "83.5")
+    - Seconds as a float or int
+    Returns: Seconds as float
     """
-    parts = time_str.split(':')
-    if len(parts) == 3:
-        hours, minutes, seconds = parts
-        return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
-    elif len(parts) == 2:
-        minutes, seconds = parts
-        return int(minutes) * 60 + float(seconds)
-    else:
-        return float(time_str)
+    if isinstance(duration, (float, int)):
+        return float(duration)
+
+    if isinstance(duration, str):
+        # Try to parse as a decimal number first
+        try:
+            return float(duration)
+        except ValueError:
+            pass
+
+        # If not a decimal, try to parse as HH:MM:SS or MM:SS
+        parts = duration.split(':')
+        if len(parts) == 3:
+            hours, minutes, seconds = parts
+            return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+        elif len(parts) == 2:
+            minutes, seconds = parts
+            return int(minutes) * 60 + float(seconds)
+
+    # If we get here, the format is invalid
+    raise ValueError(f"Invalid duration format: {duration}")
 
 def format_duration(seconds: float, format: str = 'HH:MM:SS') -> str:
     """
