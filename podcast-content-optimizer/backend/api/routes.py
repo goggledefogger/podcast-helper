@@ -136,11 +136,7 @@ def get_modified_rss(rss_url):
         processed_podcasts = load_processed_podcasts()
         logging.info(f"Loaded {len(processed_podcasts)} processed podcasts")
 
-        host = request.headers.get('Host')
-        url_root = f"{request.scheme}://{host}/"
-        logging.info(f"URL root: {url_root}")
-
-        modified_rss = get_or_create_modified_rss(decoded_rss_url, processed_podcasts, url_root)
+        modified_rss = get_or_create_modified_rss(decoded_rss_url, processed_podcasts)
 
         if not modified_rss:
             logging.error("Failed to generate modified RSS")

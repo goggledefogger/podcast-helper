@@ -63,6 +63,7 @@ const App: React.FC = () => {
   const [currentJobs, setCurrentJobs] = useState<{ job_id: string; status: JobStatus }[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [jobStatuses, setJobStatuses] = useState<{ [key: string]: JobStatus }>({});
+  const [currentJobInfo, setCurrentJobInfo] = useState<{ podcastName: string; episodeTitle: string } | null>(null);
 
   useEffect(() => {
     fetchProcessedPodcasts();
@@ -188,6 +189,14 @@ const App: React.FC = () => {
 
       const data = await response.json();
       setCurrentJobId(data.job_id);
+
+      // Set the current job info
+      const selectedPodcast = searchResults.find(podcast => podcast.rssUrl === rssUrl);
+      const selectedEpisodeInfo = episodes[selectedEpisode];
+      setCurrentJobInfo({
+        podcastName: selectedPodcast?.name || 'Unknown Podcast',
+        episodeTitle: selectedEpisodeInfo?.title || 'Unknown Episode'
+      });
     } catch (err) {
       setError('Error processing episode: ' + (err as Error).message);
       setIsProcessing(false);
@@ -267,6 +276,16 @@ const App: React.FC = () => {
     }));
   };
 
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    searchPodcasts();
+  };
+
+  const handleEpisodeSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    processEpisode();
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -275,8 +294,8 @@ const App: React.FC = () => {
       <main className="App-main">
         <section className="search-section" aria-labelledby="search-heading">
           <h2 id="search-heading">Search for a Podcast</h2>
-          <div className="search-container">
-            <label htmlFor="search-input" className="visually-hidden">Search for podcasts</label>
+          <form onSubmit={handleSearchSubmit} className="search-container">
+            <label htmlFor="search-input">Search for podcasts</label>
             <input
               id="search-input"
               type="text"
@@ -285,10 +304,10 @@ const App: React.FC = () => {
               placeholder="Enter podcast name"
               aria-describedby="search-description"
             />
-            <button onClick={searchPodcasts} disabled={isLoading || !searchQuery.trim()}>
+            <button type="submit" disabled={isLoading || !searchQuery.trim()}>
               Search
             </button>
-          </div>
+          </form>
           <p id="search-description" className="helper-text">Enter a podcast name to search for available episodes.</p>
         </section>
 
@@ -327,8 +346,8 @@ const App: React.FC = () => {
         {episodes.length > 0 && (
           <section className="episode-selection" aria-labelledby="episode-heading">
             <h2 id="episode-heading">Select an Episode</h2>
-            <div className="episode-container">
-              <label htmlFor="episode-select" className="visually-hidden">Choose an episode</label>
+            <form onSubmit={handleEpisodeSubmit} className="episode-container">
+              <label htmlFor="episode-select">Choose an episode</label>
               <select
                 id="episode-select"
                 value={selectedEpisode ?? ''}
@@ -344,13 +363,13 @@ const App: React.FC = () => {
                 ))}
               </select>
               <button
-                onClick={processEpisode}
+                type="submit"
                 disabled={isLoading || selectedEpisode === null || isProcessing}
                 className="process-button"
               >
                 {isProcessing ? 'Processing...' : 'Process Episode'}
               </button>
-            </div>
+            </form>
           </section>
         )}
 
@@ -405,6 +424,8 @@ const App: React.FC = () => {
             jobId={currentJobId}
             status={jobStatuses[currentJobId]}
             onDelete={() => deleteJob(currentJobId)}
+            podcastName={currentJobInfo?.podcastName}
+            episodeTitle={currentJobInfo?.episodeTitle}
           />
         )}
 
@@ -417,6 +438,7 @@ const App: React.FC = () => {
                   jobId={job.job_id}
                   status={jobStatuses[job.job_id]}
                   onDelete={() => deleteJob(job.job_id)}
+                  // Note: You might need to store and pass podcast and episode info for each job
                 />
               </div>
             ))}

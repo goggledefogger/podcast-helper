@@ -1,4 +1,5 @@
 import React from 'react';
+import './ProcessingStatus.css';
 
 const STAGES = [
   'INITIALIZATION',
@@ -15,6 +16,8 @@ interface ProcessingStatusProps {
   jobId: string;
   status: JobStatus | undefined;
   onDelete?: () => void;
+  podcastName?: string;
+  episodeTitle?: string;
 }
 
 interface JobStatus {
@@ -25,7 +28,7 @@ interface JobStatus {
   timestamp: number;
 }
 
-const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete }) => {
+const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete, podcastName, episodeTitle }) => {
   if (!status) {
     return <div>Loading status...</div>;
   }
@@ -49,8 +52,17 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDe
 
   return (
     <div className="processing-status">
+      {podcastName && episodeTitle && (
+        <div className="podcast-info">
+          <h3>{podcastName}</h3>
+          <h4>{episodeTitle}</h4>
+        </div>
+      )}
       <h3>Processing Status: {status.status}</h3>
-      <h4>Current Stage: {status.current_stage}</h4>
+      <div className="progress-bar">
+        <div className="progress-fill" style={{ width: `${status.progress}%` }}></div>
+      </div>
+      <p className="current-stage">Current Stage: {status.current_stage}</p>
       <div className="processing-stages">
         {STAGES.map((stage) => (
           <div
@@ -58,15 +70,12 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDe
             className={`stage ${getStageStatus(stage)}`}
           >
             <span className="stage-name">{stage}</span>
-            <span className="stage-status">
-              {getStageStatus(stage)}
-            </span>
+            <span className="stage-icon"></span>
           </div>
         ))}
       </div>
-      <p>Progress: {status.progress}%</p>
-      <p>Last Updated: {new Date(status.timestamp * 1000).toLocaleString()}</p>
-      {status.message && <p>Message: {status.message}</p>}
+      <p className="status-message">{status.message}</p>
+      <p className="timestamp">Last Updated: {new Date(status.timestamp * 1000).toLocaleString()}</p>
       {onDelete && (
         <button onClick={onDelete} className="delete-job-button">
           Delete Job
