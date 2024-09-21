@@ -150,16 +150,16 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
                 'type': 'application/rss+xml'
             })
 
-        # Add this near the top of the function
-        image_elem = channel.find('image')
-        if image_elem is not None:
-            url_elem = image_elem.find('url')
-            if url_elem is not None:
-                url_elem.text = f"{url_root}/static/optimized_podcast_image.jpg"
+        # # Add this near the top of the function
+        # image_elem = channel.find('image')
+        # if image_elem is not None:
+        #     url_elem = image_elem.find('url')
+        #     if url_elem is not None:
+        #         url_elem.text = f"{url_root}/static/optimized_podcast_image.jpg"
 
-        itunes_image = channel.find('itunes:image', namespaces=NAMESPACES)
-        if itunes_image is not None:
-            itunes_image.set('href', f"{url_root}/static/optimized_podcast_image.jpg")
+        # itunes_image = channel.find('itunes:image', namespaces=NAMESPACES)
+        # if itunes_image is not None:
+        #     itunes_image.set('href', f"{url_root}/static/optimized_podcast_image.jpg")
 
         # Process items
         for item in channel.findall('item'):
