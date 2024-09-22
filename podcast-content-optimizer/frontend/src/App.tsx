@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
-import { formatDuration } from './utils/timeUtils';
+import { formatDuration, formatDate } from './utils/timeUtils';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001/api';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
 
 interface Episode {
   number: number;
@@ -72,7 +72,7 @@ const App: React.FC = () => {
 
   const fetchProcessedPodcasts = async () => {
     try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/processed_podcasts`);
+      const response = await fetchWithCredentials(`${API_BASE_URL}/api/processed_podcasts`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -90,7 +90,7 @@ const App: React.FC = () => {
     if (jobIds.length === 0) return;
 
     try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/batch_process_status`, {
+      const response = await fetchWithCredentials(`${API_BASE_URL}/api/batch_process_status`, {
         method: 'POST',
         body: JSON.stringify({ job_ids: jobIds }),
       });
@@ -153,8 +153,8 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError('');
     try {
-      console.log('Fetching episodes for URL:', `${API_BASE_URL}/episodes`);
-      const response = await fetchWithCredentials(`${API_BASE_URL}/episodes`, {
+      console.log('Fetching episodes for URL:', `${API_BASE_URL}/api/episodes`);
+      const response = await fetchWithCredentials(`${API_BASE_URL}/api/episodes`, {
         method: 'POST',
         body: JSON.stringify({ rss_url: url }),
       });
@@ -180,7 +180,7 @@ const App: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/process`, {
+      const response = await fetchWithCredentials(`${API_BASE_URL}/api/process`, {
         method: 'POST',
         body: JSON.stringify({ rss_url: rssUrl, episode_index: selectedEpisode }),
       });
@@ -207,7 +207,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError('');
     try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/search`, {
+      const response = await fetchWithCredentials(`${API_BASE_URL}/api/search`, {
         method: 'POST',
         body: JSON.stringify({ query: searchQuery }),
       });
@@ -228,15 +228,10 @@ const App: React.FC = () => {
     fetchEpisodes(rssUrl);
   };
 
-  const handleDownload = (url: string) => {
-    // Open the URL directly
-    window.open(url, "_blank");
-  };
-
   const fetchCurrentJobs = async () => {
     try {
-      console.log('Fetching current jobs from:', `${API_BASE_URL}/current_jobs`);
-      const response = await fetchWithCredentials(`${API_BASE_URL}/current_jobs`);
+      console.log('Fetching current jobs from:', `${API_BASE_URL}/api/current_jobs`);
+      const response = await fetchWithCredentials(`${API_BASE_URL}/api/current_jobs`);
       console.log('Response:', response);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -252,7 +247,7 @@ const App: React.FC = () => {
 
   const deleteJob = async (jobId: string) => {
     try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/delete_job/${jobId}`, {
+      const response = await fetchWithCredentials(`${API_BASE_URL}/api/delete_job/${jobId}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
@@ -296,17 +291,19 @@ const App: React.FC = () => {
           <h2 id="search-heading">Search for a Podcast</h2>
           <form onSubmit={handleSearchSubmit} className="search-container">
             <label htmlFor="search-input">Search for podcasts</label>
-            <input
-              id="search-input"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Enter podcast name"
-              aria-describedby="search-description"
-            />
-            <button type="submit" disabled={isLoading || !searchQuery.trim()}>
-              Search
-            </button>
+            <div className="search-input-wrapper">
+              <input
+                id="search-input"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Enter podcast name"
+                aria-describedby="search-description"
+              />
+              <button type="submit" disabled={isLoading || !searchQuery.trim()}>
+                Search
+              </button>
+            </div>
           </form>
           <p id="search-description" className="helper-text">Enter a podcast name to search for available episodes.</p>
         </section>
@@ -358,7 +355,7 @@ const App: React.FC = () => {
                 <option value="">Select an episode</option>
                 {episodes.map((episode, index) => (
                   <option key={index} value={index}>
-                    {episode.title} - {episode.published} ({formatDuration(episode.duration, 'MM:SS')})
+                    {episode.title} - {formatDate(episode.published)} ({formatDuration(episode.duration, 'MM:SS')})
                   </option>
                 ))}
               </select>
@@ -383,22 +380,22 @@ const App: React.FC = () => {
                     <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
                     <div className="processed-links">
                       {podcast.edited_url && (
-                        <a href="#" onClick={() => handleDownload(podcast.edited_url)} className="view-link">
+                        <a href={`${API_BASE_URL}${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           Download Edited Audio
                         </a>
                       )}
                       {podcast.transcript_file && (
-                        <a href="#" onClick={() => handleDownload(podcast.transcript_file)} className="view-link">
+                        <a href={`${API_BASE_URL}${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Transcript
                         </a>
                       )}
                       {podcast.unwanted_content_file && (
-                        <a href="#" onClick={() => handleDownload(podcast.unwanted_content_file)} className="view-link">
+                        <a href={`${API_BASE_URL}${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Unwanted Content
                         </a>
                       )}
                       {podcast.rss_url && (
-                        <a href={`${API_BASE_URL}/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Modified RSS Feed
                         </a>
                       )}

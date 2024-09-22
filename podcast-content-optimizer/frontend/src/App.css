@@ -151,15 +151,50 @@ button:disabled, select:disabled {
 @media (max-width: 768px) {
   .search-container, .episode-container {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-container input,
+  .search-container button,
+  .episode-container select,
+  .episode-container button {
+    width: 100%;
+    margin-bottom: 10px;
   }
 
   .podcast-item {
     flex-direction: column;
+    align-items: center;
   }
 
   .podcast-image {
     margin-right: 0;
     margin-bottom: 10px;
+  }
+
+  .podcast-info {
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .select-button {
+    width: 100%;
+  }
+
+  .processed-item {
+    padding: 10px;
+  }
+
+  .processed-links {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .view-link {
+    margin-right: 0;
+    margin-bottom: 10px;
+    text-align: center;
   }
 }
 
@@ -326,3 +361,44 @@ button:disabled, select:disabled {
 */
 
 /* ... (keep other styles) */
+
+.search-section {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto 20px;
+}
+
+.search-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.search-container label {
+  font-weight: bold;
+}
+
+.search-input-wrapper {
+  display: flex;
+  gap: 10px;
+}
+
+#search-input {
+  flex-grow: 1;
+  min-width: 0; /* This prevents the input from overflowing its container */
+}
+
+.search-container button {
+  white-space: nowrap; /* Prevents the button text from wrapping */
+}
+
+@media (max-width: 768px) {
+  .search-input-wrapper {
+    flex-direction: column;
+  }
+
+  #search-input,
+  .search-container button {
+    width: 100%;
+  }
+}

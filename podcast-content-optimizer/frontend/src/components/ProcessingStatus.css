@@ -129,11 +129,34 @@
 
 @media (max-width: 768px) {
   .processing-stages {
-    justify-content: center;
+    justify-content: space-around;
   }
 
   .stage {
-    width: 80px;
-    margin: 0 10px 15px;
+    width: 60px;
+    margin: 0 5px 15px;
+  }
+
+  .stage-name {
+    font-size: 0.7em;
+  }
+
+  .podcast-info h3 {
+    font-size: 1.1em;
+  }
+
+  .podcast-info h4 {
+    font-size: 0.9em;
+  }
+
+  .current-stage,
+  .status-message,
+  .timestamp {
+    font-size: 0.9em;
+  }
+
+  .delete-job-button {
+    width: 100%;
+    margin-top: 15px;
   }
 }

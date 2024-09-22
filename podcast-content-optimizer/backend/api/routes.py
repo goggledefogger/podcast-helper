@@ -1,4 +1,4 @@
-from flask import jsonify, request, Response, send_from_directory, abort, current_app
+from flask import jsonify, request, Response, send_from_directory, abort, current_app, send_file
 from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
@@ -102,15 +102,18 @@ def get_processed_podcasts():
 def serve_output_file(filename):
     logging.info(f"Attempting to serve file: {filename}")
 
-    # Convert URL path to file system path
-    file_path = os.path.join(OUTPUT_DIR, filename)
+    # Decode the URL-encoded filename
+    decoded_filename = unquote(filename)
+
+    # Construct the full file path
+    file_path = os.path.join(OUTPUT_DIR, decoded_filename)
 
     logging.info(f"Full file path: {file_path}")
 
     if os.path.exists(file_path) and os.path.isfile(file_path):
         logging.info(f"File found, serving: {file_path}")
         try:
-            return send_from_directory(OUTPUT_DIR, filename, as_attachment=True)
+            return send_file(file_path, as_attachment=True)
         except Exception as e:
             logging.error(f"Error serving file: {str(e)}")
             logging.error(traceback.format_exc())
@@ -285,6 +288,11 @@ def batch_process_status():
     except Exception as e:
         logging.error(f"Error in batch_process_status: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/serve_file/<path:podcast_title>/<path:episode_title>/<path:filename>')
+def serve_file(podcast_title, episode_title, filename):
+    directory = os.path.join('output', podcast_title, episode_title)
+    return send_from_directory(directory, filename)
 
 if __name__ == '__main__':
     app.run(debug=True)

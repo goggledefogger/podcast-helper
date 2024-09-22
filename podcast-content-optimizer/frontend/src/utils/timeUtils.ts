@@ -12,3 +12,8 @@ export function formatDuration(seconds: number, format: 'HH:MM:SS' | 'MM:SS' | '
       return seconds.toString();
   }
 }
+
+export function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}

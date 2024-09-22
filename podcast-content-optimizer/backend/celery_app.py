@@ -2,6 +2,8 @@ from celery import Celery
 import os
 import sys
 import logging
+import atexit
+import multiprocessing
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -33,6 +35,14 @@ try:
     logger.info("Successfully imported tasks from api")
 except ImportError as e:
     logger.error(f"Failed to import tasks from api: {str(e)}")
+
+def cleanup_resources():
+    # Clean up any resources that might be left open
+    multiprocessing.resource_tracker._resource_tracker.clear()
+    logger.info("Cleaned up multiprocessing resources")
+
+# Register the cleanup function to be called at exit
+atexit.register(cleanup_resources)
 
 if __name__ == '__main__':
     logger.info("Starting Celery app")
