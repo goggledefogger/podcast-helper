@@ -408,3 +408,18 @@ button:disabled, select:disabled {
     width: 100%;
   }
 }
+
+.delete-podcast-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 10px;
+}
+
+.delete-podcast-button:hover {
+  background-color: #c82333;
+}

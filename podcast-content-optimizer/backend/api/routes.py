@@ -19,6 +19,8 @@ from queue import Queue
 from datetime import datetime
 import os
 import time
+import shutil
+from utils import get_episode_folder
 
 # Update the OUTPUT_DIR definition
 OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'output'))
@@ -288,6 +290,43 @@ def batch_process_status():
     except Exception as e:
         logging.error(f"Error in batch_process_status: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/delete_processed_podcast', methods=['POST'])
+def delete_processed_podcast():
+    try:
+        data = request.json
+        podcast_title = data.get('podcast_title')
+        episode_title = data.get('episode_title')
+
+        if not podcast_title or not episode_title:
+            return jsonify({"error": "Missing podcast title or episode title"}), 400
+
+        # Load existing processed podcasts
+        processed_podcasts = load_processed_podcasts()
+
+        # Find and remove the podcast from the list
+        processed_podcasts = [p for p in processed_podcasts if not (p['podcast_title'] == podcast_title and p['episode_title'] == episode_title)]
+
+        # Save the updated list
+        with open(PROCESSED_PODCASTS_FILE, 'w') as f:
+            json.dump(processed_podcasts, f, indent=2)
+
+        # Delete the episode folder
+        episode_folder = get_episode_folder(podcast_title, episode_title)
+        if os.path.exists(episode_folder):
+            shutil.rmtree(episode_folder)
+
+        # Invalidate the RSS cache for this podcast
+        invalidate_rss_cache(data.get('rss_url'))
+
+        return jsonify({"message": "Podcast deleted successfully"}), 200
+    except Exception as e:
+        logging.error(f"Error deleting processed podcast: {str(e)}")
+        logging.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+# Update the CORS configuration to allow DELETE method
+CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS", "DELETE"]}})
 
 if __name__ == '__main__':
     app.run(debug=True)

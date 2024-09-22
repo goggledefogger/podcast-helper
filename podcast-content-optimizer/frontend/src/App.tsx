@@ -2,8 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
 import { formatDuration, formatDate } from './utils/timeUtils';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
+import {
+  fetchProcessedPodcasts,
+  fetchEpisodes,
+  processEpisode,
+  searchPodcasts,
+  fetchCurrentJobs,
+  deleteJob,
+  fetchJobStatuses,
+  deleteProcessedPodcast,
+  JobStatus
+} from './api';
 
 interface Episode {
   number: number;
@@ -29,27 +38,6 @@ interface SearchResult {
   rssUrl: string;
 }
 
-interface JobStatus {
-  status: 'queued' | 'in_progress' | 'completed' | 'failed';
-  current_stage: string;
-  progress: number;
-  message: string;
-  timestamp: number;
-}
-
-const fetchWithCredentials = (url: string, options: RequestInit = {}) => {
-  console.log('Fetching URL:', url);
-  return fetch(url, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      ...options.headers,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-  });
-};
-
 const App: React.FC = () => {
   const [rssUrl, setRssUrl] = useState('');
   const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -62,43 +50,86 @@ const App: React.FC = () => {
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [currentJobs, setCurrentJobs] = useState<{ job_id: string; status: JobStatus }[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [jobStatuses, setJobStatuses] = useState<{ [key: string]: JobStatus }>({});
+  const [jobStatuses, setJobStatuses] = useState<Record<string, JobStatus>>({});
   const [currentJobInfo, setCurrentJobInfo] = useState<{ podcastName: string; episodeTitle: string } | null>(null);
 
   useEffect(() => {
-    fetchProcessedPodcasts();
-    fetchCurrentJobs();
+    fetchProcessedPodcasts().then(setProcessedPodcasts).catch(handleError);
+    fetchCurrentJobs().then(setCurrentJobs).catch(handleError);
   }, []);
 
-  const fetchProcessedPodcasts = async () => {
+  const handleError = (error: Error) => {
+    console.error('Error:', error);
+    setError(error.message);
+  };
+
+  const fetchPodcastEpisodes = async (url: string) => {
+    setIsLoading(true);
+    setError('');
     try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/api/processed_podcasts`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setProcessedPodcasts(data);
+      const data = await fetchEpisodes(url);
+      setEpisodes(data);
     } catch (err) {
-      console.error('Error fetching processed podcasts:', err);
-      setError('Error fetching processed podcasts. Please try again later.');
+      handleError(err as Error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const fetchJobStatuses = useCallback(async () => {
+  const handleProcessEpisode = async () => {
+    if (selectedEpisode === null) return;
+    setError('');
+    setIsProcessing(true);
+
+    try {
+      const data = await processEpisode(rssUrl, selectedEpisode);
+      setCurrentJobId(data.job_id);
+
+      // Set the current job info
+      const selectedPodcast = searchResults.find(podcast => podcast.rssUrl === rssUrl);
+      const selectedEpisodeInfo = episodes[selectedEpisode];
+      setCurrentJobInfo({
+        podcastName: selectedPodcast?.name || 'Unknown Podcast',
+        episodeTitle: selectedEpisodeInfo?.title || 'Unknown Episode'
+      });
+    } catch (err) {
+      handleError(err as Error);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSearchPodcasts = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const data = await searchPodcasts(searchQuery);
+      setSearchResults(data);
+    } catch (err) {
+      handleError(err as Error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    try {
+      await deleteJob(jobId);
+      setCurrentJobs((prevJobs) => prevJobs.filter((job) => job.job_id !== jobId));
+      if (jobId === currentJobId) {
+        setCurrentJobId(null);
+      }
+    } catch (err) {
+      handleError(err as Error);
+    }
+  };
+
+  const handleFetchJobStatuses = useCallback(async () => {
     const jobIds = [...currentJobs.map(job => job.job_id), currentJobId].filter(Boolean) as string[];
 
     if (jobIds.length === 0) return;
 
     try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/api/batch_process_status`, {
-        method: 'POST',
-        body: JSON.stringify({ job_ids: jobIds }),
-      });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-      const data: { [key: string]: JobStatus } = await response.json();
-
+      const data = await fetchJobStatuses(jobIds);
       setJobStatuses(prevStatuses => ({
         ...prevStatuses,
         ...data
@@ -116,7 +147,7 @@ const App: React.FC = () => {
       });
 
       if (Object.values(data).some(status => status.status === 'completed' || status.status === 'failed')) {
-        fetchProcessedPodcasts();
+        fetchProcessedPodcasts().then(setProcessedPodcasts).catch(handleError);
       }
     } catch (error) {
       console.error('Error fetching job statuses:', error);
@@ -127,8 +158,8 @@ const App: React.FC = () => {
     let intervalId: NodeJS.Timeout | null = null;
 
     const startPolling = () => {
-      fetchJobStatuses();
-      intervalId = setInterval(fetchJobStatuses, 10000);
+      handleFetchJobStatuses();
+      intervalId = setInterval(handleFetchJobStatuses, 10000);
     };
 
     const stopPolling = () => {
@@ -147,131 +178,17 @@ const App: React.FC = () => {
     return () => {
       stopPolling();
     };
-  }, [currentJobs, currentJobId, fetchJobStatuses]);
+  }, [currentJobs, currentJobId, handleFetchJobStatuses]);
 
-  const fetchEpisodes = async (url: string) => {
-    setIsLoading(true);
-    setError('');
+  const handleDeletePodcast = async (podcastTitle: string, episodeTitle: string) => {
     try {
-      console.log('Fetching episodes for URL:', `${API_BASE_URL}/api/episodes`);
-      const response = await fetchWithCredentials(`${API_BASE_URL}/api/episodes`, {
-        method: 'POST',
-        body: JSON.stringify({ rss_url: url }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
-        throw new Error(errorData.error || `Failed to fetch episodes: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log('Fetched episodes:', data);
-      setEpisodes(data);
-    } catch (err) {
-      console.error('Error in fetchEpisodes:', err);
-      setError('Error fetching episodes: ' + (err as Error).message);
-    } finally {
-      setIsLoading(false);
+      await deleteProcessedPodcast(podcastTitle, episodeTitle);
+      // After successful deletion, refresh the list of processed podcasts
+      fetchProcessedPodcasts().then(setProcessedPodcasts).catch(handleError);
+    } catch (error) {
+      console.error('Error deleting podcast:', error);
+      setError('Failed to delete podcast. Please try again.');
     }
-  };
-
-  const processEpisode = async () => {
-    if (selectedEpisode === null) return;
-    setError('');
-    setIsProcessing(true);
-
-    try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/api/process`, {
-        method: 'POST',
-        body: JSON.stringify({ rss_url: rssUrl, episode_index: selectedEpisode }),
-      });
-
-      if (!response.ok) throw new Error('Failed to start processing');
-
-      const data = await response.json();
-      setCurrentJobId(data.job_id);
-
-      // Set the current job info
-      const selectedPodcast = searchResults.find(podcast => podcast.rssUrl === rssUrl);
-      const selectedEpisodeInfo = episodes[selectedEpisode];
-      setCurrentJobInfo({
-        podcastName: selectedPodcast?.name || 'Unknown Podcast',
-        episodeTitle: selectedEpisodeInfo?.title || 'Unknown Episode'
-      });
-    } catch (err) {
-      setError('Error processing episode: ' + (err as Error).message);
-      setIsProcessing(false);
-    }
-  };
-
-  const searchPodcasts = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/api/search`, {
-        method: 'POST',
-        body: JSON.stringify({ query: searchQuery }),
-      });
-      if (!response.ok) throw new Error('Failed to search podcasts');
-      const data = await response.json();
-      setSearchResults(data);
-    } catch (err) {
-      setError('Error searching podcasts: ' + (err as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const selectPodcast = (rssUrl: string) => {
-    console.log(`Selecting podcast with RSS URL: ${rssUrl}`);
-    setRssUrl(rssUrl);
-    setSearchResults([]);
-    fetchEpisodes(rssUrl);
-  };
-
-  const fetchCurrentJobs = async () => {
-    try {
-      console.log('Fetching current jobs from:', `${API_BASE_URL}/api/current_jobs`);
-      const response = await fetchWithCredentials(`${API_BASE_URL}/api/current_jobs`);
-      console.log('Response:', response);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log('Current jobs data:', data);
-      setCurrentJobs(data);
-    } catch (err) {
-      console.error('Error fetching current jobs:', err);
-      // Don't set an error message for this, as it's not critical for the user experience
-    }
-  };
-
-  const deleteJob = async (jobId: string) => {
-    try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/api/delete_job/${jobId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-      setCurrentJobs((prevJobs) => prevJobs.filter((job) => job.job_id !== jobId));
-      if (jobId === currentJobId) {
-        setCurrentJobId(null);
-      }
-    } catch (err) {
-      console.error('Error deleting job:', err);
-      setError('Error deleting job: ' + (err as Error).message);
-    }
-  };
-
-  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    searchPodcasts();
-  };
-
-  const handleEpisodeSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    processEpisode();
   };
 
   return (
@@ -282,7 +199,7 @@ const App: React.FC = () => {
       <main className="App-main">
         <section className="search-section" aria-labelledby="search-heading">
           <h2 id="search-heading">Search for a Podcast</h2>
-          <form onSubmit={handleSearchSubmit} className="search-container">
+          <form onSubmit={(e) => { e.preventDefault(); handleSearchPodcasts(); }} className="search-container">
             <label htmlFor="search-input">Search for podcasts</label>
             <div className="search-input-wrapper">
               <input
@@ -314,7 +231,7 @@ const App: React.FC = () => {
                   {podcast.imageUrl && (
                     <img src={podcast.imageUrl} alt={`${podcast.name} cover`} className="podcast-image" />
                   )}
-                  <button onClick={() => selectPodcast(podcast.rssUrl)} className="select-button">
+                  <button onClick={() => { setRssUrl(podcast.rssUrl); setSearchResults([]); fetchPodcastEpisodes(podcast.rssUrl); }} className="select-button">
                     Select
                   </button>
                 </li>
@@ -327,7 +244,7 @@ const App: React.FC = () => {
           <section className="selected-podcast" aria-labelledby="selected-heading">
             <h2 id="selected-heading">Selected Podcast</h2>
             <p className="rss-url">{rssUrl}</p>
-            <button onClick={() => fetchEpisodes(rssUrl)} disabled={isLoading} className="fetch-button">
+            <button onClick={() => fetchPodcastEpisodes(rssUrl)} disabled={isLoading} className="fetch-button">
               Fetch Episodes
             </button>
           </section>
@@ -336,7 +253,7 @@ const App: React.FC = () => {
         {episodes.length > 0 && (
           <section className="episode-selection" aria-labelledby="episode-heading">
             <h2 id="episode-heading">Select an Episode</h2>
-            <form onSubmit={handleEpisodeSubmit} className="episode-container">
+            <form onSubmit={(e) => { e.preventDefault(); handleProcessEpisode(); }} className="episode-container">
               <label htmlFor="episode-select">Choose an episode</label>
               <select
                 id="episode-select"
@@ -373,26 +290,32 @@ const App: React.FC = () => {
                     <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
                     <div className="processed-links">
                       {podcast.edited_url && (
-                        <a href={`${API_BASE_URL}${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           Download Edited Audio
                         </a>
                       )}
                       {podcast.transcript_file && (
-                        <a href={`${API_BASE_URL}${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Transcript
                         </a>
                       )}
                       {podcast.unwanted_content_file && (
-                        <a href={`${API_BASE_URL}${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Unwanted Content
                         </a>
                       )}
                       {podcast.rss_url && (
-                        <a href={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Modified RSS Feed
                         </a>
                       )}
                     </div>
+                    <button
+                      onClick={() => handleDeletePodcast(podcast.podcast_title, podcast.episode_title)}
+                      className="delete-podcast-button"
+                    >
+                      Delete Podcast
+                    </button>
                   </li>
                 ) : null
               ))}
@@ -413,7 +336,7 @@ const App: React.FC = () => {
           <ProcessingStatus
             jobId={currentJobId}
             status={jobStatuses[currentJobId]}
-            onDelete={() => deleteJob(currentJobId)}
+            onDelete={() => handleDeleteJob(currentJobId)}
             podcastName={currentJobInfo?.podcastName}
             episodeTitle={currentJobInfo?.episodeTitle}
           />
@@ -427,7 +350,7 @@ const App: React.FC = () => {
                 <ProcessingStatus
                   jobId={job.job_id}
                   status={jobStatuses[job.job_id]}
-                  onDelete={() => deleteJob(job.job_id)}
+                  onDelete={() => handleDeleteJob(job.job_id)}
                   // Note: You might need to store and pass podcast and episode info for each job
                 />
               </div>
