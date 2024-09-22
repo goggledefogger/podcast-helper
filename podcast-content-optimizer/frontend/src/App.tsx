@@ -264,13 +264,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleStatusUpdate = (jobId: string, status: JobStatus) => {
-    setJobStatuses(prevStatuses => ({
-      ...prevStatuses,
-      [jobId]: status
-    }));
-  };
-
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     searchPodcasts();

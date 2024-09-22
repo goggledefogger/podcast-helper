@@ -42,7 +42,6 @@ h1, h2, h3 {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
-  align-items: flex-end;
 }
 
 .search-container label, .episode-container label {
@@ -366,6 +365,8 @@ button:disabled, select:disabled {
   width: 100%;
   max-width: 600px;
   margin: 0 auto 20px;
+  padding: 0 15px; /* Add padding to the section instead of individual elements */
+  box-sizing: border-box; /* Ensure padding is included in the width */
 }
 
 .search-container {
@@ -384,12 +385,17 @@ button:disabled, select:disabled {
 }
 
 #search-input {
-  flex-grow: 1;
-  min-width: 0; /* This prevents the input from overflowing its container */
+  flex: 1;
+  min-width: 0;
+  padding: 10px;
+  box-sizing: border-box; /* Ensure padding is included in the width */
 }
 
 .search-container button {
-  white-space: nowrap; /* Prevents the button text from wrapping */
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 10px;
+  box-sizing: border-box; /* Ensure padding is included in the width */
 }
 
 @media (max-width: 768px) {

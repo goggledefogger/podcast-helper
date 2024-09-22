@@ -289,10 +289,5 @@ def batch_process_status():
         logging.error(f"Error in batch_process_status: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/serve_file/<path:podcast_title>/<path:episode_title>/<path:filename>')
-def serve_file(podcast_title, episode_title, filename):
-    directory = os.path.join('output', podcast_title, episode_title)
-    return send_from_directory(directory, filename)
-
 if __name__ == '__main__':
     app.run(debug=True)
