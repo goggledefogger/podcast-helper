@@ -30,3 +30,5 @@ input/
 output/
 
 .cloudflared/
+
+node_modules/
