@@ -58,8 +58,9 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
 
 ## Usage
 
-1. Start the celery worker:
+1. Start the celery worker and redis server:
    ```
+   brew services start redis
    celery -A celery_app worker --loglevel=info
    ```
 
