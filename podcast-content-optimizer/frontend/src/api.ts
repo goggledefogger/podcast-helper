@@ -12,14 +12,6 @@ const fetchWithCredentials = (url: string, options: RequestInit = {}) => {
   });
 };
 
-export const fetchProcessedPodcasts = async () => {
-  const response = await fetchWithCredentials(`${API_BASE_URL}/api/processed_podcasts`);
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  return await response.json();
-};
-
 export const fetchEpisodes = async (rssUrl: string) => {
   const response = await fetchWithCredentials(`${API_BASE_URL}/api/episodes`, {
     method: 'POST',

@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { signInAnonymously } from 'firebase/auth';
-import { ref, getDownloadURL } from 'firebase/storage';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
 import { formatDuration, formatDate } from './utils/timeUtils';
 import {
-  fetchProcessedPodcasts,
   fetchEpisodes,
   processEpisode,
   searchPodcasts,
@@ -15,22 +13,13 @@ import {
   deleteProcessedPodcast,
   JobStatus
 } from './api';
-import { auth, storage } from './firebase';
+import { ProcessedPodcast, auth, getProcessedPodcasts, getFileUrl } from './firebase';
 
 interface Episode {
   number: number;
   title: string;
   published: string;
   duration: number;  // Duration in seconds
-}
-
-interface ProcessedPodcast {
-  podcast_title: string;
-  episode_title: string;
-  rss_url: string;
-  edited_url: string;
-  transcript_file: string;
-  unwanted_content_file: string;
 }
 
 interface SearchResult {
@@ -70,7 +59,16 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchProcessedPodcasts().then(setProcessedPodcasts).catch(handleError);
+    const fetchData = async () => {
+      try {
+        const podcasts = await getProcessedPodcasts();
+        setProcessedPodcasts(podcasts);
+      } catch (error) {
+        handleError(error as Error);
+      }
+    };
+
+    fetchData();
     fetchCurrentJobs().then(setCurrentJobs).catch(handleError);
   }, []);
 
@@ -108,6 +106,10 @@ const App: React.FC = () => {
         podcastName: selectedPodcast?.name || 'Unknown Podcast',
         episodeTitle: selectedEpisodeInfo?.title || 'Unknown Episode'
       });
+
+      // Fetch the updated processed podcasts list
+      const updatedPodcasts = await getProcessedPodcasts();
+      setProcessedPodcasts(updatedPodcasts);
     } catch (err) {
       handleError(err as Error);
       setIsProcessing(false);
@@ -163,7 +165,8 @@ const App: React.FC = () => {
       });
 
       if (Object.values(data).some(status => status.status === 'completed' || status.status === 'failed')) {
-        fetchProcessedPodcasts().then(setProcessedPodcasts).catch(handleError);
+        const updatedPodcasts = await getProcessedPodcasts();
+        setProcessedPodcasts(updatedPodcasts);
       }
     } catch (error) {
       console.error('Error fetching job statuses:', error);
@@ -200,23 +203,17 @@ const App: React.FC = () => {
     try {
       await deleteProcessedPodcast(podcastTitle, episodeTitle);
       // After successful deletion, refresh the list of processed podcasts
-      fetchProcessedPodcasts().then(setProcessedPodcasts).catch(handleError);
+      const updatedPodcasts = await getProcessedPodcasts();
+      setProcessedPodcasts(updatedPodcasts);
     } catch (error) {
       console.error('Error deleting podcast:', error);
       setError('Failed to delete podcast. Please try again.');
     }
   };
 
-  const getFirebaseUrl = async (path: string) => {
-    try {
-      const fileRef = ref(storage, path);
-      const url = await getDownloadURL(fileRef);
-      return url;
-    } catch (error) {
-      console.error("Error getting download URL:", error);
-      return null;
-    }
-  };
+  const getFirebaseUrl = useCallback(async (path: string) => {
+    return await getFileUrl(path);
+  }, []);
 
   return (
     <div className="App">

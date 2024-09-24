@@ -21,12 +21,21 @@ This project is designed to process podcast audio files, transcribe them, and id
 - Python 3.7+
 - FFmpeg (for audio processing)
 
+## Cloud configuration
+
+1. Create a Firebase project and include Firebase Auth, Hosting, and Storage
+
+2. Set CORS headers for Firebase storage so database file (processed_podcasts.json) can be read from storage by the frontend
+   ```
+   gsutil cors set cors.json gs://your-bucket-name
+   ```
+
 ## Installation
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/podcast-content-optimizer.git
-   cd podcast-content-optimizer
+   git clone https://github.com/goggledefogger/podcast-helper.git
+   cd podcast-helper
    ```
 
 2. Install the required Python packages:
@@ -34,11 +43,18 @@ This project is designed to process podcast audio files, transcribe them, and id
    pip install -r requirements.txt
    ```
 
-3. Copy the `sample.env` file to `.env` and fill in your API keys:
+3. Copy the backend `sample.env` file to `.env` and fill in your API keys:
    ```
    cp sample.env .env
    ```
    Then edit the `.env` file with your preferred text editor and add your API keys.
+
+4. Copy the frontend `.env.example` file to `.env` and fill in your API base URL and Firebase config:
+   ```
+   cp sample.env .env
+   ```
+   Then edit the `.env` file with your preferred text editor and add your Firebase config (available in the Firebase web console).
+
 
 ## Taddy API Setup
 
@@ -64,12 +80,12 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
    celery -A celery_app worker --loglevel=info
    ```
 
-1. Start the Flask application:
+2. Start the Flask application:
    ```
    python -m flask --app wsgi run --host 0.0.0.0
    ```
 
-2. Start the React frontend:
+3. Start the React frontend:
    ```
    npm start
    ```
@@ -84,7 +100,7 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
    - Download the podcast if it's not already present
    - Transcribe the audio
    - Analyze the transcript to identify specific content segments
-   - Generate output files in the `output/` directory
+   - Generate output files and save them to Firebase storage
    - Create a modified RSS feed with links to the edited content
 
 ## Output
