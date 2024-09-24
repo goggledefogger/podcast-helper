@@ -290,17 +290,17 @@ const App: React.FC = () => {
                     <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
                     <div className="processed-links">
                       {podcast.edited_url && (
-                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href={`${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           Download Edited Audio
                         </a>
                       )}
                       {podcast.transcript_file && (
-                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href={`${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Transcript
                         </a>
                       )}
                       {podcast.unwanted_content_file && (
-                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href={`${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Unwanted Content
                         </a>
                       )}
