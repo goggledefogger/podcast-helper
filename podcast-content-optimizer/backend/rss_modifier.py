@@ -14,6 +14,7 @@ from flask import request
 from io import StringIO
 from utils import safe_filename
 import urllib.parse
+from firebase_admin import storage
 
 # Define common namespace prefixes
 NAMESPACES = {
@@ -191,25 +192,12 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
 
                     enclosure = item.find('enclosure')
                     if enclosure is not None:
-                        safe_podcast_title = safe_filename(processed_episode['podcast_title'])
-                        safe_episode_title = safe_filename(processed_episode['episode_title'])
-                        safe_edited_filename = safe_filename(os.path.basename(processed_episode['edited_url']))
+                        # Use the Firebase Storage URL directly
+                        enclosure.set('url', processed_episode['edited_url'])
 
-                        # Construct the relative path using safe filenames
-                        relative_path = f"output/{safe_podcast_title}/{safe_episode_title}/{safe_edited_filename}"
-                        # Encode the path components
-                        encoded_relative_path = '/'.join([urllib.parse.quote(component) for component in relative_path.split('/')])
-                        edited_url = f"{url_root}/{encoded_relative_path}"
-                        enclosure.set('url', edited_url)
-
-                        edited_file_path = os.path.join('output', relative_path)
-                        if os.path.exists(edited_file_path):
-                            new_size, new_duration = get_audio_info(edited_file_path)
-                            enclosure.set('length', str(new_size))
-
-                            duration_elem = item.find('itunes:duration', namespaces=NAMESPACES)
-                            if duration_elem is not None:
-                                duration_elem.text = format_duration(new_duration)
+                        duration_elem = item.find('itunes:duration', namespaces=NAMESPACES)
+                        if duration_elem is not None:
+                            duration_elem.text = format_duration(new_duration)
 
         # Update namespace-specific identifiers
         for prefix, uri in namespaces.items():

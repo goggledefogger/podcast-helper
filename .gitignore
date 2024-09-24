@@ -45,3 +45,4 @@ typings/
 
 *.local
 *.cache
+*.json

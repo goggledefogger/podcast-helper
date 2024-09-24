@@ -1,4 +1,4 @@
-from flask import jsonify, request, Response, send_from_directory, abort, current_app, send_file
+from flask import jsonify, request, Response, send_from_directory, abort, current_app, send_file, redirect
 from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
@@ -21,11 +21,14 @@ import os
 import time
 import shutil
 from utils import get_episode_folder
+from firebase_admin import storage
 
 # Update the OUTPUT_DIR definition
 OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'output'))
 
-PROCESSED_PODCASTS_FILE = 'output/processed_podcasts.json'
+# Update this line to use the root of the bucket
+PROCESSED_PODCASTS_FILE = 'processed_podcasts.json'
+
 log_queue = queue.Queue()
 
 # Add Taddy API configuration
@@ -41,31 +44,68 @@ logger = logging.getLogger()
 processing_status = {}
 
 def load_processed_podcasts():
-    if os.path.exists(PROCESSED_PODCASTS_FILE):
-        with open(PROCESSED_PODCASTS_FILE, 'r') as f:
-            return json.load(f)
+    try:
+        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
+        logging.info(f"Attempting to load processed podcasts from Firebase: {PROCESSED_PODCASTS_FILE}")
+        if blob.exists():
+            json_data = blob.download_as_text()
+            podcasts = json.loads(json_data)
+            logging.info(f"Successfully loaded {len(podcasts)} processed podcasts from Firebase")
+            return podcasts
+        else:
+            logging.info(f"No processed podcasts file found in Firebase: {PROCESSED_PODCASTS_FILE}")
+    except Exception as e:
+        logging.error(f"Error loading processed podcasts from Firebase: {str(e)}")
     return []
 
 def save_processed_podcast(podcast_data):
     try:
-        # Ensure the output directory exists
-        os.makedirs(os.path.dirname(PROCESSED_PODCASTS_FILE), exist_ok=True)
-
+        # Load existing data or create an empty list
         podcasts = load_processed_podcasts()
+
+        # Check if the podcast already exists in the list
         existing_podcast = next((p for p in podcasts if p['rss_url'] == podcast_data['rss_url'] and p['episode_title'] == podcast_data['episode_title']), None)
 
         if existing_podcast:
+            # Update the existing podcast data
             existing_podcast.update(podcast_data)
+            logging.info(f"Updated existing podcast: {podcast_data['episode_title']}")
         else:
+            # Append new data
             podcasts.append(podcast_data)
+            logging.info(f"Added new podcast: {podcast_data['episode_title']}")
 
-        logging.info(f"Saving processed podcast: {podcast_data}")
-        with open(PROCESSED_PODCASTS_FILE, 'w') as f:
-            json.dump(podcasts, f, indent=2)
-        logging.info(f"Saved processed podcast to {PROCESSED_PODCASTS_FILE}")
+        # Convert file paths to Firebase Storage URLs
+        for key in ['edited_url', 'transcript_file', 'unwanted_content_file', 'input_file', 'output_file']:
+            if key in podcast_data and podcast_data[key]:
+                old_value = podcast_data[key]
+                podcast_data[key] = upload_to_firebase(podcast_data[key])
+                logging.info(f"Uploaded {key} to Firebase: {old_value} -> {podcast_data[key]}")
+
+        logging.info(f"Saving processed podcast to Firebase: {podcast_data['episode_title']}")
+
+        # Write updated data to Firebase Storage
+        json_data = json.dumps(podcasts, indent=2)
+        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
+        blob.upload_from_string(json_data, content_type='application/json')
+
+        logging.info(f"Successfully saved processed podcast to Firebase: {PROCESSED_PODCASTS_FILE}")
+
     except Exception as e:
-        logging.error(f"Error saving processed podcast: {str(e)}")
+        logging.error(f"Error saving processed podcast to Firebase: {str(e)}")
         logging.error(traceback.format_exc())
+
+def upload_to_firebase(file_path):
+    try:
+        blob = storage.bucket().blob(file_path)
+        logging.info(f"Uploading file to Firebase: {file_path}")
+        blob.upload_from_filename(file_path)
+        public_url = blob.public_url
+        logging.info(f"Successfully uploaded file to Firebase: {file_path} -> {public_url}")
+        return public_url
+    except Exception as e:
+        logging.error(f"Error uploading file to Firebase: {file_path}, Error: {str(e)}")
+        return None
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -102,27 +142,20 @@ def get_processed_podcasts():
 
 @app.route('/output/<path:filename>')
 def serve_output_file(filename):
-    logging.info(f"Attempting to serve file: {filename}")
+    logging.info(f"Attempting to serve file from Firebase Storage: {filename}")
 
-    # Decode the URL-encoded filename
-    decoded_filename = unquote(filename)
-
-    # Construct the full file path
-    file_path = os.path.join(OUTPUT_DIR, decoded_filename)
-
-    logging.info(f"Full file path: {file_path}")
-
-    if os.path.exists(file_path) and os.path.isfile(file_path):
-        logging.info(f"File found, serving: {file_path}")
-        try:
-            return send_file(file_path, as_attachment=True)
-        except Exception as e:
-            logging.error(f"Error serving file: {str(e)}")
-            logging.error(traceback.format_exc())
-            return jsonify({"error": f"Error serving file: {str(e)}"}), 500
-    else:
-        logging.error(f"File not found: {file_path}")
-        return jsonify({"error": "File not found"}), 404
+    try:
+        blob = storage.bucket().blob(filename)
+        if blob.exists():
+            public_url = blob.public_url
+            logging.info(f"File found in Firebase Storage, redirecting to: {public_url}")
+            return redirect(public_url)
+        else:
+            logging.error(f"File not found in Firebase Storage: {filename}")
+            return jsonify({"error": "File not found"}), 404
+    except Exception as e:
+        logging.error(f"Error serving file from Firebase Storage: {filename}, Error: {str(e)}")
+        return jsonify({"error": f"Error serving file: {str(e)}"}), 500
 
 @app.route('/api/modified_rss/<path:rss_url>', methods=['GET'])
 def get_modified_rss(rss_url):
@@ -308,13 +341,19 @@ def delete_processed_podcast():
         processed_podcasts = [p for p in processed_podcasts if not (p['podcast_title'] == podcast_title and p['episode_title'] == episode_title)]
 
         # Save the updated list
-        with open(PROCESSED_PODCASTS_FILE, 'w') as f:
-            json.dump(processed_podcasts, f, indent=2)
+        json_data = json.dumps(processed_podcasts, indent=2)
+        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
+        blob.upload_from_string(json_data, content_type='application/json')
 
-        # Delete the episode folder
+        # Delete files from Firebase Storage
         episode_folder = get_episode_folder(podcast_title, episode_title)
-        if os.path.exists(episode_folder):
-            shutil.rmtree(episode_folder)
+        for root, dirs, files in os.walk(episode_folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                blob = storage.bucket().blob(file_path)
+                if blob.exists():
+                    blob.delete()
+                    logging.info(f"Deleted file from Firebase Storage: {file_path}")
 
         # Invalidate the RSS cache for this podcast
         invalidate_rss_cache(data.get('rss_url'))
