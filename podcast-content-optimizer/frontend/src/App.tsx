@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { signInAnonymously } from 'firebase/auth';
+import { ref, getDownloadURL } from 'firebase/storage';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
 import { formatDuration, formatDate } from './utils/timeUtils';
@@ -13,6 +15,7 @@ import {
   deleteProcessedPodcast,
   JobStatus
 } from './api';
+import { auth, storage } from './firebase';
 
 interface Episode {
   number: number;
@@ -52,6 +55,19 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [jobStatuses, setJobStatuses] = useState<Record<string, JobStatus>>({});
   const [currentJobInfo, setCurrentJobInfo] = useState<{ podcastName: string; episodeTitle: string } | null>(null);
+
+  useEffect(() => {
+    const signInAnonymouslyToFirebase = async () => {
+      try {
+        await signInAnonymously(auth);
+        console.log("Signed in anonymously");
+      } catch (error) {
+        console.error("Error signing in anonymously:", error);
+      }
+    };
+
+    signInAnonymouslyToFirebase();
+  }, []);
 
   useEffect(() => {
     fetchProcessedPodcasts().then(setProcessedPodcasts).catch(handleError);
@@ -191,6 +207,17 @@ const App: React.FC = () => {
     }
   };
 
+  const getFirebaseUrl = async (path: string) => {
+    try {
+      const fileRef = ref(storage, path);
+      const url = await getDownloadURL(fileRef);
+      return url;
+    } catch (error) {
+      console.error("Error getting download URL:", error);
+      return null;
+    }
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -290,17 +317,41 @@ const App: React.FC = () => {
                     <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
                     <div className="processed-links">
                       {podcast.edited_url && (
-                        <a href={`${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a
+                          href="#"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const url = await getFirebaseUrl(podcast.edited_url);
+                            if (url) window.open(url, '_blank');
+                          }}
+                          className="view-link"
+                        >
                           Download Edited Audio
                         </a>
                       )}
                       {podcast.transcript_file && (
-                        <a href={`${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a
+                          href="#"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const url = await getFirebaseUrl(podcast.transcript_file);
+                            if (url) window.open(url, '_blank');
+                          }}
+                          className="view-link"
+                        >
                           View Transcript
                         </a>
                       )}
                       {podcast.unwanted_content_file && (
-                        <a href={`${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a
+                          href="#"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const url = await getFirebaseUrl(podcast.unwanted_content_file);
+                            if (url) window.open(url, '_blank');
+                          }}
+                          className="view-link"
+                        >
                           View Unwanted Content
                         </a>
                       )}
