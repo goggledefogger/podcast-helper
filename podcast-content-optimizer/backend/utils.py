@@ -264,7 +264,7 @@ def get_episode_folder(podcast_title, episode_title):
     safe_episode_title = safe_filename(episode_title)
     return os.path.join('output', safe_podcast_title, safe_episode_title)
 
-def upload_to_firebase(file_path):
+def upload_to_firebase(file_path, delete_local=True):
     try:
         # Check if the file_path is already a URL
         if file_path.startswith('http://') or file_path.startswith('https://'):
@@ -284,7 +284,29 @@ def upload_to_firebase(file_path):
         blob.upload_from_filename(file_path)
         public_url = blob.public_url
         logging.info(f"Successfully uploaded file to Firebase: {file_path} -> {public_url}")
+
+        # Delete the local file if requested
+        if delete_local:
+            try:
+                os.remove(file_path)
+                logging.info(f"Deleted local file after upload: {file_path}")
+            except Exception as delete_error:
+                logging.warning(f"Failed to delete local file after upload: {file_path}. Error: {str(delete_error)}")
+
         return public_url
     except Exception as e:
         logging.error(f"Error uploading file to Firebase: {file_path}, Error: {str(e)}")
         return None
+
+def file_exists_in_firebase(file_path):
+    blob = bucket.blob(file_path)
+    return blob.exists()
+
+def download_from_firebase(firebase_url, local_path):
+    # Extract the path from the Firebase URL
+    parsed_url = urllib.parse.urlparse(firebase_url)
+    file_path = parsed_url.path.lstrip('/')
+
+    blob = bucket.blob(file_path)
+    blob.download_to_filename(local_path)
+    logging.info(f"Downloaded file from Firebase: {firebase_url} -> {local_path}")
