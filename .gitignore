@@ -32,3 +32,16 @@ output/
 .cloudflared/
 
 node_modules/
+
+# Compiled JavaScript files
+lib/**/*.js
+lib/**/*.js.map
+build/**/*.js
+build/**/*.js.map
+build/**/*.txt
+
+# TypeScript v1 declaration files
+typings/
+
+*.local
+*.cache
