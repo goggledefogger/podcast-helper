@@ -299,14 +299,39 @@ def upload_to_firebase(file_path, delete_local=True):
         return None
 
 def file_exists_in_firebase(file_path):
+    # Remove the bucket name from the beginning of the path if it's there
+    bucket_name = 'podcast-helper-435105.appspot.com'
+    if file_path.startswith(bucket_name):
+        file_path = file_path[len(bucket_name):].lstrip('/')
+
     blob = bucket.blob(file_path)
-    return blob.exists()
+    exists = blob.exists()
+    logging.info(f"Checking if file exists in Firebase: {file_path}, Result: {exists}")
+    return exists
 
 def download_from_firebase(firebase_url, local_path):
-    # Extract the path from the Firebase URL
-    parsed_url = urllib.parse.urlparse(firebase_url)
-    file_path = parsed_url.path.lstrip('/')
+    try:
+        # Extract the path from the Firebase URL
+        parsed_url = urllib.parse.urlparse(firebase_url)
+        file_path = parsed_url.path.lstrip('/')
 
-    blob = bucket.blob(file_path)
-    blob.download_to_filename(local_path)
-    logging.info(f"Downloaded file from Firebase: {firebase_url} -> {local_path}")
+        # Remove the bucket name from the beginning of the path if it's there
+        bucket_name = 'podcast-helper-435105.appspot.com'
+        if file_path.startswith(bucket_name):
+            file_path = file_path[len(bucket_name):].lstrip('/')
+
+        logging.info(f"Attempting to download file from Firebase: {file_path}")
+
+        blob = bucket.blob(file_path)
+
+        if not blob.exists():
+            logging.error(f"File does not exist in Firebase Storage: {file_path}")
+            return False
+
+        blob.download_to_filename(local_path)
+        logging.info(f"Successfully downloaded file from Firebase: {firebase_url} -> {local_path}")
+        return True
+    except Exception as e:
+        logging.error(f"Error downloading file from Firebase: {firebase_url}, Error: {str(e)}")
+        logging.error(traceback.format_exc())
+        return False

@@ -1,6 +1,11 @@
 from audio_editor import edit_audio
 from llm_processor import find_unwanted_content, parse_llm_response
-from utils import get_podcast_episodes, download_episode, run_with_animation, save_processed_podcast, file_path_to_url, safe_filename, get_episode_folder, upload_to_firebase, PROCESSED_PODCASTS_FILE, file_exists_in_firebase, download_from_firebase
+from utils import (
+    get_podcast_episodes, download_episode, run_with_animation,
+    save_processed_podcast, file_path_to_url, safe_filename,
+    get_episode_folder, upload_to_firebase, PROCESSED_PODCASTS_FILE,
+    file_exists_in_firebase, download_from_firebase, load_processed_podcasts
+)
 from job_manager import update_job_status
 import whisper
 import os
@@ -100,7 +105,10 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
                     try:
                         # Download the input file from Firebase if it's not local
                         if not os.path.exists(os.path.join(episode_folder, input_filename)):
-                            download_from_firebase(podcast_data['input_file'], os.path.join(episode_folder, input_filename))
+                            success = download_from_firebase(podcast_data['input_file'], os.path.join(episode_folder, input_filename))
+                            if not success:
+                                raise ValueError(f"Failed to download input file from Firebase: {podcast_data['input_file']}")
+
                         result = model.transcribe(os.path.join(episode_folder, input_filename))
                         logging.info("Transcription completed successfully")
                         return result
