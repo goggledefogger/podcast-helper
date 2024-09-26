@@ -52,17 +52,29 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
             processed_podcasts = []
 
         # Check if this episode has been processed before
-        logging.info(f"Checking for existing podcast. RSS URL: {rss_url}, Episode title: {chosen_episode['title']}")
-        existing_podcast = next((p for p in processed_podcasts if isinstance(p, dict) and p.get('rss_url') == rss_url and p.get('episode_title') == chosen_episode['title']), None)
+        existing_podcast = next((p for p in processed_podcasts if p.get('rss_url') == rss_url and p.get('episode_title') == chosen_episode['title']), None)
 
         if existing_podcast:
             logging.info(f"Found existing podcast: {existing_podcast}")
+            if existing_podcast.get('status') == 'completed':
+                logging.info(f"Episode '{chosen_episode['title']}' has already been fully processed. Skipping.")
+                return existing_podcast
+            elif existing_podcast.get('transcript_file') and existing_podcast.get('input_file'):
+                logging.info(f"Episode '{chosen_episode['title']}' has already been downloaded and transcribed. Skipping to content detection.")
+                podcast_data = existing_podcast
+            else:
+                logging.info(f"Episode '{chosen_episode['title']}' is partially processed. Continuing from last step.")
+                podcast_data = existing_podcast
         else:
-            logging.info("No existing podcast found")
-
-        if existing_podcast and existing_podcast.get('status') == 'completed':
-            logging.info(f"Episode '{chosen_episode['title']}' has already been processed. Skipping.")
-            return existing_podcast
+            logging.info("No existing podcast found. Starting from scratch.")
+            podcast_data = {
+                "podcast_title": podcast_title,
+                "episode_title": chosen_episode['title'],
+                "rss_url": rss_url,
+                "status": "processing",
+                "job_id": job_id,
+                "timestamp": datetime.now().isoformat()
+            }
 
         # Update file paths to use Firebase Storage URLs
         input_filename = safe_filename(f"original_{chosen_episode['title']}.mp3")
@@ -70,23 +82,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         unwanted_content_filename = "unwanted_content.json"
         output_file = safe_filename(f"edited_{chosen_episode['title']}.mp3")
 
-        # Create initial podcast data
-        podcast_data = existing_podcast or {
-            "podcast_title": podcast_title,
-            "episode_title": chosen_episode['title'],
-            "rss_url": rss_url,
-            "status": "processing",
-            "job_id": job_id,
-            "timestamp": datetime.now().isoformat()
-        }
-        save_processed_podcast(podcast_data)
-
-        # Check if the input file exists in Firebase Storage
-        firebase_input_path = f"{podcast_title}/{chosen_episode['title']}/{input_filename}"
-        if file_exists_in_firebase(firebase_input_path):
-            logging.info(f"Input file already exists in Firebase Storage: {firebase_input_path}")
-            podcast_data['input_file'] = file_path_to_url(firebase_input_path)
-        else:
+        # Download the episode if it hasn't been downloaded yet
+        if 'input_file' not in podcast_data:
             # Download the episode if it doesn't exist
             logging.info("STAGE:DOWNLOAD:Starting")
             logging.info(f"Downloading episode to {os.path.join(episode_folder, input_filename)}")
@@ -100,12 +97,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
 
         save_processed_podcast(podcast_data)
 
-        # Check if the transcript exists in Firebase Storage
-        firebase_transcript_path = f"{podcast_title}/{chosen_episode['title']}/{transcript_filename}"
-        if file_exists_in_firebase(firebase_transcript_path):
-            logging.info(f"Transcript already exists in Firebase Storage: {firebase_transcript_path}")
-            podcast_data['transcript_file'] = file_path_to_url(firebase_transcript_path)
-        else:
+        # Transcribe the audio if it hasn't been transcribed yet
+        if 'transcript_file' not in podcast_data:
             # Transcribe the audio
             logging.info("STAGE:TRANSCRIPTION:Starting")
             try:
