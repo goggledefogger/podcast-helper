@@ -27,7 +27,7 @@ from firebase_admin import storage
 OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'output'))
 
 # Update this line to use the root of the bucket
-PROCESSED_PODCASTS_FILE = 'processed_podcasts.json'
+PROCESSED_PODCASTS_FILE = 'db.json'
 
 log_queue = queue.Queue()
 
@@ -46,22 +46,26 @@ processing_status = {}
 def load_processed_podcasts():
     try:
         blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
-        logging.info(f"Attempting to load processed podcasts from Firebase: {PROCESSED_PODCASTS_FILE}")
+        logging.info(f"Attempting to load data from Firebase: {PROCESSED_PODCASTS_FILE}")
         if blob.exists():
             json_data = blob.download_as_text()
-            podcasts = json.loads(json_data)
-            logging.info(f"Successfully loaded {len(podcasts)} processed podcasts from Firebase")
-            return podcasts
+            data = json.loads(json_data)
+            podcasts = data.get('processed_podcasts', [])
+            prompts = data.get('prompts', {})
+            logging.info(f"Successfully loaded {len(podcasts)} processed podcasts and prompts from Firebase")
+            return {'processed_podcasts': podcasts, 'prompts': prompts}
         else:
-            logging.info(f"No processed podcasts file found in Firebase: {PROCESSED_PODCASTS_FILE}")
+            logging.info(f"No database file found in Firebase: {PROCESSED_PODCASTS_FILE}")
     except Exception as e:
-        logging.error(f"Error loading processed podcasts from Firebase: {str(e)}")
-    return []
+        logging.error(f"Error loading data from Firebase: {str(e)}")
+    return {'processed_podcasts': [], 'prompts': {}}
 
 def save_processed_podcast(podcast_data):
     try:
-        # Load existing data or create an empty list
-        podcasts = load_processed_podcasts()
+        # Load existing data or create an empty structure
+        data = load_processed_podcasts()
+        podcasts = data['processed_podcasts']
+        prompts = data['prompts']
 
         # Check if the podcast already exists in the list
         existing_podcast = next((p for p in podcasts if p['rss_url'] == podcast_data['rss_url'] and p['episode_title'] == podcast_data['episode_title']), None)
@@ -85,7 +89,7 @@ def save_processed_podcast(podcast_data):
         logging.info(f"Saving processed podcast to Firebase: {podcast_data['episode_title']}")
 
         # Write updated data to Firebase Storage
-        json_data = json.dumps(podcasts, indent=2)
+        json_data = json.dumps({'processed_podcasts': podcasts, 'prompts': prompts}, indent=2)
         blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
         blob.upload_from_string(json_data, content_type='application/json')
 
@@ -191,7 +195,7 @@ def get_modified_rss(rss_url):
 from api.tasks import process_podcast_task  # Import the task directly
 
 @app.route('/api/process', methods=['POST'])
-def process_episode():
+def process_podcast():
     rss_url = request.json.get('rss_url')
     episode_index = request.json.get('episode_index')
 
@@ -335,13 +339,19 @@ def delete_processed_podcast():
             return jsonify({"error": "Missing podcast title or episode title"}), 400
 
         # Load existing processed podcasts
-        processed_podcasts = load_processed_podcasts()
+        processed_data = load_processed_podcasts()
+        processed_podcasts = processed_data.get('processed_podcasts', [])
+
+        if not isinstance(processed_podcasts, list):
+            logging.error(f"Expected processed_podcasts to be a list, got {type(processed_podcasts)}")
+            return jsonify({"error": "Internal server error"}), 500
 
         # Find and remove the podcast from the list
         processed_podcasts = [p for p in processed_podcasts if not (p['podcast_title'] == podcast_title and p['episode_title'] == episode_title)]
 
         # Save the updated list
-        json_data = json.dumps(processed_podcasts, indent=2)
+        processed_data['processed_podcasts'] = processed_podcasts
+        json_data = json.dumps(processed_data, indent=2)
         blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
         blob.upload_from_string(json_data, content_type='application/json')
 
@@ -364,8 +374,60 @@ def delete_processed_podcast():
         logging.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
-# Update the CORS configuration to allow DELETE method
-CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS", "DELETE"]}})
+def load_prompt(model):
+    try:
+        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
+        if blob.exists():
+            json_data = blob.download_as_text()
+            data = json.loads(json_data)
+            prompts = data.get('prompts', {})
+            return prompts.get(model, "")
+        else:
+            # If the file doesn't exist, return default prompts
+            default_prompts = {
+                'openai': "Identify unwanted content in the following transcript...",
+                'gemini': "Find and list sections of unwanted content in this podcast transcript..."
+            }
+            return default_prompts.get(model, "")
+    except Exception as e:
+        logging.error(f"Error loading prompts from Firebase: {str(e)}")
+        return ""
+
+def save_prompt(model, prompt):
+    try:
+        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
+        if blob.exists():
+            json_data = blob.download_as_text()
+            data = json.loads(json_data)
+        else:
+            data = {'processed_podcasts': []}
+
+        if 'prompts' not in data:
+            data['prompts'] = {}
+
+        data['prompts'][model] = prompt
+        json_data = json.dumps(data, indent=2)
+        blob.upload_from_string(json_data, content_type='application/json')
+        logging.info(f"Successfully saved {model} prompt to Firebase")
+    except Exception as e:
+        logging.error(f"Error saving {model} prompt to Firebase: {str(e)}")
+
+@app.route('/api/prompts', methods=['GET'])
+def get_prompts():
+    prompts = {
+        'openai': load_prompt('openai'),
+        'gemini': load_prompt('gemini')
+    }
+    return jsonify(prompts), 200
+
+@app.route('/api/prompts', methods=['POST'])
+def update_prompts():
+    data = request.json
+    if 'openai' in data:
+        save_prompt('openai', data['openai'])
+    if 'gemini' in data:
+        save_prompt('gemini', data['gemini'])
+    return jsonify({"message": "Prompts updated successfully"}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)

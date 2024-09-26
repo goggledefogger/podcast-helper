@@ -35,6 +35,8 @@ def find_unwanted_content(transcript_file_path):
 def process_with_openai(transcript):
     logging.info("Processing with OpenAI")
     client = OpenAI(api_key=OPENAI_API_KEY)
+    prompt = load_prompt('openai')
+
     start_time = time.time()
     response = client.chat.completions.create(
         model="gpt-3.5-turbo-16k",
@@ -45,15 +47,7 @@ def process_with_openai(transcript):
             },
             {
                 "role": "user",
-                "content": (
-                    "Here is a transcript, please identify the start and end times of sections that contain unwanted content.\n" +
-                    "Provide the output as a JSON array where each object has 'start_time', 'end_time', and 'description' keys.\n" +
-                    "Use either the 'HH:MM:SS' format or seconds (as a decimal number) for start_time and end_time.\n" +
-                    "Example format: [{'start_time': '00:10:15', 'end_time': '00:12:45', 'description': 'Unwanted content 1'}] or\n" +
-                    "[{'start_time': '615.5', 'end_time': '765.75', 'description': 'Unwanted content 1'}].\n" +
-                    "Here is the transcript:\n\n" +
-                    f"{transcript}"
-                )
+                "content": f"{prompt}\n\n{transcript}"
             }
         ],
         max_tokens=16000
@@ -66,21 +60,13 @@ def process_with_gemini(transcript):
     logging.info("Processing with Gemini")
     genai.configure(api_key=GOOGLE_API_KEY)
     model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+    prompt = load_prompt('gemini')
 
-    prompt = (
-        "Here is a transcript, please identify the start and end times of sections that contain unwanted content.\n" +
-        "Provide the output as a JSON array where each object has 'start_time', 'end_time', and 'description' keys.\n" +
-        "Use either the 'HH:MM:SS' format or seconds (as a decimal number) for start_time and end_time.\n" +
-        "Example format: [{'start_time': '00:10:15', 'end_time': '00:12:45', 'description': 'Unwanted content 1'}] or\n" +
-        "[{'start_time': '615.5', 'end_time': '765.75', 'description': 'Unwanted content 1'}].\n" +
-        "If no unwanted content is found, return an empty array: [].\n" +
-        "Here is the transcript:\n\n" +
-        f"{transcript}"
-    )
-    logging.info(f"Sending prompt to Gemini (first 500 characters): {prompt[:500]}...")
+    full_prompt = f"{prompt}\n\n{transcript}"
+    logging.info(f"Sending prompt to Gemini (first 500 characters): {full_prompt[:500]}...")
     start_time = time.time()
     response = model.generate_content(
-        prompt,
+        full_prompt,
         generation_config=genai.GenerationConfig(
             response_mime_type="application/json"
         )

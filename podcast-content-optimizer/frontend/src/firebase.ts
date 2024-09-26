@@ -26,11 +26,11 @@ export interface ProcessedPodcast {
 
 export const getProcessedPodcasts = async (): Promise<ProcessedPodcast[]> => {
   try {
-    const url = await getFileUrl('processed_podcasts.json');
+    const url = await getFileUrl('db.json');
     if (url) {
       const response = await fetch(url);
       const data = await response.json();
-      return data as ProcessedPodcast[];
+      return data.processed_podcasts as ProcessedPodcast[];
     }
     return [];
   } catch (error) {

@@ -22,7 +22,7 @@ firebase_admin.initialize_app(cred, {
 bucket = storage.bucket()
 
 # Update this line to remove the 'output' folder from the path
-PROCESSED_PODCASTS_FILE = 'processed_podcasts.json'
+PROCESSED_PODCASTS_FILE = 'db.json'
 
 def get_podcast_episodes(rss_url):
     try:

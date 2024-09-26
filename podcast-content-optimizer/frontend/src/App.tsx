@@ -14,6 +14,7 @@ import {
   JobStatus
 } from './api';
 import { ProcessedPodcast, auth, getProcessedPodcasts, getFileUrl } from './firebase';
+import PromptEditor from './components/PromptEditor';
 
 interface Episode {
   number: number;
@@ -405,6 +406,8 @@ const App: React.FC = () => {
             ))}
           </section>
         )}
+
+        <PromptEditor />
 
       </main>
     </div>
