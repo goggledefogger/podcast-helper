@@ -22,6 +22,7 @@ import time
 import shutil
 from utils import get_episode_folder
 from firebase_admin import storage
+from prompt_loader import load_prompt
 
 # Update the OUTPUT_DIR definition
 OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'output'))
@@ -373,25 +374,6 @@ def delete_processed_podcast():
         logging.error(f"Error deleting processed podcast: {str(e)}")
         logging.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
-
-def load_prompt(model):
-    try:
-        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
-        if blob.exists():
-            json_data = blob.download_as_text()
-            data = json.loads(json_data)
-            prompts = data.get('prompts', {})
-            return prompts.get(model, "")
-        else:
-            # If the file doesn't exist, return default prompts
-            default_prompts = {
-                'openai': "Identify unwanted content in the following transcript...",
-                'gemini': "Find and list sections of unwanted content in this podcast transcript..."
-            }
-            return default_prompts.get(model, "")
-    except Exception as e:
-        logging.error(f"Error loading prompts from Firebase: {str(e)}")
-        return ""
 
 def save_prompt(model, prompt):
     try:

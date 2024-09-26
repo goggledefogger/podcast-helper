@@ -134,22 +134,41 @@ def load_processed_podcasts():
         logging.info(f"Attempting to load processed podcasts from Firebase: {PROCESSED_PODCASTS_FILE}")
         if blob.exists():
             json_data = blob.download_as_text()
-            podcasts = json.loads(json_data)
+            logging.info(f"Raw JSON data from Firebase: {json_data[:1000]}...")  # Log the first 1000 characters
+            data = json.loads(json_data)
+            logging.info(f"Parsed data type: {type(data)}")
+            logging.info(f"Parsed data content: {str(data)[:1000]}...")  # Log the first 1000 characters of the parsed data
+
+            podcasts = data.get('processed_podcasts', [])
+            logging.info(f"Podcasts type: {type(podcasts)}")
+            logging.info(f"Podcasts content: {str(podcasts)[:1000]}...")  # Log the first 1000 characters of the podcasts data
+
+            if not isinstance(podcasts, list):
+                logging.error(f"Loaded data is not a list. Type: {type(podcasts)}")
+                return []
             logging.info(f"Successfully loaded {len(podcasts)} processed podcasts from Firebase")
             return podcasts
         else:
             logging.info(f"No processed podcasts file found in Firebase: {PROCESSED_PODCASTS_FILE}")
     except Exception as e:
         logging.error(f"Error loading processed podcasts from Firebase: {str(e)}")
+        logging.error(traceback.format_exc())
     return []
 
 def save_processed_podcast(podcast_data):
     try:
-        # Load existing data or create an empty list
-        podcasts = load_processed_podcasts()
+        # Load existing data
+        blob = bucket.blob(PROCESSED_PODCASTS_FILE)
+        if blob.exists():
+            json_data = blob.download_as_text()
+            data = json.loads(json_data)
+        else:
+            data = {'processed_podcasts': []}
+
+        processed_podcasts = data['processed_podcasts']
 
         # Check if the podcast already exists in the list
-        existing_podcast = next((p for p in podcasts if p['rss_url'] == podcast_data['rss_url'] and p['episode_title'] == podcast_data['episode_title']), None)
+        existing_podcast = next((p for p in processed_podcasts if p['rss_url'] == podcast_data['rss_url'] and p['episode_title'] == podcast_data['episode_title']), None)
 
         if existing_podcast:
             # Update the existing podcast data
@@ -157,7 +176,7 @@ def save_processed_podcast(podcast_data):
             logging.info(f"Updated existing podcast: {podcast_data['episode_title']}")
         else:
             # Append new data
-            podcasts.append(podcast_data)
+            processed_podcasts.append(podcast_data)
             logging.info(f"Added new podcast: {podcast_data['episode_title']}")
 
         # Convert file paths to Firebase Storage URLs
@@ -173,9 +192,7 @@ def save_processed_podcast(podcast_data):
         logging.info(f"Saving processed podcast to Firebase: {podcast_data['episode_title']}")
 
         # Write updated data to Firebase Storage
-        json_data = json.dumps(podcasts, indent=2)
-        # Update the blob path to use the root of the bucket
-        blob = bucket.blob(PROCESSED_PODCASTS_FILE)
+        json_data = json.dumps(data, indent=2)
         blob.upload_from_string(json_data, content_type='application/json')
 
         logging.info(f"Successfully saved processed podcast to Firebase: {PROCESSED_PODCASTS_FILE}")

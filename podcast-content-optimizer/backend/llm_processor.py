@@ -6,13 +6,14 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from openai import OpenAI
 from utils import parse_duration, format_duration  # Changed from utils.time_utils
+from prompt_loader import load_prompt  # Update this import
 
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME")
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
 
 def find_unwanted_content(transcript_file_path):
     logging.info(f"Starting unwanted content detection for file: {transcript_file_path}")

@@ -42,19 +42,33 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         os.makedirs(episode_folder, exist_ok=True)
         logging.info(f"Created episode folder: {episode_folder}")
 
+        # Load processed podcasts
+        processed_podcasts = load_processed_podcasts()
+        logging.info(f"Loaded processed podcasts. Type: {type(processed_podcasts)}")
+        logging.info(f"Processed podcasts content: {str(processed_podcasts)[:1000]}...")  # Log the first 1000 characters
+
+        if not isinstance(processed_podcasts, list):
+            logging.error(f"processed_podcasts is not a list. Type: {type(processed_podcasts)}")
+            processed_podcasts = []
+
+        # Check if this episode has been processed before
+        logging.info(f"Checking for existing podcast. RSS URL: {rss_url}, Episode title: {chosen_episode['title']}")
+        existing_podcast = next((p for p in processed_podcasts if isinstance(p, dict) and p.get('rss_url') == rss_url and p.get('episode_title') == chosen_episode['title']), None)
+
+        if existing_podcast:
+            logging.info(f"Found existing podcast: {existing_podcast}")
+        else:
+            logging.info("No existing podcast found")
+
+        if existing_podcast and existing_podcast.get('status') == 'completed':
+            logging.info(f"Episode '{chosen_episode['title']}' has already been processed. Skipping.")
+            return existing_podcast
+
         # Update file paths to use Firebase Storage URLs
         input_filename = safe_filename(f"original_{chosen_episode['title']}.mp3")
         transcript_filename = "transcript.txt"
         unwanted_content_filename = "unwanted_content.json"
         output_file = safe_filename(f"edited_{chosen_episode['title']}.mp3")
-
-        # Check if this episode has been processed before
-        processed_podcasts = load_processed_podcasts()
-        existing_podcast = next((p for p in processed_podcasts if p['rss_url'] == rss_url and p['episode_title'] == chosen_episode['title']), None)
-
-        if existing_podcast and existing_podcast['status'] == 'completed':
-            logging.info(f"Episode '{chosen_episode['title']}' has already been processed. Skipping.")
-            return existing_podcast
 
         # Create initial podcast data
         podcast_data = existing_podcast or {
