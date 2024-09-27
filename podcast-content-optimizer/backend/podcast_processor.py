@@ -7,7 +7,7 @@ from utils import (
     file_exists_in_firebase, download_from_firebase, load_processed_podcasts
 )
 from job_manager import update_job_status
-import whisper
+from faster_whisper import WhisperModel
 import os
 import shutil
 import logging
@@ -104,7 +104,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
             try:
                 logging.info("Initializing Whisper model...")
                 update_job_status(job_id, 'in_progress', 'TRANSCRIPTION', 50, 'Initializing Whisper model')
-                model = whisper.load_model("base")
+                # load in faster-whisper model
+                model = WhisperModel("medium")
                 logging.info("Whisper model initialized successfully")
 
                 def transcribe():
@@ -116,7 +117,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
                             if not success:
                                 raise ValueError(f"Failed to download input file from Firebase: {podcast_data['input_file']}")
 
-                        result = model.transcribe(os.path.join(episode_folder, input_filename))
+                        # old version with whisper: model.transcribe(os.path.join(episode_folder, input_filename))
+                        result = model.transcribe(os.path.join(episode_folder, input_filename), beam_size=5, word_timestamps=True)
                         logging.info("Transcription completed successfully")
                         return result
                     except Exception as e:

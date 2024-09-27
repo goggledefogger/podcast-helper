@@ -12,3 +12,4 @@ Werkzeug==3.0.1
 redis==5.0.8
 celery==5.4.0
 firebase-admin==6.5.0
+faster-whisper==1.0.3
