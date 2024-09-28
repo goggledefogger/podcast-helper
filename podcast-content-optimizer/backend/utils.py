@@ -10,8 +10,19 @@ import json
 import os
 import urllib.parse
 import re
+import firebase_admin
+from firebase_admin import credentials, storage
 
-PROCESSED_PODCASTS_FILE = 'output/processed_podcasts.json'
+# Initialize Firebase app
+cred = credentials.Certificate('etc/firebaseServiceAccountKey.json')
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'podcast-helper-435105.appspot.com'
+})
+
+bucket = storage.bucket()
+
+# Update this line to remove the 'output' folder from the path
+PROCESSED_PODCASTS_FILE = 'db.json'
 
 def get_podcast_episodes(rss_url):
     try:
@@ -118,51 +129,76 @@ def run_with_animation(func, *args, **kwargs):
         raise
 
 def load_processed_podcasts():
-    if os.path.exists(PROCESSED_PODCASTS_FILE):
-        with open(PROCESSED_PODCASTS_FILE, 'r') as f:
-            return json.load(f)
+    try:
+        blob = bucket.blob(PROCESSED_PODCASTS_FILE)
+        logging.info(f"Attempting to load processed podcasts from Firebase: {PROCESSED_PODCASTS_FILE}")
+        if blob.exists():
+            json_data = blob.download_as_text()
+            logging.info(f"Raw JSON data from Firebase: {json_data[:1000]}...")  # Log the first 1000 characters
+            data = json.loads(json_data)
+            logging.info(f"Parsed data type: {type(data)}")
+            logging.info(f"Parsed data content: {str(data)[:1000]}...")  # Log the first 1000 characters of the parsed data
+
+            podcasts = data.get('processed_podcasts', [])
+            logging.info(f"Podcasts type: {type(podcasts)}")
+            logging.info(f"Podcasts content: {str(podcasts)[:1000]}...")  # Log the first 1000 characters of the podcasts data
+
+            if not isinstance(podcasts, list):
+                logging.error(f"Loaded data is not a list. Type: {type(podcasts)}")
+                return []
+            logging.info(f"Successfully loaded {len(podcasts)} processed podcasts from Firebase")
+            return podcasts
+        else:
+            logging.info(f"No processed podcasts file found in Firebase: {PROCESSED_PODCASTS_FILE}")
+    except Exception as e:
+        logging.error(f"Error loading processed podcasts from Firebase: {str(e)}")
+        logging.error(traceback.format_exc())
     return []
 
 def save_processed_podcast(podcast_data):
     try:
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(PROCESSED_PODCASTS_FILE), exist_ok=True)
-
-        # Load existing data or create an empty list
-        if os.path.exists(PROCESSED_PODCASTS_FILE):
-            with open(PROCESSED_PODCASTS_FILE, 'r') as f:
-                podcasts = json.load(f)
+        # Load existing data
+        blob = bucket.blob(PROCESSED_PODCASTS_FILE)
+        if blob.exists():
+            json_data = blob.download_as_text()
+            data = json.loads(json_data)
         else:
-            podcasts = []
+            data = {'processed_podcasts': []}
+
+        processed_podcasts = data['processed_podcasts']
 
         # Check if the podcast already exists in the list
-        existing_podcast = next((p for p in podcasts if p['rss_url'] == podcast_data['rss_url'] and p['episode_title'] == podcast_data['episode_title']), None)
+        existing_podcast = next((p for p in processed_podcasts if p['rss_url'] == podcast_data['rss_url'] and p['episode_title'] == podcast_data['episode_title']), None)
 
         if existing_podcast:
             # Update the existing podcast data
             existing_podcast.update(podcast_data)
+            logging.info(f"Updated existing podcast: {podcast_data['episode_title']}")
         else:
             # Append new data
-            podcasts.append(podcast_data)
+            processed_podcasts.append(podcast_data)
+            logging.info(f"Added new podcast: {podcast_data['episode_title']}")
 
-        # Convert file paths to URLs
+        # Convert file paths to Firebase Storage URLs
         for key in ['edited_url', 'transcript_file', 'unwanted_content_file', 'input_file', 'output_file']:
             if key in podcast_data and podcast_data[key]:
-                if os.path.exists(podcast_data[key]):
-                    podcast_data[key] = file_path_to_url(podcast_data[key])
+                old_value = podcast_data[key]
+                if not (old_value.startswith('http://') or old_value.startswith('https://')):
+                    podcast_data[key] = upload_to_firebase(podcast_data[key])
+                    logging.info(f"Uploaded {key} to Firebase: {old_value} -> {podcast_data[key]}")
                 else:
-                    logging.warning(f"File not found: {podcast_data[key]}")
+                    logging.info(f"Skipped uploading {key}, already a URL: {old_value}")
 
-        logging.info(f"Saving processed podcast: {podcast_data}")
+        logging.info(f"Saving processed podcast to Firebase: {podcast_data['episode_title']}")
 
-        # Write updated data
-        with open(PROCESSED_PODCASTS_FILE, 'w') as f:
-            json.dump(podcasts, f, indent=2)
+        # Write updated data to Firebase Storage
+        json_data = json.dumps(data, indent=2)
+        blob.upload_from_string(json_data, content_type='application/json')
 
-        logging.info(f"Saved processed podcast to {PROCESSED_PODCASTS_FILE}")
+        logging.info(f"Successfully saved processed podcast to Firebase: {PROCESSED_PODCASTS_FILE}")
 
     except Exception as e:
-        logging.error(f"Error saving processed podcast: {str(e)}")
+        logging.error(f"Error saving processed podcast to Firebase: {str(e)}")
         logging.error(traceback.format_exc())
 
 def parse_duration(duration):
@@ -238,16 +274,81 @@ def url_to_file_path(url_path, base_dir='output'):
     return full_path
 
 def file_path_to_url(file_path):
-    # Remove the base output directory from the path
-    relative_path = os.path.relpath(file_path, 'output')
-    # Convert backslashes to forward slashes for Windows compatibility
-    relative_path = relative_path.replace('\\', '/')
-    # URL encode each path component
-    encoded_path = '/'.join(urllib.parse.quote(component) for component in relative_path.split('/'))
-    # Always start with "/output/"
-    return f"/output/{encoded_path}"
+    return upload_to_firebase(file_path)
 
 def get_episode_folder(podcast_title, episode_title):
     safe_podcast_title = safe_filename(podcast_title)
     safe_episode_title = safe_filename(episode_title)
     return os.path.join('output', safe_podcast_title, safe_episode_title)
+
+def upload_to_firebase(file_path, delete_local=True):
+    try:
+        # Check if the file_path is already a URL
+        if file_path.startswith('http://') or file_path.startswith('https://'):
+            logging.info(f"File is already a URL, skipping upload: {file_path}")
+            return file_path
+
+        # Ensure the file exists locally
+        if not os.path.exists(file_path):
+            logging.error(f"File does not exist locally: {file_path}")
+            return None
+
+        # Generate a storage path (you might want to adjust this logic)
+        storage_path = os.path.relpath(file_path, 'output')
+        blob = bucket.blob(storage_path)
+
+        logging.info(f"Uploading file to Firebase: {file_path}")
+        blob.upload_from_filename(file_path)
+        public_url = blob.public_url
+        logging.info(f"Successfully uploaded file to Firebase: {file_path} -> {public_url}")
+
+        # Delete the local file if requested
+        if delete_local:
+            try:
+                os.remove(file_path)
+                logging.info(f"Deleted local file after upload: {file_path}")
+            except Exception as delete_error:
+                logging.warning(f"Failed to delete local file after upload: {file_path}. Error: {str(delete_error)}")
+
+        return public_url
+    except Exception as e:
+        logging.error(f"Error uploading file to Firebase: {file_path}, Error: {str(e)}")
+        return None
+
+def file_exists_in_firebase(file_path):
+    # Remove the bucket name from the beginning of the path if it's there
+    bucket_name = 'podcast-helper-435105.appspot.com'
+    if file_path.startswith(bucket_name):
+        file_path = file_path[len(bucket_name):].lstrip('/')
+
+    blob = bucket.blob(file_path)
+    exists = blob.exists()
+    logging.info(f"Checking if file exists in Firebase: {file_path}, Result: {exists}")
+    return exists
+
+def download_from_firebase(firebase_url, local_path):
+    try:
+        # Extract the path from the Firebase URL
+        parsed_url = urllib.parse.urlparse(firebase_url)
+        file_path = parsed_url.path.lstrip('/')
+
+        # Remove the bucket name from the beginning of the path if it's there
+        bucket_name = 'podcast-helper-435105.appspot.com'
+        if file_path.startswith(bucket_name):
+            file_path = file_path[len(bucket_name):].lstrip('/')
+
+        logging.info(f"Attempting to download file from Firebase: {file_path}")
+
+        blob = bucket.blob(file_path)
+
+        if not blob.exists():
+            logging.error(f"File does not exist in Firebase Storage: {file_path}")
+            return False
+
+        blob.download_to_filename(local_path)
+        logging.info(f"Successfully downloaded file from Firebase: {firebase_url} -> {local_path}")
+        return True
+    except Exception as e:
+        logging.error(f"Error downloading file from Firebase: {firebase_url}, Error: {str(e)}")
+        logging.error(traceback.format_exc())
+        return False

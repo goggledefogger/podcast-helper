@@ -306,67 +306,12 @@ button:disabled, select:disabled {
   border-radius: 4px;
 }
 
-/* Remove or comment out these styles */
-/*
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background-color: white;
-  padding: 20px;
-  border-radius: 8px;
-  max-width: 400px;
-  width: 100%;
-}
-
-.modal h2 {
-  margin-top: 0;
-}
-
-.modal-buttons {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 20px;
-}
-
-.modal-buttons button {
-  margin-left: 10px;
-}
-
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  color: white;
-}
-*/
-
-/* ... (keep other styles) */
-
 .search-section {
   width: 100%;
   max-width: 600px;
   margin: 0 auto 20px;
-  padding: 0 15px; /* Add padding to the section instead of individual elements */
-  box-sizing: border-box; /* Ensure padding is included in the width */
+  padding: 0 15px;
+  box-sizing: border-box;
 }
 
 .search-container {
@@ -388,14 +333,14 @@ button:disabled, select:disabled {
   flex: 1;
   min-width: 0;
   padding: 10px;
-  box-sizing: border-box; /* Ensure padding is included in the width */
+  box-sizing: border-box;
 }
 
 .search-container button {
   white-space: nowrap;
   flex-shrink: 0;
   padding: 10px;
-  box-sizing: border-box; /* Ensure padding is included in the width */
+  box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
@@ -422,4 +367,29 @@ button:disabled, select:disabled {
 
 .delete-podcast-button:hover {
   background-color: #c82333;
+}
+
+.prompt-editor {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.prompt-editor textarea {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.prompt-editor button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.prompt-editor button:hover {
+  background-color: #45a049;
 }

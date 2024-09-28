@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { signInAnonymously } from 'firebase/auth';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
 import { formatDuration, formatDate } from './utils/timeUtils';
 import {
-  fetchProcessedPodcasts,
   fetchEpisodes,
   processEpisode,
   searchPodcasts,
@@ -13,21 +13,14 @@ import {
   deleteProcessedPodcast,
   JobStatus
 } from './api';
+import { ProcessedPodcast, auth, getProcessedPodcasts, getFileUrl } from './firebase';
+import PromptEditor from './components/PromptEditor';
 
 interface Episode {
   number: number;
   title: string;
   published: string;
   duration: number;  // Duration in seconds
-}
-
-interface ProcessedPodcast {
-  podcast_title: string;
-  episode_title: string;
-  rss_url: string;
-  edited_url: string;
-  transcript_file: string;
-  unwanted_content_file: string;
 }
 
 interface SearchResult {
@@ -54,7 +47,29 @@ const App: React.FC = () => {
   const [currentJobInfo, setCurrentJobInfo] = useState<{ podcastName: string; episodeTitle: string } | null>(null);
 
   useEffect(() => {
-    fetchProcessedPodcasts().then(setProcessedPodcasts).catch(handleError);
+    const signInAnonymouslyToFirebase = async () => {
+      try {
+        await signInAnonymously(auth);
+        console.log("Signed in anonymously");
+      } catch (error) {
+        console.error("Error signing in anonymously:", error);
+      }
+    };
+
+    signInAnonymouslyToFirebase();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const podcasts = await getProcessedPodcasts();
+        setProcessedPodcasts(podcasts);
+      } catch (error) {
+        handleError(error as Error);
+      }
+    };
+
+    fetchData();
     fetchCurrentJobs().then(setCurrentJobs).catch(handleError);
   }, []);
 
@@ -92,6 +107,10 @@ const App: React.FC = () => {
         podcastName: selectedPodcast?.name || 'Unknown Podcast',
         episodeTitle: selectedEpisodeInfo?.title || 'Unknown Episode'
       });
+
+      // Fetch the updated processed podcasts list
+      const updatedPodcasts = await getProcessedPodcasts();
+      setProcessedPodcasts(updatedPodcasts);
     } catch (err) {
       handleError(err as Error);
       setIsProcessing(false);
@@ -147,7 +166,8 @@ const App: React.FC = () => {
       });
 
       if (Object.values(data).some(status => status.status === 'completed' || status.status === 'failed')) {
-        fetchProcessedPodcasts().then(setProcessedPodcasts).catch(handleError);
+        const updatedPodcasts = await getProcessedPodcasts();
+        setProcessedPodcasts(updatedPodcasts);
       }
     } catch (error) {
       console.error('Error fetching job statuses:', error);
@@ -184,12 +204,17 @@ const App: React.FC = () => {
     try {
       await deleteProcessedPodcast(podcastTitle, episodeTitle);
       // After successful deletion, refresh the list of processed podcasts
-      fetchProcessedPodcasts().then(setProcessedPodcasts).catch(handleError);
+      const updatedPodcasts = await getProcessedPodcasts();
+      setProcessedPodcasts(updatedPodcasts);
     } catch (error) {
       console.error('Error deleting podcast:', error);
       setError('Failed to delete podcast. Please try again.');
     }
   };
+
+  const getFirebaseUrl = useCallback(async (path: string) => {
+    return await getFileUrl(path);
+  }, []);
 
   return (
     <div className="App">
@@ -290,17 +315,41 @@ const App: React.FC = () => {
                     <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
                     <div className="processed-links">
                       {podcast.edited_url && (
-                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}${podcast.edited_url}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a
+                          href="#"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const url = await getFirebaseUrl(podcast.edited_url);
+                            if (url) window.open(url, '_blank');
+                          }}
+                          className="view-link"
+                        >
                           Download Edited Audio
                         </a>
                       )}
                       {podcast.transcript_file && (
-                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}${podcast.transcript_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a
+                          href="#"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const url = await getFirebaseUrl(podcast.transcript_file);
+                            if (url) window.open(url, '_blank');
+                          }}
+                          className="view-link"
+                        >
                           View Transcript
                         </a>
                       )}
                       {podcast.unwanted_content_file && (
-                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}${podcast.unwanted_content_file}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a
+                          href="#"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            const url = await getFirebaseUrl(podcast.unwanted_content_file);
+                            if (url) window.open(url, '_blank');
+                          }}
+                          className="view-link"
+                        >
                           View Unwanted Content
                         </a>
                       )}
@@ -357,6 +406,8 @@ const App: React.FC = () => {
             ))}
           </section>
         )}
+
+        <PromptEditor />
 
       </main>
     </div>

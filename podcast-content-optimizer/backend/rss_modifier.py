@@ -14,6 +14,7 @@ from flask import request
 from io import StringIO
 from utils import safe_filename
 import urllib.parse
+from firebase_admin import storage
 
 # Define common namespace prefixes
 NAMESPACES = {
@@ -82,12 +83,12 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         # Update <itunes:new-feed-url> if it exists
         new_feed_url = channel.find('itunes:new-feed-url', namespaces=NAMESPACES)
         if new_feed_url is not None:
-            new_feed_url.text = f"{url_root}/api/modified_rss/{quote(original_rss_url, safe='')}"
+            new_feed_url.text = f"{url_root}/api/modified_rss/{encoded_rss_url}"
 
         # Update <atom:link rel="self"> if it exists
         atom_link = channel.find('atom:link[@rel="self"]', namespaces=NAMESPACES)
         if atom_link is not None:
-            atom_link.set('href', f"{url_root}/api/modified_rss/{quote(original_rss_url, safe='')}")
+            atom_link.set('href', f"{url_root}/api/modified_rss/{encoded_rss_url}")
 
         # Update the channel title
         title_elem = channel.find('title')
@@ -120,7 +121,7 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         # Update the link to point to your modified RSS feed
         link_elem = channel.find('link')
         if link_elem is not None:
-            link_elem.text = f"{url_root}/api/modified_rss/{quote(original_rss_url, safe='')}"
+            link_elem.text = f"{url_root}/api/modified_rss/{encoded_rss_url}"
 
         # Update or add a new <itunes:new-feed-url> element
         # Update the description to mention it's a modified feed
@@ -137,29 +138,18 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         new_feed_url = channel.find('itunes:new-feed-url', namespaces=NAMESPACES)
         if new_feed_url is None:
             new_feed_url = ET.SubElement(channel, f"{{{NAMESPACES['itunes']}}}new-feed-url")
-        new_feed_url.text = f"{url_root}/api/modified_rss/{quote(original_rss_url, safe='')}"
+        new_feed_url.text = f"{url_root}/api/modified_rss/{encoded_rss_url}"
 
         # Update the <atom:link> element
         atom_link = channel.find('atom:link[@rel="self"]', namespaces=NAMESPACES)
         if atom_link is not None:
-            atom_link.set('href', f"{url_root}/api/modified_rss/{quote(original_rss_url, safe='')}")
+            atom_link.set('href', f"{url_root}/api/modified_rss/{encoded_rss_url}")
         else:
             atom_link = ET.SubElement(channel, f"{{{NAMESPACES['atom']}}}link", attrib={
-                'href': f"{url_root}/api/modified_rss/{quote(original_rss_url, safe='')}",
+                'href': f"{url_root}/api/modified_rss/{encoded_rss_url}",
                 'rel': 'self',
                 'type': 'application/rss+xml'
             })
-
-        # # Add this near the top of the function
-        # image_elem = channel.find('image')
-        # if image_elem is not None:
-        #     url_elem = image_elem.find('url')
-        #     if url_elem is not None:
-        #         url_elem.text = f"{url_root}/static/optimized_podcast_image.jpg"
-
-        # itunes_image = channel.find('itunes:image', namespaces=NAMESPACES)
-        # if itunes_image is not None:
-        #     itunes_image.set('href', f"{url_root}/static/optimized_podcast_image.jpg")
 
         # Process items
         for item in channel.findall('item'):
@@ -191,25 +181,13 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
 
                     enclosure = item.find('enclosure')
                     if enclosure is not None:
-                        safe_podcast_title = safe_filename(processed_episode['podcast_title'])
-                        safe_episode_title = safe_filename(processed_episode['episode_title'])
-                        safe_edited_filename = safe_filename(os.path.basename(processed_episode['edited_url']))
+                        # Use the Firebase Storage URL directly
+                        enclosure.set('url', processed_episode['edited_url'])
 
-                        # Construct the relative path using safe filenames
-                        relative_path = f"output/{safe_podcast_title}/{safe_episode_title}/{safe_edited_filename}"
-                        # Encode the path components
-                        encoded_relative_path = '/'.join([urllib.parse.quote(component) for component in relative_path.split('/')])
-                        edited_url = f"{url_root}/{encoded_relative_path}"
-                        enclosure.set('url', edited_url)
-
-                        edited_file_path = os.path.join('output', relative_path)
-                        if os.path.exists(edited_file_path):
-                            new_size, new_duration = get_audio_info(edited_file_path)
-                            enclosure.set('length', str(new_size))
-
-                            duration_elem = item.find('itunes:duration', namespaces=NAMESPACES)
-                            if duration_elem is not None:
-                                duration_elem.text = format_duration(new_duration)
+                    # Update the duration if available
+                    duration_elem = item.find('itunes:duration', namespaces=NAMESPACES)
+                    if duration_elem is not None and 'duration' in processed_episode:
+                        duration_elem.text = format_duration(processed_episode['duration'])
 
         # Update namespace-specific identifiers
         for prefix, uri in namespaces.items():
