@@ -177,8 +177,15 @@ def get_modified_rss(rss_url):
             decoded_rss_url = 'https://' + decoded_rss_url
             logging.info(f"Added https:// to URL: {decoded_rss_url}")
 
-        processed_podcasts = load_processed_podcasts()
-        logging.info(f"Loaded {len(processed_podcasts)} processed podcasts")
+        processed_podcasts_data = load_processed_podcasts()
+        logging.info(f"Loaded processed podcasts. Type: {type(processed_podcasts_data)}")
+        
+        processed_podcasts = processed_podcasts_data.get('processed_podcasts', [])
+        if not isinstance(processed_podcasts, list):
+            logging.error(f"processed_podcasts is not a list. Type: {type(processed_podcasts)}")
+            processed_podcasts = []
+
+        logging.info(f"Number of processed podcasts: {len(processed_podcasts)}")
 
         modified_rss = get_or_create_modified_rss(decoded_rss_url, processed_podcasts)
 

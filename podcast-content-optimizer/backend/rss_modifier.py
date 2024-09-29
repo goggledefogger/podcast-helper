@@ -15,6 +15,7 @@ from io import StringIO
 from utils import safe_filename
 import urllib.parse
 from firebase_admin import storage
+import json
 
 # Define common namespace prefixes
 NAMESPACES = {
@@ -207,7 +208,17 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
 
 def get_or_create_modified_rss(original_rss_url, processed_podcasts):
     logging.info(f"Entering get_or_create_modified_rss with URL: {original_rss_url}")
-    logging.info(f"Number of processed podcasts: {len(processed_podcasts)}")
+    logging.info(f"Type of processed_podcasts: {type(processed_podcasts)}")
+
+    # Safely log the content of processed_podcasts
+    if isinstance(processed_podcasts, dict):
+        logging.info(f"Content of processed_podcasts (first 500 chars): {str(processed_podcasts)[:500]}...")
+    elif isinstance(processed_podcasts, list):
+        logging.info(f"Number of processed podcasts: {len(processed_podcasts)}")
+        if processed_podcasts:
+            logging.info(f"First podcast: {str(processed_podcasts[0])[:500]}...")
+    else:
+        logging.info(f"processed_podcasts: {str(processed_podcasts)[:500]}...")
 
     cache_key = f"modified_rss:{original_rss_url}"
     cached_rss = rss_cache.get(cache_key)
@@ -218,6 +229,16 @@ def get_or_create_modified_rss(original_rss_url, processed_podcasts):
 
     logging.info(f"Creating new modified RSS feed for {original_rss_url}")
     try:
+        # Ensure processed_podcasts is a list
+        if isinstance(processed_podcasts, dict):
+            processed_podcasts = processed_podcasts.get('processed_podcasts', [])
+        elif isinstance(processed_podcasts, str):
+            processed_podcasts = json.loads(processed_podcasts).get('processed_podcasts', [])
+        
+        if not isinstance(processed_podcasts, list):
+            logging.error(f"processed_podcasts is not a list. Type: {type(processed_podcasts)}")
+            processed_podcasts = []
+
         modified_rss = create_modified_rss_feed(original_rss_url, processed_podcasts)
         if not modified_rss:
             logging.error("create_modified_rss_feed returned None or empty string")
