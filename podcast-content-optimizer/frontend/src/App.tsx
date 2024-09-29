@@ -222,157 +222,188 @@ const App: React.FC = () => {
         <h1>Podcast Content Optimizer</h1>
       </header>
       <main className="App-main">
-        <section className="search-section" aria-labelledby="search-heading">
-          <h2 id="search-heading">Search for a Podcast</h2>
-          <form onSubmit={(e) => { e.preventDefault(); handleSearchPodcasts(); }} className="search-container">
-            <label htmlFor="search-input">Search for podcasts</label>
-            <div className="search-input-wrapper">
-              <input
-                id="search-input"
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter podcast name"
-                aria-describedby="search-description"
-              />
-              <button type="submit" disabled={isLoading || !searchQuery.trim()}>
-                Search
-              </button>
-            </div>
-          </form>
-          <p id="search-description" className="helper-text">Enter a podcast name to search for available episodes.</p>
-        </section>
-
-        {searchResults.length > 0 && (
-          <section className="search-results" aria-labelledby="results-heading">
-            <h2 id="results-heading">Search Results</h2>
-            <ul className="podcast-list">
-              {searchResults.map((podcast) => (
-                <li key={podcast.uuid} className="podcast-item">
-                  <div className="podcast-info">
-                    <h3>{podcast.name}</h3>
-                    <p>{podcast.description}</p>
-                  </div>
-                  {podcast.imageUrl && (
-                    <img src={podcast.imageUrl} alt={`${podcast.name} cover`} className="podcast-image" />
-                  )}
-                  <button onClick={() => { setRssUrl(podcast.rssUrl); setSearchResults([]); fetchPodcastEpisodes(podcast.rssUrl); }} className="select-button">
-                    Select
+        <div className="content-wrapper">
+          <div className="left-column">
+            <section className="search-section" aria-labelledby="search-heading">
+              <h2 id="search-heading">Find and Process a Podcast</h2>
+              <form onSubmit={(e) => { e.preventDefault(); handleSearchPodcasts(); }} className="search-container">
+                <label htmlFor="search-input">Search for podcasts</label>
+                <div className="search-input-wrapper">
+                  <input
+                    id="search-input"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Enter podcast name"
+                    aria-describedby="search-description"
+                  />
+                  <button type="submit" disabled={isLoading || !searchQuery.trim()}>
+                    Search
                   </button>
-                </li>
+                </div>
+              </form>
+              <p id="search-description" className="helper-text">Enter a podcast name to search for available episodes.</p>
+            </section>
+
+            {searchResults.length > 0 && (
+              <section className="search-results" aria-labelledby="results-heading">
+                <h3 id="results-heading">Search Results</h3>
+                <ul className="podcast-list">
+                  {searchResults.map((podcast) => (
+                    <li key={podcast.uuid} className="podcast-item">
+                      <div className="podcast-info">
+                        <h4>{podcast.name}</h4>
+                        <p>{podcast.description}</p>
+                      </div>
+                      {podcast.imageUrl && (
+                        <img src={podcast.imageUrl} alt={`${podcast.name} cover`} className="podcast-image" />
+                      )}
+                      <button onClick={() => { setRssUrl(podcast.rssUrl); setSearchResults([]); fetchPodcastEpisodes(podcast.rssUrl); }} className="select-button">
+                        Select
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {rssUrl && (
+              <section className="selected-podcast" aria-labelledby="selected-heading">
+                <h3 id="selected-heading">Selected Podcast</h3>
+                <p className="rss-url">{rssUrl}</p>
+                <button onClick={() => fetchPodcastEpisodes(rssUrl)} disabled={isLoading} className="fetch-button">
+                  Fetch Episodes
+                </button>
+              </section>
+            )}
+
+            {episodes.length > 0 && (
+              <section className="episode-selection" aria-labelledby="episode-heading">
+                <h3 id="episode-heading">Select an Episode</h3>
+                <form onSubmit={(e) => { e.preventDefault(); handleProcessEpisode(); }} className="episode-container">
+                  <label htmlFor="episode-select">Choose an episode</label>
+                  <select
+                    id="episode-select"
+                    value={selectedEpisode ?? ''}
+                    onChange={(e) => setSelectedEpisode(Number(e.target.value))}
+                    className="episode-select"
+                    disabled={isProcessing}
+                  >
+                    <option value="">Select an episode</option>
+                    {episodes.map((episode, index) => (
+                      <option key={index} value={index}>
+                        {episode.title} - {formatDate(episode.published)} ({formatDuration(episode.duration, 'MM:SS')})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="submit"
+                    disabled={isLoading || selectedEpisode === null || isProcessing}
+                    className="process-button"
+                  >
+                    {isProcessing ? 'Processing...' : 'Process Episode'}
+                  </button>
+                </form>
+              </section>
+            )}
+          </div>
+
+          <div className="right-column">
+            <section className="current-jobs" aria-labelledby="current-jobs-heading">
+              <h2 id="current-jobs-heading">Current Processing Jobs</h2>
+              {currentJobId && (
+                <ProcessingStatus
+                  jobId={currentJobId}
+                  status={jobStatuses[currentJobId]}
+                  onDelete={() => handleDeleteJob(currentJobId)}
+                  podcastName={currentJobInfo?.podcastName}
+                  episodeTitle={currentJobInfo?.episodeTitle}
+                />
+              )}
+              {currentJobs.map((job) => (
+                <div key={job.job_id} className="job-item">
+                  <ProcessingStatus
+                    jobId={job.job_id}
+                    status={jobStatuses[job.job_id]}
+                    onDelete={() => handleDeleteJob(job.job_id)}
+                  />
+                </div>
               ))}
-            </ul>
-          </section>
-        )}
+              {!currentJobId && currentJobs.length === 0 && (
+                <p className="no-jobs">No active processing jobs.</p>
+              )}
+            </section>
 
-        {rssUrl && (
-          <section className="selected-podcast" aria-labelledby="selected-heading">
-            <h2 id="selected-heading">Selected Podcast</h2>
-            <p className="rss-url">{rssUrl}</p>
-            <button onClick={() => fetchPodcastEpisodes(rssUrl)} disabled={isLoading} className="fetch-button">
-              Fetch Episodes
-            </button>
-          </section>
-        )}
-
-        {episodes.length > 0 && (
-          <section className="episode-selection" aria-labelledby="episode-heading">
-            <h2 id="episode-heading">Select an Episode</h2>
-            <form onSubmit={(e) => { e.preventDefault(); handleProcessEpisode(); }} className="episode-container">
-              <label htmlFor="episode-select">Choose an episode</label>
-              <select
-                id="episode-select"
-                value={selectedEpisode ?? ''}
-                onChange={(e) => setSelectedEpisode(Number(e.target.value))}
-                className="episode-select"
-                disabled={isProcessing}
-              >
-                <option value="">Select an episode</option>
-                {episodes.map((episode, index) => (
-                  <option key={index} value={index}>
-                    {episode.title} - {formatDate(episode.published)} ({formatDuration(episode.duration, 'MM:SS')})
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                disabled={isLoading || selectedEpisode === null || isProcessing}
-                className="process-button"
-              >
-                {isProcessing ? 'Processing...' : 'Process Episode'}
-              </button>
-            </form>
-          </section>
-        )}
-
-        {processedPodcasts.length > 0 ? (
-          <section className="processed-podcasts" aria-labelledby="processed-heading">
-            <h2 id="processed-heading">Processed Podcasts</h2>
-            <ul className="processed-list">
-              {processedPodcasts.map((podcast, index) => (
-                podcast && podcast.podcast_title && podcast.episode_title ? (
-                  <li key={index} className="processed-item">
-                    <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
-                    <div className="processed-links">
-                      {podcast.edited_url && (
-                        <a
-                          href="#"
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            const url = await getFirebaseUrl(podcast.edited_url);
-                            if (url) window.open(url, '_blank');
-                          }}
-                          className="view-link"
+            <section className="processed-podcasts" aria-labelledby="processed-heading">
+              <h2 id="processed-heading">Processed Podcasts</h2>
+              {processedPodcasts.length > 0 ? (
+                <ul className="processed-list">
+                  {processedPodcasts.map((podcast, index) => (
+                    podcast && podcast.podcast_title && podcast.episode_title ? (
+                      <li key={index} className="processed-item">
+                        <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
+                        <div className="processed-links">
+                          {podcast.edited_url && (
+                            <a
+                              href="#"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                const url = await getFirebaseUrl(podcast.edited_url);
+                                if (url) window.open(url, '_blank');
+                              }}
+                              className="view-link"
+                            >
+                              Download Edited Audio
+                            </a>
+                          )}
+                          {podcast.transcript_file && (
+                            <a
+                              href="#"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                const url = await getFirebaseUrl(podcast.transcript_file);
+                                if (url) window.open(url, '_blank');
+                              }}
+                              className="view-link"
+                            >
+                              View Transcript
+                            </a>
+                          )}
+                          {podcast.unwanted_content_file && (
+                            <a
+                              href="#"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                const url = await getFirebaseUrl(podcast.unwanted_content_file);
+                                if (url) window.open(url, '_blank');
+                              }}
+                              className="view-link"
+                            >
+                              View Unwanted Content
+                            </a>
+                          )}
+                          {podcast.rss_url && (
+                            <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                              View Modified RSS Feed
+                            </a>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleDeletePodcast(podcast.podcast_title, podcast.episode_title)}
+                          className="delete-podcast-button"
                         >
-                          Download Edited Audio
-                        </a>
-                      )}
-                      {podcast.transcript_file && (
-                        <a
-                          href="#"
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            const url = await getFirebaseUrl(podcast.transcript_file);
-                            if (url) window.open(url, '_blank');
-                          }}
-                          className="view-link"
-                        >
-                          View Transcript
-                        </a>
-                      )}
-                      {podcast.unwanted_content_file && (
-                        <a
-                          href="#"
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            const url = await getFirebaseUrl(podcast.unwanted_content_file);
-                            if (url) window.open(url, '_blank');
-                          }}
-                          className="view-link"
-                        >
-                          View Unwanted Content
-                        </a>
-                      )}
-                      {podcast.rss_url && (
-                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
-                          View Modified RSS Feed
-                        </a>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleDeletePodcast(podcast.podcast_title, podcast.episode_title)}
-                      className="delete-podcast-button"
-                    >
-                      Delete Podcast
-                    </button>
-                  </li>
-                ) : null
-              ))}
-            </ul>
-          </section>
-        ) : (
-          <p className="no-podcasts">No processed podcasts available. Process an episode to see results here.</p>
-        )}
+                          Delete Podcast
+                        </button>
+                      </li>
+                    ) : null
+                  ))}
+                </ul>
+              ) : (
+                <p className="no-podcasts">No processed podcasts available. Process an episode to see results here.</p>
+              )}
+            </section>
+          </div>
+        </div>
 
         {error && (
           <div className="error-message" role="alert">
@@ -381,34 +412,10 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {currentJobId && (
-          <ProcessingStatus
-            jobId={currentJobId}
-            status={jobStatuses[currentJobId]}
-            onDelete={() => handleDeleteJob(currentJobId)}
-            podcastName={currentJobInfo?.podcastName}
-            episodeTitle={currentJobInfo?.episodeTitle}
-          />
-        )}
-
-        {currentJobs.length > 0 && (
-          <section className="current-jobs" aria-labelledby="current-jobs-heading">
-            <h2 id="current-jobs-heading">Current Jobs</h2>
-            {currentJobs.map((job) => (
-              <div key={job.job_id} className="job-item">
-                <ProcessingStatus
-                  jobId={job.job_id}
-                  status={jobStatuses[job.job_id]}
-                  onDelete={() => handleDeleteJob(job.job_id)}
-                  // Note: You might need to store and pass podcast and episode info for each job
-                />
-              </div>
-            ))}
-          </section>
-        )}
-
-        <PromptEditor />
-
+        <section className="prompt-editor-section">
+          <h2>Edit Processing Prompt</h2>
+          <PromptEditor />
+        </section>
       </main>
     </div>
   );

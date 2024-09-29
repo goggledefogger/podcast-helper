@@ -30,7 +30,7 @@ interface JobStatus {
 
 const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete, podcastName, episodeTitle }) => {
   if (!status) {
-    return <div>Loading status...</div>;
+    return <div className="processing-status loading">Loading status...</div>;
   }
 
   const getStageStatus = (stage: string) => {
@@ -58,11 +58,11 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDe
           <h4>{episodeTitle}</h4>
         </div>
       )}
-      <h3>Processing Status: {status.status}</h3>
+      <h3 className="status-title">Processing Status: <span className={`status-value ${status.status}`}>{status.status}</span></h3>
       <div className="progress-bar">
         <div className="progress-fill" style={{ width: `${status.progress}%` }}></div>
       </div>
-      <p className="current-stage">Current Stage: {status.current_stage}</p>
+      <p className="current-stage">Current Stage: <span className="stage-value">{status.current_stage}</span></p>
       <div className="processing-stages">
         {STAGES.map((stage) => (
           <div

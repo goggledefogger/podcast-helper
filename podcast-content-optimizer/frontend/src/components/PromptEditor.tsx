@@ -4,8 +4,10 @@ import { fetchWithCredentials } from '../api';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
 
 const PromptEditor: React.FC = () => {
-  const [openaiPrompt, setOpenaiPrompt] = useState('');
   const [geminiPrompt, setGeminiPrompt] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     fetchPrompts();
@@ -18,54 +20,66 @@ const PromptEditor: React.FC = () => {
         throw new Error('Failed to fetch prompts');
       }
       const data = await response.json();
-      setOpenaiPrompt(data.openai);
       setGeminiPrompt(data.gemini);
     } catch (error) {
       console.error('Error fetching prompts:', error);
+      setMessage('Failed to load prompt. Please try again.');
     }
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
+    setMessage('');
     try {
       const response = await fetchWithCredentials(`${API_BASE_URL}/api/prompts`, {
         method: 'POST',
         body: JSON.stringify({
-          openai: openaiPrompt,
           gemini: geminiPrompt
         }),
       });
       if (!response.ok) {
-        throw new Error('Failed to save prompts');
+        throw new Error('Failed to save prompt');
       }
-      alert('Prompts saved successfully!');
+      setMessage('Prompt saved successfully!');
+      setIsEditing(false);
     } catch (error) {
-      console.error('Error saving prompts:', error);
-      alert('Failed to save prompts. Please try again.');
+      console.error('Error saving prompt:', error);
+      setMessage('Failed to save prompt. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <div className="prompt-editor">
-      <h2>Edit LLM Prompts</h2>
-      <div>
-        <h3>OpenAI Prompt</h3>
-        <textarea
-          value={openaiPrompt}
-          onChange={(e) => setOpenaiPrompt(e.target.value)}
-          rows={5}
-          cols={50}
-        />
+      <h2>Edit Gemini Prompt</h2>
+      <div className="prompt-container">
+        {isEditing ? (
+          <textarea
+            value={geminiPrompt}
+            onChange={(e) => setGeminiPrompt(e.target.value)}
+            rows={10}
+            cols={50}
+          />
+        ) : (
+          <pre className="prompt-display">{geminiPrompt}</pre>
+        )}
       </div>
-      <div>
-        <h3>Gemini Prompt</h3>
-        <textarea
-          value={geminiPrompt}
-          onChange={(e) => setGeminiPrompt(e.target.value)}
-          rows={5}
-          cols={50}
-        />
+      <div className="button-container">
+        {isEditing ? (
+          <>
+            <button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </button>
+            <button onClick={() => setIsEditing(false)} disabled={isSaving}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button onClick={() => setIsEditing(true)}>Edit</button>
+        )}
       </div>
-      <button onClick={handleSave}>Save Prompts</button>
+      {message && <p className={`message ${message.includes('success') ? 'success' : 'error'}`}>{message}</p>}
     </div>
   );
 };
