@@ -2,8 +2,89 @@
   --primary-color: #4a90e2;
   --secondary-color: #f5a623;
   --background-color: #f0f2f5;
-  --text-color: #333;
+  --text-color: #333333;
+  --card-background: #ffffff;
+  --border-color: #e0e0e0;
   --error-color: #d0021b;
+  --success-color: #28a745;
+  --modal-background: #ffffff;
+  --modal-text: #333333;
+  --button-text: #ffffff;
+  --link-color: #4a90e2;
+  --stage-background: #f0f0f0;
+  --stage-completed: #28a745;
+  --stage-in-progress: #4a90e2;
+  --stage-pending: #e0e0e0;
+}
+
+[data-theme="dark"] {
+  --primary-color: #64b5f6;
+  --secondary-color: #ffd54f;
+  --background-color: #121212;
+  --text-color: #e0e0e0;
+  --card-background: #1e1e1e;
+  --border-color: #333333;
+  --error-color: #ff6b6b;
+  --success-color: #4caf50;
+  --input-background: #2c2c2c;
+  --input-text: #ffffff;
+  --button-text: #000000;
+  --link-color: #90caf9;
+  --modal-background: #2c2c2c;
+  --modal-text: #ffffff;
+  --stage-background: #2c2c2c;
+  --stage-completed: #1b5e20;
+  --stage-in-progress: #1565c0;
+  --stage-pending: #424242;
+  --button-background: #3f51b5;
+}
+
+/* Apply theme to the root element */
+:root[data-theme="light"] {
+  --primary-color: #4a90e2;
+  --secondary-color: #f5a623;
+  --background-color: #f0f2f5;
+  --text-color: #333333;
+  --card-background: #ffffff;
+  --border-color: #e0e0e0;
+  --error-color: #d0021b;
+  --success-color: #28a745;
+}
+
+:root[data-theme="dark"] {
+  --primary-color: #64b5f6;
+  --secondary-color: #ffd54f;
+  --background-color: #121212;
+  --text-color: #e0e0e0;
+  --card-background: #1e1e1e;
+  --border-color: #333333;
+  --error-color: #ff6b6b;
+  --success-color: #4caf50;
+  
+  /* Updated color variables */
+  --input-background: #2c2c2c;
+  --input-text: #ffffff;
+  --button-text: #000000;
+  --link-color: #90caf9;
+  --modal-background: #2c2c2c;
+  --modal-text: #ffffff;
+  --stage-background: #2c2c2c;
+  --stage-completed: #1b5e20;
+  --stage-in-progress: #1565c0;
+  --stage-pending: #424242;
+  --button-background: #3f51b5; /* New variable for button background in dark mode */
+}
+
+/* Ensure these styles are applied to the entire app */
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.App {
+  color: var(--text-color);
+  background-color: var(--background-color);
 }
 
 body {
@@ -11,12 +92,15 @@ body {
   line-height: 1.6;
   color: var(--text-color);
   background-color: var(--background-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .App {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  background-color: var(--background-color);
+  color: var(--text-color);
 }
 
 .App-header {
@@ -25,17 +109,60 @@ body {
   padding: 20px;
   text-align: center;
   border-radius: 8px 8px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .App-main {
-  background-color: white;
+  background-color: var(--card-background);
   padding: 30px;
   border-radius: 0 0 8px 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 h1, h2, h3 {
-  margin-bottom: 20px;
+  color: var(--text-color);
+}
+
+input, select, button {
+  background-color: var(--input-background);
+  color: var(--input-text);
+  border: 1px solid var(--border-color);
+}
+
+button {
+  background-color: var(--primary-color);
+  color: var(--button-text);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.1s;
+}
+
+button:hover:not(:disabled) {
+  background-color: var(--secondary-color);
+  color: var(--button-text);
+}
+
+.podcast-item, .processed-item {
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+}
+
+.view-link {
+  color: var(--link-color);
+}
+
+.delete-podcast-button {
+  background-color: var(--error-color);
+}
+
+.theme-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
 }
 
 .search-container, .episode-container {
@@ -105,8 +232,8 @@ button:disabled, select:disabled {
 .podcast-item, .processed-item {
   display: flex;
   flex-direction: column;
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 15px;
   transition: box-shadow 0.3s ease;
@@ -234,7 +361,8 @@ button:disabled, select:disabled {
 }
 
 .processing-status {
-  background-color: #f8f9fa;
+  background-color: var(--card-background);
+  color: var(--text-color);
   border-radius: 8px;
   padding: 20px;
   margin-top: 20px;
@@ -410,7 +538,8 @@ button:disabled, select:disabled {
 }
 
 .prompt-editor {
-  background-color: #f8f9fa;
+  background-color: var(--card-background);
+  color: var(--text-color);
   border-radius: 8px;
   padding: 20px;
   margin-top: 30px;
@@ -475,13 +604,13 @@ button:disabled, select:disabled {
 }
 
 .message.success {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: var(--success-color);
+  color: var(--text-color);
 }
 
 .message.error {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: var(--error-color);
+  color: var(--text-color);
 }
 
 .search-section {
@@ -510,8 +639,8 @@ button:disabled, select:disabled {
 .podcast-item, .processed-item {
   display: flex;
   flex-direction: column;
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 15px;
   transition: box-shadow 0.3s ease;
@@ -537,7 +666,8 @@ button:disabled, select:disabled {
 }
 
 .processing-status {
-  background-color: #f8f9fa;
+  background-color: var(--card-background);
+  color: var(--text-color);
   border-radius: 8px;
   padding: 20px;
   margin-top: 20px;
@@ -580,7 +710,8 @@ button:disabled, select:disabled {
 }
 
 .prompt-editor {
-  background-color: #f8f9fa;
+  background-color: var(--card-background);
+  color: var(--text-color);
   border-radius: 8px;
   padding: 20px;
   margin-top: 30px;
@@ -619,11 +750,14 @@ button:disabled, select:disabled {
 .current-jobs,
 .processed-podcasts,
 .prompt-editor-section {
-  background-color: #fff;
+  background-color: var(--card-background);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
 }
 
 .search-section h2,
@@ -647,8 +781,8 @@ button:disabled, select:disabled {
 
 .podcast-item,
 .processed-item {
-  background-color: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 15px;
   transition: box-shadow 0.3s ease;
@@ -771,6 +905,9 @@ button:disabled, select:disabled {
 .current-jobs,
 .processed-podcasts,
 .prompt-editor-section {
+  background-color: var(--card-background);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
   background-color: #fff;
   border-radius: 8px;
   padding: 20px;
@@ -800,8 +937,8 @@ button:disabled, select:disabled {
 .processed-item {
   display: flex;
   flex-direction: column;
-  background-color: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 15px;
   transition: box-shadow 0.3s ease, transform 0.3s ease;
@@ -837,8 +974,8 @@ button:disabled, select:disabled {
 }
 
 .error-message {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: var(--error-color);
+  color: var(--text-color);
   padding: 10px;
   border-radius: 4px;
   margin-bottom: 20px;
@@ -871,7 +1008,8 @@ button:disabled, select:disabled {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: white;
+  background-color: var(--modal-background);
+  color: var(--modal-text);
   padding: 20px;
   border-radius: 8px;
   max-width: 600px;
@@ -963,6 +1101,31 @@ button:disabled, select:disabled {
 
 .close-modal-button {
   margin-top: 20px;
+  padding: 10px 20px;
+  background-color: var(--primary-color);
+  color: var(--text-color);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.close-modal-button:hover {
+  background-color: var(--secondary-color);
+}
+
+[data-theme="dark"] .close-modal-button {
+  background-color: var(--button-background);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .close-modal-button:hover {
+  background-color: var(--secondary-color);
+  color: var(--button-text);
+}
+
+.close-modal-button {
+  margin-top: 20px;
 }
 
 .search-modal-overlay {
@@ -1005,7 +1168,7 @@ button:disabled, select:disabled {
 }
 
 .App-main {
-  background-color: white;
+  background-color: var(--card-background);
   padding: 30px;
   border-radius: 0 0 8px 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -1115,8 +1278,8 @@ button:disabled, select:disabled {
 .processed-item {
   display: flex;
   flex-direction: column;
-  background-color: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 15px;
   transition: box-shadow 0.3s ease, transform 0.3s ease;
@@ -1150,4 +1313,206 @@ button:disabled, select:disabled {
   .view-link {
     flex: 1 0 100%;
   }
+}
+
+.theme-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary-color: #64b5f6;
+    --secondary-color: #ffd54f;
+    --background-color: #121212;
+    --text-color: #e0e0e0;
+    --error-color: #ff6b6b;
+    --card-background: #1e1e1e;
+    --border-color: #333333;
+  }
+}
+
+[data-theme="dark"] .App-main {
+  background-color: var(--background-color);
+}
+
+[data-theme="dark"] .search-section,
+[data-theme="dark"] .search-results,
+[data-theme="dark"] .selected-podcast,
+[data-theme="dark"] .episode-selection,
+[data-theme="dark"] .current-jobs,
+[data-theme="dark"] .processed-podcasts,
+[data-theme="dark"] .prompt-editor-section {
+  background-color: var(--card-background);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .podcast-item,
+[data-theme="dark"] .processed-item {
+  background-color: var(--card-background);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .view-link {
+  background-color: var(--stage-background);
+  color: var(--link-color);
+}
+
+[data-theme="dark"] .view-link:hover {
+  background-color: var(--stage-in-progress);
+}
+
+[data-theme="dark"] .select-button,
+[data-theme="dark"] .process-button,
+[data-theme="dark"] .fetch-button {
+  background-color: var(--button-background);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .select-button:hover,
+[data-theme="dark"] .process-button:hover,
+[data-theme="dark"] .fetch-button:hover {
+  background-color: var(--secondary-color);
+}
+
+[data-theme="dark"] .delete-podcast-button {
+  background-color: var(--error-color);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .delete-podcast-button:hover {
+  background-color: #ff4d4d;
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .stage {
+  background-color: var(--stage-background);
+}
+
+[data-theme="dark"] .stage.completed {
+  background-color: var(--stage-completed);
+}
+
+[data-theme="dark"] .stage.in_progress {
+  background-color: var(--stage-in-progress);
+}
+
+[data-theme="dark"] .stage.pending {
+  background-color: var(--stage-pending);
+}
+
+[data-theme="dark"] .prompt-display {
+  background-color: var(--input-background);
+  color: var(--input-text);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .search-modal {
+  background-color: var(--modal-background);
+}
+
+[data-theme="dark"] .search-modal .podcast-item {
+  background-color: var(--card-background);
+  border-color: var(--border-color);
+}
+
+.stage-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--border-color);
+  position: relative;
+}
+
+.stage.completed .stage-icon {
+  background-color: var(--success-color);
+}
+
+.stage.in_progress .stage-icon {
+  background-color: var(--primary-color);
+  animation: pulse 1.5s infinite;
+}
+
+.stage.pending .stage-icon {
+  background-color: var(--border-color);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+[data-theme="dark"] .stage-icon {
+  border: 1px solid var(--text-color);
+}
+
+[data-theme="dark"] .stage.completed .stage-icon {
+  background-color: #4caf50;  /* A brighter green for better contrast */
+}
+
+[data-theme="dark"] .stage.in_progress .stage-icon {
+  background-color: #2196f3;  /* A brighter blue for better contrast */
+}
+
+[data-theme="dark"] .stage.pending .stage-icon {
+  background-color: #9e9e9e;  /* A lighter gray for better contrast */
+}
+
+[data-theme="dark"] .podcast-item,
+[data-theme="dark"] .processed-item {
+  background-color: #2c2c2c;  /* Slightly lighter than the card background */
+}
+
+[data-theme="dark"] .podcast-info p {
+  color: #bdbdbd;  /* Lighter text color for better readability */
+}
+
+[data-theme="dark"] .search-modal .podcast-item {
+  background-color: #2c2c2c;  /* Consistent with other podcast items */
+}
+
+[data-theme="dark"] .search-container input,
+[data-theme="dark"] #episode-select {
+  background-color: #333333;
+  color: #ffffff;
+  border-color: #555555;
+}
+
+[data-theme="dark"] .search-container input:focus,
+[data-theme="dark"] #episode-select:focus {
+  border-color: #64b5f6;
+  box-shadow: 0 0 0 0.2rem rgba(100, 181, 246, 0.25);
+}
+
+[data-theme="dark"] .prompt-editor textarea {
+  background-color: #333333;
+  color: #ffffff;
+  border-color: #555555;
+}
+
+[data-theme="dark"] .prompt-editor textarea:focus {
+  border-color: #64b5f6;
+  box-shadow: 0 0 0 0.2rem rgba(100, 181, 246, 0.25);
+}
+
+[data-theme="dark"] .error-message {
+  background-color: #ff6b6b;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .close-error {
+  color: #ffffff;
 }

@@ -51,6 +51,31 @@ const App: React.FC = () => {
   const [currentJobInfo, setCurrentJobInfo] = useState<{ podcastName: string; episodeTitle: string } | null>(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [selectedPodcast, setSelectedPodcast] = useState<SearchResult | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setTheme('dark');
+    }
+  }, []);
+
+  useEffect(() => {
+    console.log('Theme changed:', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    console.log('Toggle theme called');
+    setTheme(prevTheme => {
+      const newTheme = prevTheme === 'light' ? 'dark' : 'light';
+      console.log('New theme:', newTheme);
+      return newTheme;
+    });
+  };
 
   useEffect(() => {
     const signInAnonymouslyToFirebase = async () => {
@@ -236,6 +261,9 @@ const App: React.FC = () => {
     <div className="App">
       <header className="App-header">
         <h1>Podcast Content Optimizer</h1>
+        <button onClick={toggleTheme} className="theme-toggle">
+          {theme === 'light' ? '🌙' : '☀️'}
+        </button>
       </header>
       <main className="App-main">
         <section className="search-section" aria-labelledby="search-heading">

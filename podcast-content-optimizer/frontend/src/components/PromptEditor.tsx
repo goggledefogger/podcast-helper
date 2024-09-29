@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchWithCredentials } from '../api';
+import './PromptEditor.css'; // Create this file for PromptEditor-specific styles
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
 

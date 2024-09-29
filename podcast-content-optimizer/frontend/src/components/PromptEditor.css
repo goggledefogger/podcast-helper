@@ -1,0 +1,65 @@
+.prompt-editor {
+  background-color: var(--card-background);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.prompt-editor textarea {
+  background-color: var(--input-background);
+  color: var(--input-text);
+  border: 1px solid var(--border-color);
+}
+
+.prompt-editor button {
+  background-color: var(--primary-color);
+  color: var(--button-text);
+}
+
+.prompt-editor button:hover:not(:disabled) {
+  background-color: var(--secondary-color);
+  color: var(--button-text);
+}
+
+.message.success {
+  background-color: var(--success-color);
+  color: var(--text-color);
+}
+
+.message.error {
+  background-color: var(--error-color);
+  color: var(--text-color);
+}
+
+.message {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.message.error {
+  background-color: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+}
+
+/* ... (keep other existing styles) ... */
+
+[data-theme="dark"] .prompt-editor {
+  background-color: var(--card-background);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .prompt-editor textarea {
+  background-color: var(--input-background);
+  color: var(--input-text);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .prompt-display {
+  background-color: var(--input-background);
+  color: var(--input-text);
+  border-color: var(--border-color);
+}
+
+/* ... (keep other existing styles) ... */
