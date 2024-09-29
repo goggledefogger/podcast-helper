@@ -18,8 +18,7 @@ export const fetchEpisodes = async (rssUrl: string) => {
     body: JSON.stringify({ rss_url: rssUrl }),
   });
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || `Failed to fetch episodes: ${response.status}`);
+    throw new Error('Failed to fetch episodes');
   }
   return await response.json();
 };
@@ -30,7 +29,7 @@ export const processEpisode = async (rssUrl: string, episodeIndex: number) => {
     body: JSON.stringify({ rss_url: rssUrl, episode_index: episodeIndex }),
   });
   if (!response.ok) {
-    throw new Error('Failed to start processing');
+    throw new Error('Failed to process episode');
   }
   return await response.json();
 };

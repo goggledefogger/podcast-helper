@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+import { setCache, getCache, removeCache } from './utils/cache';
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -25,12 +26,19 @@ export interface ProcessedPodcast {
 }
 
 export const getProcessedPodcasts = async (): Promise<ProcessedPodcast[]> => {
+  const cachedPodcasts = getCache<ProcessedPodcast[]>('processedPodcasts');
+  if (cachedPodcasts) {
+    return cachedPodcasts;
+  }
+
   try {
     const url = await getFileUrl('db.json');
     if (url) {
       const response = await fetch(url);
       const data = await response.json();
-      return data.processed_podcasts as ProcessedPodcast[];
+      const podcasts = data.processed_podcasts as ProcessedPodcast[];
+      setCache('processedPodcasts', podcasts, 300000); // Cache for 5 minutes
+      return podcasts;
     }
     return [];
   } catch (error) {
@@ -45,6 +53,31 @@ export const getFileUrl = async (path: string) => {
     return await getDownloadURL(fileRef);
   } catch (error) {
     console.error('Error getting file URL:', error);
+    return null;
+  }
+};
+
+export const invalidateProcessedPodcastsCache = () => {
+  removeCache('processedPodcasts');
+};
+
+export const getDbJson = async () => {
+  const cachedData = getCache<any>('dbJson');
+  if (cachedData) {
+    return cachedData;
+  }
+
+  try {
+    const url = await getFileUrl('db.json');
+    if (url) {
+      const response = await fetch(url);
+      const data = await response.json();
+      setCache('dbJson', data, 300000); // Cache for 5 minutes
+      return data;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching db.json:', error);
     return null;
   }
 };

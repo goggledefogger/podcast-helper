@@ -352,3 +352,22 @@ def download_from_firebase(firebase_url, local_path):
         logging.error(f"Error downloading file from Firebase: {firebase_url}, Error: {str(e)}")
         logging.error(traceback.format_exc())
         return False
+
+def save_prompt(model, prompt):
+    try:
+        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
+        if blob.exists():
+            json_data = blob.download_as_text()
+            data = json.loads(json_data)
+        else:
+            data = {'processed_podcasts': [], 'prompts': {}}
+
+        if 'prompts' not in data:
+            data['prompts'] = {}
+
+        data['prompts'][model] = prompt
+        json_data = json.dumps(data, indent=2)
+        blob.upload_from_string(json_data, content_type='application/json')
+        logging.info(f"Successfully saved {model} prompt to Firebase")
+    except Exception as e:
+        logging.error(f"Error saving {model} prompt to Firebase: {str(e)}")

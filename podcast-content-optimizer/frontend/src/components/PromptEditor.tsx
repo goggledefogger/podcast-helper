@@ -1,54 +1,40 @@
 import React, { useState, useEffect } from 'react';
+import { useMutation, useQueryClient } from 'react-query';
 import { fetchWithCredentials } from '../api';
-import './PromptEditor.css'; // Create this file for PromptEditor-specific styles
+import './PromptEditor.css';
+import { useAppContext } from '../contexts/AppContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
 
 const PromptEditor: React.FC = () => {
+  const { dbData, refreshData } = useAppContext();
   const [geminiPrompt, setGeminiPrompt] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const queryClient = useQueryClient();
+
+  const savePromptMutation = useMutation(
+    (newPrompt: string) =>
+      fetchWithCredentials(`${API_BASE_URL}/api/prompts`, {
+        method: 'POST',
+        body: JSON.stringify({ gemini: newPrompt }),
+      }),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('dbJson');
+        refreshData();
+        setIsEditing(false);
+      },
+    }
+  );
 
   useEffect(() => {
-    fetchPrompts();
-  }, []);
-
-  const fetchPrompts = async () => {
-    try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/api/prompts`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch prompts');
-      }
-      const data = await response.json();
-      setGeminiPrompt(data.gemini);
-    } catch (error) {
-      console.error('Error fetching prompts:', error);
-      setMessage('Failed to load prompt. Please try again.');
+    if (dbData && dbData.prompts && dbData.prompts.gemini) {
+      setGeminiPrompt(dbData.prompts.gemini);
     }
-  };
+  }, [dbData]);
 
   const handleSave = async () => {
-    setIsSaving(true);
-    setMessage('');
-    try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/api/prompts`, {
-        method: 'POST',
-        body: JSON.stringify({
-          gemini: geminiPrompt
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to save prompt');
-      }
-      setMessage('Prompt saved successfully!');
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Error saving prompt:', error);
-      setMessage('Failed to save prompt. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
+    savePromptMutation.mutate(geminiPrompt);
   };
 
   return (
@@ -69,10 +55,10 @@ const PromptEditor: React.FC = () => {
       <div className="button-container">
         {isEditing ? (
           <>
-            <button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save'}
+            <button onClick={handleSave} disabled={savePromptMutation.isLoading}>
+              {savePromptMutation.isLoading ? 'Saving...' : 'Save'}
             </button>
-            <button onClick={() => setIsEditing(false)} disabled={isSaving}>
+            <button onClick={() => setIsEditing(false)} disabled={savePromptMutation.isLoading}>
               Cancel
             </button>
           </>
@@ -80,7 +66,8 @@ const PromptEditor: React.FC = () => {
           <button onClick={() => setIsEditing(true)}>Edit</button>
         )}
       </div>
-      {message && <p className={`message ${message.includes('success') ? 'success' : 'error'}`}>{message}</p>}
+      {savePromptMutation.isError && <p className="message error">Failed to save prompt. Please try again.</p>}
+      {savePromptMutation.isSuccess && <p className="message success">Prompt saved successfully!</p>}
     </div>
   );
 };

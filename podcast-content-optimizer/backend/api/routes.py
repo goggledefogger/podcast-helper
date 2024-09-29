@@ -401,14 +401,6 @@ def save_prompt(model, prompt):
     except Exception as e:
         logging.error(f"Error saving {model} prompt to Firebase: {str(e)}")
 
-@app.route('/api/prompts', methods=['GET'])
-def get_prompts():
-    prompts = {
-        'openai': load_prompt('openai'),
-        'gemini': load_prompt('gemini')
-    }
-    return jsonify(prompts), 200
-
 @app.route('/api/prompts', methods=['POST'])
 def update_prompts():
     data = request.json
