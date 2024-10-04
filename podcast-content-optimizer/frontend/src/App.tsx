@@ -16,6 +16,7 @@ import {
 } from './api';
 import { ProcessedPodcast, auth, getProcessedPodcasts, getFileUrl } from './firebase';
 import PromptEditor from './components/PromptEditor';
+import { API_BASE_URL } from './api';
 
 // Add this line at the top of your file, after the imports
 Modal.setAppElement('#root');
@@ -347,7 +348,7 @@ const App: React.FC = () => {
                         </a>
                       )}
                       {podcast.rss_url && (
-                        <a href={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001'}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                        <a href={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
                           View Modified RSS Feed
                         </a>
                       )}
