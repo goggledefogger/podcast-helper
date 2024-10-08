@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { signInAnonymously } from 'firebase/auth';
 import Modal from 'react-modal';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
@@ -14,7 +13,7 @@ import {
   deleteProcessedPodcast,
   JobStatus
 } from './api';
-import { ProcessedPodcast, auth, getProcessedPodcasts, getFileUrl } from './firebase';
+import { ProcessedPodcast, getProcessedPodcasts, getFileUrl } from './firebase';
 import PromptEditor from './components/PromptEditor';
 import { API_BASE_URL } from './api';
 
@@ -77,19 +76,6 @@ const App: React.FC = () => {
       return newTheme;
     });
   };
-
-  useEffect(() => {
-    const signInAnonymouslyToFirebase = async () => {
-      try {
-        await signInAnonymously(auth);
-        console.log("Signed in anonymously");
-      } catch (error) {
-        console.error("Error signing in anonymously:", error);
-      }
-    };
-
-    signInAnonymouslyToFirebase();
-  }, []);
 
   useEffect(() => {
     const fetchData = async () => {

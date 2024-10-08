@@ -299,8 +299,12 @@ def upload_to_firebase(file_path, delete_local=True):
 
         logging.info(f"Uploading file to Firebase: {file_path}")
         blob.upload_from_filename(file_path)
+
+        # Make the file public
+        blob.make_public()
+
         public_url = blob.public_url
-        logging.info(f"Successfully uploaded file to Firebase: {file_path} -> {public_url}")
+        logging.info(f"Successfully uploaded and made public file in Firebase: {file_path} -> {public_url}")
 
         # Delete the local file if requested
         if delete_local:
