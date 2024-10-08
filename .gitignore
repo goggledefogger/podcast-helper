@@ -46,4 +46,3 @@ typings/
 *.local
 *.cache
 *.json
-build/

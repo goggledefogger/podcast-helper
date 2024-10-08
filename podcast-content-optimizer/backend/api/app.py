@@ -12,7 +12,15 @@ load_dotenv()
 app = Flask(__name__)
 
 # Configure CORS
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://podcast-helper.roytown.net", "https://podcast-helper-435105.web.app"]}}, supports_credentials=True)
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "http://localhost:3000",
+            "https://podcast-helper-435105.web.app",
+            "https://roytown.net"
+        ]
+    }
+}, supports_credentials=True)
 
 from api import routes
 
