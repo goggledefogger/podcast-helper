@@ -1,6 +1,5 @@
 import { initializeApp } from 'firebase/app';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
-import { API_BASE_URL } from './api';
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -38,25 +37,9 @@ export const getProcessedPodcasts = async (): Promise<ProcessedPodcast[]> => {
   }
 };
 
-export const getFileUrl = async (path: string) => {
+export const getFileUrl = async (path: string): Promise<string | null> => {
   try {
-    // First, try to make the file public
-    const response = await fetch(`${API_BASE_URL}/api/make_file_public`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ file_path: path }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return data.public_url;
-    } else {
-      // If making public fails, fall back to getDownloadURL
-      const fileRef = ref(storage, path);
-      return await getDownloadURL(fileRef);
-    }
+    return await getDownloadURL(ref(storage, path));
   } catch (error) {
     console.error('Error getting file URL:', error);
     return null;

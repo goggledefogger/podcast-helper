@@ -36,7 +36,7 @@
   --stage-completed: #1b5e20;
   --stage-in-progress: #1565c0;
   --stage-pending: #424242;
-  --button-background: #3f51b5;
+  --button-background: #3f51b5; /* New variable for button background in dark mode */
 }
 
 /* Apply theme to the root element */
@@ -60,7 +60,7 @@
   --border-color: #333333;
   --error-color: #ff6b6b;
   --success-color: #4caf50;
-  
+
   /* Updated color variables */
   --input-background: #2c2c2c;
   --input-text: #ffffff;
@@ -316,13 +316,99 @@ button:disabled, select:disabled {
   }
 
   .processed-item {
-    padding: 10px;
+    padding: 15px;
+  }
+
+  .processed-links {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
   }
 
   .view-link {
-    margin-right: 0;
-    margin-bottom: 10px;
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 12px;
     text-align: center;
+    font-size: 14px;
+    background-color: var(--stage-background);
+    color: var(--link-color);
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .view-link:hover, .view-link:focus {
+    background-color: var(--stage-in-progress);
+    color: var(--text-color);
+  }
+
+  .delete-podcast-button {
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px;
+    font-size: 14px;
+    background-color: var(--error-color);
+    color: var(--button-text);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .delete-podcast-button:hover, .delete-podcast-button:focus {
+    background-color: var(--secondary-color);
+  }
+
+  .processed-item h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    word-break: break-word;
+  }
+
+  .App-main {
+    padding: 15px;
+  }
+
+  .search-section,
+  .current-jobs,
+  .processed-podcasts,
+  .prompt-editor-section {
+    padding: 15px;
+  }
+
+  .processed-list {
+    grid-template-columns: 1fr;
+  }
+
+  .processed-item {
+    padding: 10px;
+  }
+
+  .processed-links {
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .view-link {
+    width: 100%;
+    margin: 0;
+    padding: 10px;
+    text-align: center;
+    font-size: 14px;
+  }
+
+  .delete-podcast-button {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .processed-item h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
   }
 }
 
@@ -1515,4 +1601,143 @@ button:disabled, select:disabled {
 
 [data-theme="dark"] .close-error {
   color: #ffffff;
+}
+
+.processed-podcasts {
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.processed-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 0;
+  list-style-type: none;
+}
+
+.processed-item {
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 15px;
+  transition: box-shadow 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .App-main {
+    padding: 15px;
+  }
+
+  .search-section,
+  .current-jobs,
+  .processed-podcasts,
+  .prompt-editor-section {
+    padding: 15px;
+  }
+
+  .processed-list {
+    grid-template-columns: 1fr;
+  }
+
+  .processed-item {
+    padding: 10px;
+  }
+
+  .processed-links {
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .view-link {
+    width: 100%;
+    margin: 0;
+    padding: 10px;
+    text-align: center;
+    font-size: 14px;
+  }
+
+  .delete-podcast-button {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .processed-item h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+}
+
+.processed-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.view-link {
+  flex: 1 0 calc(50% - 5px); /* This will make two buttons per row on larger screens */
+  min-width: 120px; /* Minimum width to prevent buttons from becoming too narrow */
+  padding: 10px;
+  text-align: center;
+  font-size: 14px;
+  background-color: var(--stage-background);
+  color: var(--link-color);
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.view-link:hover, .view-link:focus {
+  background-color: var(--stage-in-progress);
+  color: var(--text-color);
+}
+
+.delete-podcast-button {
+  width: 100%;
+  margin-top: 15px;
+  padding: 12px;
+  font-size: 14px;
+  background-color: var(--error-color);
+  color: var(--button-text);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.delete-podcast-button:hover, .delete-podcast-button:focus {
+  background-color: var(--secondary-color);
+}
+
+@media (max-width: 768px) {
+  .processed-item {
+    padding: 15px;
+  }
+
+  .processed-links {
+    flex-direction: row; /* Keep it as row for mobile */
+  }
+
+  .view-link {
+    flex: 1 0 calc(50% - 5px); /* Two buttons per row on mobile */
+    font-size: 12px; /* Slightly smaller font for mobile */
+    padding: 8px; /* Slightly less padding for mobile */
+  }
+
+  .delete-podcast-button {
+    margin-top: 10px;
+    padding: 10px;
+  }
+
+  .processed-item h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+    word-break: break-word;
+  }
 }
