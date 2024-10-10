@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Podcast Episodes</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.process-episode').click(function() {
+                var rssUrl = '{{ rss_url }}';
+                var episodeIndex = $(this).data('index');
+                $.post('/api/process_episode', JSON.stringify({rss_url: rssUrl, episode_index: episodeIndex}), function(data) {
+                    window.location.href = `/job_status?job_id=${data.job_id}&rss_url=${encodeURIComponent(data.rss_url)}`;
+                }, 'json');
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Process Podcast Episodes</h1>
+    <h2>RSS URL: {{ rss_url }}</h2>
+    <ul>
+    {% for episode in episodes %}
+        <li>
+            {{ episode.title }}
+            <button class="process-episode" data-index="{{ loop.index0 }}">Process This Episode</button>
+        </li>
+    {% endfor %}
+    </ul>
+</body>
+</html>

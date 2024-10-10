@@ -1,8 +1,8 @@
-from flask import jsonify, request, Response, send_from_directory, abort, current_app, send_file, redirect
+from flask import jsonify, request, Response, send_from_directory, abort, current_app, send_file, redirect, render_template_string, url_for, render_template
 from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
-from utils import get_podcast_episodes, url_to_file_path, file_path_to_url
+from utils import get_podcast_episodes, url_to_file_path, file_path_to_url, load_auto_processed_podcasts, save_auto_processed_podcasts, is_episode_processed, load_processed_podcasts
 from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache
 from llm_processor import find_unwanted_content
 from audio_editor import edit_audio
@@ -23,6 +23,8 @@ import shutil
 from utils import get_episode_folder
 from firebase_admin import storage
 from prompt_loader import load_prompt
+import feedparser
+from api.tasks import process_podcast_task
 
 # Update the OUTPUT_DIR definition
 OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'output'))
@@ -43,6 +45,10 @@ logger = logging.getLogger()
 
 # Initialize the processing_status dictionary
 processing_status = {}
+
+# Update the template folder path
+template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
+app.template_folder = template_dir
 
 def load_processed_podcasts():
     try:
@@ -165,74 +171,80 @@ def serve_output_file(filename):
 @app.route('/api/modified_rss/<path:rss_url>', methods=['GET'])
 def get_modified_rss(rss_url):
     try:
-        logging.info(f"Attempting to get modified RSS for URL: {rss_url}")
+        auto_processed_podcasts = load_auto_processed_podcasts()
+        if rss_url in auto_processed_podcasts:
+            # Check for new episodes and process if necessary
+            episodes = get_podcast_episodes(rss_url)
+            if episodes:
+                latest_episode = episodes[0]
+                if not is_episode_processed(rss_url, latest_episode['title']):
+                    process_podcast_episode(rss_url, episode_index=0)
 
-        # Decode the URL twice to handle double encoding
-        decoded_rss_url = unquote(unquote(rss_url))
-        logging.info(f"Decoded RSS URL: {decoded_rss_url}")
+        # Get the modified RSS feed
+        processed_podcasts = load_processed_podcasts()
+        modified_rss = get_or_create_modified_rss(rss_url, processed_podcasts)
 
-        # Check if the decoded URL starts with 'http://' or 'https://'
-        if not decoded_rss_url.startswith(('http://', 'https://')):
-            # If not, assume it's missing the scheme and prepend 'https://'
-            decoded_rss_url = 'https://' + decoded_rss_url
-            logging.info(f"Added https:// to URL: {decoded_rss_url}")
-
-        processed_podcasts_data = load_processed_podcasts()
-        logging.info(f"Loaded processed podcasts. Type: {type(processed_podcasts_data)}")
-        
-        processed_podcasts = processed_podcasts_data.get('processed_podcasts', [])
-        if not isinstance(processed_podcasts, list):
-            logging.error(f"processed_podcasts is not a list. Type: {type(processed_podcasts)}")
-            processed_podcasts = []
-
-        logging.info(f"Number of processed podcasts: {len(processed_podcasts)}")
-
-        modified_rss = get_or_create_modified_rss(decoded_rss_url, processed_podcasts)
-
-        if not modified_rss:
-            logging.error("Failed to generate modified RSS")
-            return jsonify({"error": "Failed to generate modified RSS"}), 400
-
-        logging.info("Successfully generated modified RSS")
-        return Response(modified_rss, content_type='application/xml; charset=utf-8')
+        if modified_rss:
+            return modified_rss, 200, {'Content-Type': 'application/xml; charset=utf-8'}
+        else:
+            return jsonify({"error": "Failed to generate modified RSS feed"}), 500
     except Exception as e:
-        logging.error(f"Error generating modified RSS: {str(e)}")
-        logging.error(traceback.format_exc())
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 500
 
-from api.tasks import process_podcast_task  # Import the task directly
+def save_processed_podcasts(data):
+    try:
+        json_data = json.dumps(data, indent=2)
+        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
+        blob.upload_from_string(json_data, content_type='application/json')
+        logging.info(f"Successfully saved processed podcasts data to Firebase")
+    except Exception as e:
+        logging.error(f"Error saving processed podcasts data to Firebase: {str(e)}")
+        logging.error(traceback.format_exc())
 
 @app.route('/api/process', methods=['POST'])
 def process_podcast():
-    rss_url = request.json.get('rss_url')
-    episode_index = request.json.get('episode_index')
+    data = request.json
+    rss_url = data.get('rss_url')
+    episode_index = data.get('episode_index', 0)
 
-    if not rss_url or episode_index is None:
-        return jsonify({"error": "Missing RSS URL or episode index"}), 400
+    if not rss_url:
+        return jsonify({"error": "Missing RSS URL"}), 400
 
-    job_id = str(uuid.uuid4())
-    update_job_status(job_id, 'queued', 'INITIALIZATION', 0, 'Job queued')
-    append_job_log(job_id, {'stage': 'INITIALIZATION', 'message': 'Job queued'})
+    try:
+        # Check if this podcast is set for auto-processing
+        auto_processed_podcasts = load_auto_processed_podcasts()
+        is_auto_processed = rss_url in auto_processed_podcasts
 
-    # Add the podcast to processed_podcasts.json with 'processing' status
-    episodes = get_podcast_episodes(rss_url)
-    if episode_index < len(episodes):
-        episode = episodes[episode_index]
-        podcast_data = {
-            "podcast_title": episode['podcast_title'],
-            "episode_title": episode['title'],
-            "rss_url": rss_url,
-            "status": "processing",
+        # Get podcast episodes
+        episodes = get_podcast_episodes(rss_url)
+        if not episodes:
+            return jsonify({"error": "No episodes found"}), 404
+
+        if episode_index >= len(episodes):
+            return jsonify({"error": "Episode index out of range"}), 400
+
+        chosen_episode = episodes[episode_index]
+
+        # Check if the episode has already been processed
+        if is_episode_processed(rss_url, chosen_episode['title']):
+            return jsonify({"message": "Episode already processed"}), 200
+
+        # Start processing
+        job_id = str(uuid.uuid4())
+        update_job_status(job_id, 'queued', 'INITIALIZATION', 0, 'Job queued')
+
+        # Use Celery to process the podcast asynchronously
+        process_podcast_task.delay(rss_url, episode_index, job_id)
+
+        return jsonify({
+            "message": "Processing started",
             "job_id": job_id,
-            "timestamp": datetime.now().isoformat()
-        }
-        save_processed_podcast(podcast_data)
+            "rss_url": rss_url
+        }), 202
 
-    logging.info(f"Queueing task for job_id: {job_id}")
-    task = process_podcast_task.delay(rss_url, episode_index, job_id)
-    logging.info(f"Task queued with task_id: {task.id} for job_id: {job_id}")
-
-    return jsonify({"message": "Processing started", "job_id": job_id}), 202
+    except Exception as e:
+        logging.error(f"Error in process_podcast: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/process_status/<job_id>', methods=['GET'])
 def get_process_status(job_id):
@@ -241,7 +253,13 @@ def get_process_status(job_id):
     if status:
         return jsonify({"status": status, "logs": logs})
     else:
-        return jsonify({"error": "Job not found"}), 404
+        # If the job is not found, check if it's in the queue
+        task = celery_app.AsyncResult(job_id)
+        if task.state == 'PENDING':
+            status = {'status': 'queued', 'progress': 0, 'stage': 'INITIALIZATION', 'message': 'Job is queued'}
+        else:
+            status = {'status': 'not_found', 'progress': 0, 'stage': 'UNKNOWN', 'message': 'Job not found'}
+        return jsonify({"status": status, "logs": []})
 
 @app.route('/api/search', methods=['POST'])
 def search():
@@ -417,6 +435,45 @@ def update_prompts():
     if 'gemini' in data:
         save_prompt('gemini', data['gemini'])
     return jsonify({"message": "Prompts updated successfully"}), 200
+
+@app.route('/test_modified_rss', methods=['GET', 'POST'])
+def test_modified_rss():
+    if request.method == 'POST':
+        rss_url = request.form.get('rss_url')
+        if rss_url:
+            response = get_modified_rss(rss_url)
+            if isinstance(response, tuple) and response[1] == 202:  # Processing started
+                job_id = response[0].json['job_id']
+                return render_template('job_status.html', job_id=job_id, rss_url=rss_url)
+            else:
+                return response
+
+    return render_template('test_modified_rss.html')
+
+# Add this new route for auto-processing
+@app.route('/api/auto_process', methods=['POST'])
+def auto_process_podcast():
+    data = request.json
+    rss_url = data.get('rss_url')
+    if not rss_url:
+        return jsonify({"error": "Missing RSS URL"}), 400
+
+    auto_processed_podcasts = load_auto_processed_podcasts()
+    if rss_url not in auto_processed_podcasts:
+        auto_processed_podcasts.append(rss_url)
+        save_auto_processed_podcasts(auto_processed_podcasts)
+
+    return jsonify({"message": "Auto-processing enabled for this podcast"}), 200
+
+@app.route('/api/auto_processed_podcasts', methods=['GET'])
+def get_auto_processed_podcasts():
+    auto_processed_podcasts = load_auto_processed_podcasts()
+    return jsonify(auto_processed_podcasts)
+
+# Add this new route for the main page
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

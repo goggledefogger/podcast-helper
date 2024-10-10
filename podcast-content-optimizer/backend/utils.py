@@ -23,6 +23,7 @@ bucket = storage.bucket()
 
 # Update this line to remove the 'output' folder from the path
 PROCESSED_PODCASTS_FILE = 'db.json'
+AUTO_PROCESSED_PODCASTS_FILE = 'auto_processed_podcasts.json'
 
 def get_podcast_episodes(rss_url):
     try:
@@ -356,3 +357,29 @@ def download_from_firebase(firebase_url, local_path):
         logging.error(f"Error downloading file from Firebase: {firebase_url}, Error: {str(e)}")
         logging.error(traceback.format_exc())
         return False
+
+def load_auto_processed_podcasts():
+    try:
+        blob = storage.bucket().blob(AUTO_PROCESSED_PODCASTS_FILE)
+        if blob.exists():
+            json_data = blob.download_as_text()
+            return json.loads(json_data)
+        else:
+            return []
+    except Exception as e:
+        logging.error(f"Error loading auto-processed podcasts: {str(e)}")
+        return []
+
+def save_auto_processed_podcasts(auto_processed_podcasts):
+    try:
+        blob = storage.bucket().blob(AUTO_PROCESSED_PODCASTS_FILE)
+        blob.upload_from_string(json.dumps(auto_processed_podcasts))
+    except Exception as e:
+        logging.error(f"Error saving auto-processed podcasts: {str(e)}")
+
+def is_episode_processed(rss_url, episode_title):
+    processed_podcasts = load_processed_podcasts()
+    return any(
+        podcast['rss_url'] == rss_url and podcast['episode_title'] == episode_title
+        for podcast in processed_podcasts
+    )

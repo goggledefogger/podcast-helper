@@ -234,7 +234,7 @@ def get_or_create_modified_rss(original_rss_url, processed_podcasts):
             processed_podcasts = processed_podcasts.get('processed_podcasts', [])
         elif isinstance(processed_podcasts, str):
             processed_podcasts = json.loads(processed_podcasts).get('processed_podcasts', [])
-        
+
         if not isinstance(processed_podcasts, list):
             logging.error(f"processed_podcasts is not a list. Type: {type(processed_podcasts)}")
             processed_podcasts = []
@@ -258,6 +258,9 @@ def get_or_create_modified_rss(original_rss_url, processed_podcasts):
         logging.error(f"Error creating modified RSS feed: {str(e)}")
         logging.error(traceback.format_exc())
         return None
+
+def get_modified_rss_feed(original_rss_url, processed_podcasts):
+    return get_or_create_modified_rss(original_rss_url, processed_podcasts)
 
 def invalidate_rss_cache(rss_url):
     cache_key = f"modified_rss:{rss_url}"
