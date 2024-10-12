@@ -18,6 +18,7 @@ interface ProcessingStatusProps {
   onDelete?: () => void;
   podcastName?: string;
   episodeTitle?: string;
+  podcastImageUrl?: string;  // Add this line
 }
 
 interface JobStatus {
@@ -28,7 +29,7 @@ interface JobStatus {
   timestamp: number;
 }
 
-const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete, podcastName, episodeTitle }) => {
+const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete, podcastName, episodeTitle, podcastImageUrl }) => {
   if (!status) {
     return <div>Loading status...</div>;
   }
@@ -52,12 +53,13 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDe
 
   return (
     <div className="processing-status">
-      {podcastName && episodeTitle && (
-        <div className="podcast-info">
-          <h3>{podcastName}</h3>
-          <h4>{episodeTitle}</h4>
+      <div className="podcast-info">
+        {podcastImageUrl && <img src={podcastImageUrl} alt={podcastName} className="podcast-image" />}
+        <div className="podcast-details">
+          {podcastName && <h3>{podcastName}</h3>}
+          {episodeTitle && <h4>{episodeTitle}</h4>}
         </div>
-      )}
+      </div>
       <h3 className="status-title">Processing Status: <span className={`status-value ${status.status}`}>{status.status}</span></h3>
       <div className="progress-bar">
         <div className="progress-fill" style={{ width: `${status.progress}%` }}></div>

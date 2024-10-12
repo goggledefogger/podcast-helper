@@ -2,7 +2,7 @@ from flask import jsonify, request, Response, send_from_directory, abort, curren
 from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
-from utils import get_podcast_episodes, url_to_file_path, file_path_to_url, load_auto_processed_podcasts, save_auto_processed_podcasts, is_episode_processed, load_processed_podcasts, get_db
+from utils import get_podcast_episodes, url_to_file_path, file_path_to_url, load_auto_processed_podcasts, save_auto_processed_podcasts, is_episode_processed, load_processed_podcasts, get_db, save_processed_podcasts
 from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache, create_modified_rss_feed
 from llm_processor import find_unwanted_content
 from audio_editor import edit_audio
@@ -55,51 +55,42 @@ app.template_folder = template_dir
 def load_processed_podcasts():
     try:
         blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
-        logging.info(f"Attempting to load data from Firebase: {PROCESSED_PODCASTS_FILE}")
         if blob.exists():
             json_data = blob.download_as_text()
             data = json.loads(json_data)
-            if isinstance(data, list):
-                # Convert old format (list) to new format (dict)
-                data = {
-                    'processed_podcasts': data,
-                    'prompts': {},
-                    'auto_processed_podcasts': []
-                }
-            elif not isinstance(data, dict):
-                logging.warning(f"Loaded data is not a dictionary or list. Type: {type(data)}")
-                data = {
-                    'processed_podcasts': [],
-                    'prompts': {},
-                    'auto_processed_podcasts': []
-                }
-            logging.info(f"Successfully loaded data from Firebase")
-            return data
+            return {
+                'processed_podcasts': data.get('processed_podcasts', {}),
+                'auto_processed_podcasts': data.get('auto_processed_podcasts', []),
+                'podcast_info': data.get('podcast_info', {}),  # Change this to {}
+                'prompts': data.get('prompts', {})
+            }
         else:
-            logging.info(f"No database file found in Firebase: {PROCESSED_PODCASTS_FILE}")
+            return {'processed_podcasts': {}, 'auto_processed_podcasts': [], 'podcast_info': {}, 'prompts': {}}
     except Exception as e:
-        logging.error(f"Error loading data from Firebase: {str(e)}")
+        logging.error(f"Error loading processed podcasts from Firebase: {str(e)}")
         logging.error(traceback.format_exc())
-    return {'processed_podcasts': [], 'prompts': {}, 'auto_processed_podcasts': []}
+        return {'processed_podcasts': {}, 'auto_processed_podcasts': [], 'podcast_info': {}, 'prompts': {}}
 
 def save_processed_podcast(podcast_data):
     try:
-        # Load existing data or create an empty structure
+        # Load existing data
         data = load_processed_podcasts()
-        podcasts = data['processed_podcasts']
-        prompts = data['prompts']
+        rss_url = podcast_data['rss_url']
 
-        # Check if the podcast already exists in the list
-        existing_podcast = next((p for p in podcasts if p['rss_url'] == podcast_data['rss_url'] and p['episode_title'] == podcast_data['episode_title']), None)
+        if rss_url not in data['processed_podcasts']:
+            data['processed_podcasts'][rss_url] = []
 
-        if existing_podcast:
-            # Update the existing podcast data
-            existing_podcast.update(podcast_data)
-            logging.info(f"Updated existing podcast: {podcast_data['episode_title']}")
+        # Check if the episode already exists
+        existing_episode = next((ep for ep in data['processed_podcasts'][rss_url] if ep['episode_title'] == podcast_data['episode_title']), None)
+
+        if existing_episode:
+            # Update the existing episode data
+            existing_episode.update(podcast_data)
+            logging.info(f"Updated existing episode: {podcast_data['episode_title']}")
         else:
-            # Append new data
-            podcasts.append(podcast_data)
-            logging.info(f"Added new podcast: {podcast_data['episode_title']}")
+            # Append new episode data
+            data['processed_podcasts'][rss_url].append(podcast_data)
+            logging.info(f"Added new episode: {podcast_data['episode_title']}")
 
         # Convert file paths to Firebase Storage URLs
         for key in ['edited_url', 'transcript_file', 'unwanted_content_file', 'input_file', 'output_file']:
@@ -108,14 +99,16 @@ def save_processed_podcast(podcast_data):
                 podcast_data[key] = upload_to_firebase(podcast_data[key])
                 logging.info(f"Uploaded {key} to Firebase: {old_value} -> {podcast_data[key]}")
 
-        logging.info(f"Saving processed podcast to Firebase: {podcast_data['episode_title']}")
+        # Update podcast info
+        data['podcast_info'][rss_url] = {
+            'name': podcast_data['podcast_title'],
+            'imageUrl': podcast_data.get('image_url', '')
+        }
 
-        # Write updated data to Firebase Storage
-        json_data = json.dumps({'processed_podcasts': podcasts, 'prompts': prompts}, indent=2)
-        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
-        blob.upload_from_string(json_data, content_type='application/json')
+        # Save to Firebase
+        save_processed_podcasts(data)
 
-        logging.info(f"Successfully saved processed podcast to Firebase: {PROCESSED_PODCASTS_FILE}")
+        logging.info(f"Successfully saved processed podcast to Firebase: {podcast_data['episode_title']}")
 
     except Exception as e:
         logging.error(f"Error saving processed podcast to Firebase: {str(e)}")
@@ -163,7 +156,7 @@ def get_episodes():
 @app.route('/api/processed_podcasts', methods=['GET'])
 def get_processed_podcasts():
     processed_podcasts = load_processed_podcasts()
-    logging.info(f"Fetched {len(processed_podcasts)} processed podcasts")
+    logging.info(f"Fetched processed podcasts for {len(processed_podcasts['processed_podcasts'])} RSS URLs")
     return jsonify(processed_podcasts), 200
 
 @app.route('/output/<path:filename>')
@@ -438,11 +431,18 @@ def get_prompts():
 @app.route('/api/prompts', methods=['POST'])
 def update_prompts():
     data = request.json
-    if 'openai' in data:
-        save_prompt('openai', data['openai'])
-    if 'gemini' in data:
-        save_prompt('gemini', data['gemini'])
-    return jsonify({"message": "Prompts updated successfully"}), 200
+    try:
+        processed_data = load_processed_podcasts()
+        processed_data['prompts'] = processed_data.get('prompts', {})
+        if 'openai' in data:
+            processed_data['prompts']['openai'] = data['openai']
+        if 'gemini' in data:
+            processed_data['prompts']['gemini'] = data['gemini']
+        save_processed_podcasts(processed_data)
+        return jsonify({"message": "Prompts updated successfully"}), 200
+    except Exception as e:
+        logging.error(f"Error updating prompts: {str(e)}")
+        return jsonify({"error": "Failed to update prompts"}), 500
 
 @app.route('/test_modified_rss', methods=['GET', 'POST'])
 def test_modified_rss():
@@ -507,6 +507,60 @@ def save_auto_processed():
     except Exception as e:
         logging.error(f"Error saving auto-processed podcast: {str(e)}")
         return jsonify({'error': 'Failed to save auto-processed podcast'}), 500
+
+@app.route('/api/podcast_info', methods=['POST'])
+def get_podcast_info():
+    data = request.json
+    rss_url = data.get('rss_url')
+    if not rss_url:
+        return jsonify({"error": "No RSS URL provided"}), 400
+
+    try:
+        processed_data = load_processed_podcasts()
+        podcast_info = processed_data['podcast_info'].get(rss_url)
+
+        if podcast_info:
+            return jsonify(podcast_info), 200
+        else:
+            # If not found, fetch from RSS feed
+            feed = feedparser.parse(rss_url)
+            podcast_info = {
+                "name": feed.feed.title,
+                "imageUrl": feed.feed.image.href if hasattr(feed.feed, 'image') else None
+            }
+            return jsonify(podcast_info), 200
+    except Exception as e:
+        logging.error(f"Error fetching podcast info: {str(e)}")
+        return jsonify({"error": "Failed to fetch podcast info"}), 500
+
+@app.route('/api/save_podcast_info', methods=['POST'])
+def save_podcast_info():
+    data = request.json
+    rss_url = data.get('rssUrl')
+    name = data.get('name')
+    image_url = data.get('imageUrl')
+
+    if not rss_url or not name:
+        return jsonify({"error": "Missing required information"}), 400
+
+    try:
+        # Load existing data
+        processed_data = load_processed_podcasts()
+
+        # Update or add podcast info
+        processed_data['podcast_info'][rss_url] = {
+            "name": name,
+            "imageUrl": image_url
+        }
+
+        # Save updated data
+        save_processed_podcasts(processed_data)
+
+        return jsonify({"message": "Podcast info saved successfully"}), 200
+    except Exception as e:
+        logging.error(f"Error saving podcast info: {str(e)}")
+        logging.error(traceback.format_exc())  # Add this line to get more detailed error information
+        return jsonify({"error": "Failed to save podcast info"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

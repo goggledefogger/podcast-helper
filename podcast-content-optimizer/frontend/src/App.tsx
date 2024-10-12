@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Modal from 'react-modal';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
-import { formatDuration, formatDate } from './utils/timeUtils';
 import {
   fetchEpisodes,
   processEpisode,
@@ -13,8 +12,8 @@ import {
   deleteProcessedPodcast,
   JobStatus,
   enableAutoProcessing,
-  fetchAutoProcessedPodcasts,
-  saveAutoProcessedPodcast
+  savePodcastInfo,
+  CurrentJob
 } from './api';
 import { ProcessedPodcast, getProcessedPodcasts, getFileUrl } from './firebase';
 import PromptEditor from './components/PromptEditor';
@@ -43,29 +42,27 @@ interface SearchResult {
 const App: React.FC = () => {
   const [rssUrl, setRssUrl] = useState('');
   const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [selectedEpisode, setSelectedEpisode] = useState<number | null>(null);
-  const [processedPodcasts, setProcessedPodcasts] = useState<ProcessedPodcast[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [processedPodcasts, setProcessedPodcasts] = useState<Record<string, ProcessedPodcast[]>>({});
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
-  const [currentJobs, setCurrentJobs] = useState<{ job_id: string; status: JobStatus }[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentJobs, setCurrentJobs] = useState<CurrentJob[]>([]);
   const [jobStatuses, setJobStatuses] = useState<Record<string, JobStatus>>({});
-  const [currentJobInfo, setCurrentJobInfo] = useState<{ podcastName: string; episodeTitle: string } | null>(null);
+  const [currentJobInfo, setCurrentJobInfo] = useState<{ podcastName: string; episodeTitle: string; rssUrl: string } | null>(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [selectedPodcast, setSelectedPodcast] = useState<SearchResult | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [autoProcessingEnabled, setAutoProcessingEnabled] = useState<{ [key: string]: boolean }>({});
   const [notification, setNotification] = useState<string | null>(null);
   const [autoPodcasts, setAutoPodcasts] = useState<string[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [selectedAutoPodcast, setSelectedAutoPodcast] = useState<string | null>(null);
-  const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [isProcessingEpisode, setIsProcessingEpisode] = useState(false);
   const [expandedPodcasts, setExpandedPodcasts] = useState<string[]>([]);
+  const [podcastInfo, setPodcastInfo] = useState<Record<string, { name: string; imageUrl: string }>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedPodcast, setSelectedPodcast] = useState<SearchResult | null>(null);
+  const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
@@ -94,13 +91,15 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { processed, autoProcessed } = await getProcessedPodcasts();
-        setProcessedPodcasts(processed || []); // Ensure it's an array
-        setAutoPodcasts(autoProcessed || []); // Ensure it's an array
-        setIsDataLoaded(true); // Set this to true when data is loaded
+        const { processed, autoProcessed, podcastInfo } = await getProcessedPodcasts();
+        setProcessedPodcasts(processed);
+        setAutoPodcasts(autoProcessed);
+        setPodcastInfo(podcastInfo);
+        console.log('Fetched podcastInfo:', podcastInfo); // Add this line for debugging
+        setIsDataLoaded(true);
       } catch (error) {
         handleError(error as Error);
-        setIsDataLoaded(true); // Set this to true even if there's an error
+        setIsDataLoaded(true);
       }
     };
 
@@ -113,8 +112,8 @@ const App: React.FC = () => {
     setError(error.message);
   };
 
-  const fetchPodcastEpisodes = async (url: string) => {
-    setIsLoading(true);
+  const fetchPodcastEpisodes = useCallback(async (url: string) => {
+    setIsLoadingEpisodes(true);
     setError('');
     try {
       const data = await fetchEpisodes(url);
@@ -122,9 +121,9 @@ const App: React.FC = () => {
     } catch (err) {
       handleError(err as Error);
     } finally {
-      setIsLoading(false);
+      setIsLoadingEpisodes(false);
     }
-  };
+  }, []);
 
   const handleProcessEpisode = async (rssUrl: string, episodeIndex: number) => {
     setError('');
@@ -134,8 +133,9 @@ const App: React.FC = () => {
       const data = await processEpisode(rssUrl, episodeIndex);
       setCurrentJobId(data.job_id);
       setCurrentJobInfo({
-        podcastName: rssUrl, // We might not have the podcast name here, so we use the RSS URL
-        episodeTitle: episodes[episodeIndex].title
+        podcastName: rssUrl,
+        episodeTitle: episodes[episodeIndex].title,
+        rssUrl: rssUrl
       });
       closeSearchModal();
     } catch (err) {
@@ -261,10 +261,9 @@ const App: React.FC = () => {
 
   const handlePodcastSelect = useCallback(async (rssUrl: string) => {
     setRssUrl(rssUrl);
-    setSelectedPodcast(null);
     closeSearchModal();
     await fetchPodcastEpisodes(rssUrl);
-  }, []);
+  }, [fetchPodcastEpisodes]);
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
@@ -280,11 +279,20 @@ const App: React.FC = () => {
     }
   }, [searchQuery]);
 
-  const handleEnableAutoProcessing = async (rssUrl: string) => {
+  const handleEnableAutoProcessing = async (podcast: SearchResult) => {
     try {
-      await enableAutoProcessing(rssUrl);
-      setAutoPodcasts(prev => [...prev, rssUrl]);
+      await enableAutoProcessing(podcast.rssUrl);
+      await savePodcastInfo(podcast);
+
+      // Update the autoPodcasts and podcastInfo state immediately
+      setAutoPodcasts(prev => [...prev, podcast.rssUrl]);
+      setPodcastInfo(prev => ({
+        ...prev,
+        [podcast.rssUrl]: { name: podcast.name, imageUrl: podcast.imageUrl }
+      }));
+
       setNotification('Auto-processing enabled for this podcast.');
+      closeSearchModal(); // Close the modal after enabling auto-processing
     } catch (error) {
       console.error('Error enabling auto-processing:', error);
       setError(error instanceof Error ? error.message : 'Failed to enable auto-processing. Please try again.');
@@ -347,7 +355,7 @@ const App: React.FC = () => {
               {autoPodcasts.includes(result.rssUrl) ? (
                 <span className="auto-processing-badge">Auto-processing enabled</span>
               ) : (
-                <button onClick={() => handleEnableAutoProcessing(result.rssUrl)}>
+                <button onClick={() => handleEnableAutoProcessing(result)}>
                   Enable Auto-processing
                 </button>
               )}
@@ -357,6 +365,15 @@ const App: React.FC = () => {
       </div>
     );
   };
+
+  const fetchCurrentJobsData = useCallback(async () => {
+    try {
+      const jobs = await fetchCurrentJobs();
+      setCurrentJobs(jobs);
+    } catch (error) {
+      handleError(error as Error);
+    }
+  }, []);
 
   if (!isDataLoaded) {
     return <div>Loading...</div>;
@@ -393,16 +410,19 @@ const App: React.FC = () => {
               onDelete={() => handleDeleteJob(currentJobId)}
               podcastName={currentJobInfo?.podcastName}
               episodeTitle={currentJobInfo?.episodeTitle}
+              podcastImageUrl={podcastInfo[currentJobInfo?.rssUrl || '']?.imageUrl}
             />
           )}
           {currentJobs.map((job) => (
-            <div key={job.job_id} className="job-item">
-              <ProcessingStatus
-                jobId={job.job_id}
-                status={jobStatuses[job.job_id]}
-                onDelete={() => handleDeleteJob(job.job_id)}
-              />
-            </div>
+            <ProcessingStatus
+              key={job.job_id}
+              jobId={job.job_id}
+              status={jobStatuses[job.job_id]}
+              onDelete={() => handleDeleteJob(job.job_id)}
+              podcastName={podcastInfo[job.rss_url]?.name || job.podcast_name}
+              episodeTitle={job.episode_title}
+              podcastImageUrl={podcastInfo[job.rss_url]?.imageUrl}
+            />
           ))}
           {!currentJobId && currentJobs.length === 0 && (
             <p className="no-jobs">No active processing jobs.</p>
@@ -411,21 +431,21 @@ const App: React.FC = () => {
 
         <section className="processed-podcasts" aria-labelledby="processed-heading">
           <h2 id="processed-heading">Processed Podcasts</h2>
-          {(processedPodcasts.length > 0 || autoPodcasts.length > 0) ? (
+          {(Object.keys(processedPodcasts).length > 0 || autoPodcasts.length > 0) ? (
             <div>
               <h3>Manually Processed Episodes</h3>
               <ul className="processed-list">
-                {processedPodcasts.map((podcast, index) => (
-                  podcast && podcast.podcast_title && podcast.episode_title ? (
-                    <li key={index} className="processed-item">
+                {Object.entries(processedPodcasts).map(([rssUrl, episodes]) => (
+                  episodes.map((podcast, index) => (
+                    <li key={`${rssUrl}-${index}`} className="processed-item">
                       <h4>{podcast.podcast_title} - {podcast.episode_title}</h4>
                       <div className="processed-links">
                         {podcast.edited_url && (
                           <a
-                            href="#"
+                            href="javascript:void(0)"
                             onClick={async (e) => {
                               e.preventDefault();
-                              const url = await getFirebaseUrl(podcast.edited_url);
+                              const url = await getFileUrl(podcast.edited_url);
                               if (url) window.open(url, '_blank');
                             }}
                             className="view-link"
@@ -435,10 +455,10 @@ const App: React.FC = () => {
                         )}
                         {podcast.transcript_file && (
                           <a
-                            href="#"
+                            href="javascript:void(0)"
                             onClick={async (e) => {
                               e.preventDefault();
-                              const url = await getFirebaseUrl(podcast.transcript_file);
+                              const url = await getFileUrl(podcast.transcript_file);
                               if (url) window.open(url, '_blank');
                             }}
                             className="view-link"
@@ -448,10 +468,10 @@ const App: React.FC = () => {
                         )}
                         {podcast.unwanted_content_file && (
                           <a
-                            href="#"
+                            href="javascript:void(0)"
                             onClick={async (e) => {
                               e.preventDefault();
-                              const url = await getFirebaseUrl(podcast.unwanted_content_file);
+                              const url = await getFileUrl(podcast.unwanted_content_file);
                               if (url) window.open(url, '_blank');
                             }}
                             className="view-link"
@@ -472,7 +492,7 @@ const App: React.FC = () => {
                         Delete Podcast
                       </button>
                     </li>
-                  ) : null
+                  ))
                 ))}
               </ul>
 
@@ -485,6 +505,7 @@ const App: React.FC = () => {
                         key={`auto-${index}`}
                         rssUrl={rssUrl}
                         episodes={episodes}
+                        podcastInfo={podcastInfo[rssUrl]}
                         onProcessEpisode={handleProcessSelectedEpisode}
                         onSelectPodcast={handleSelectAutoPodcast}
                         isLoadingEpisodes={isLoadingEpisodes}
@@ -524,13 +545,15 @@ const App: React.FC = () => {
           overlayClassName="search-modal-overlay"
         >
           <h2>Search Podcasts</h2>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Enter podcast name"
-          />
-          <button onClick={handleSearch}>Search</button>
+          <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }}>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Enter podcast name"
+            />
+            <button type="submit">Search</button>
+          </form>
           {renderSearchResults()}
           <button onClick={closeSearchModal} className="close-modal-button">Close</button>
         </Modal>

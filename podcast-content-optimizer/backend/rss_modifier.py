@@ -49,6 +49,8 @@ def download_image(image_url, podcast_title):
 
 def create_modified_rss_feed(original_rss_url, processed_podcasts):
     logging.info(f"Creating modified RSS feed for {original_rss_url}")
+    logging.info(f"Type of processed_podcasts: {type(processed_podcasts)}")
+    logging.info(f"Content of processed_podcasts: {processed_podcasts}")
 
     try:
         # Parse the original RSS feed
@@ -157,11 +159,21 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
             item_title = item.find('title')
             if item_title is not None:
                 # Check if this episode has been processed
-                processed_episode = next(
-                    (ep for ep in processed_podcasts
-                     if ep.get('rss_url') == original_rss_url and ep.get('episode_title') == item_title.text),
-                    None
-                )
+                processed_episode = None
+                if isinstance(processed_podcasts, dict):
+                    # If it's a dict, assume it's structured as {rss_url: [episodes]}
+                    podcast_episodes = processed_podcasts.get(original_rss_url, [])
+                    processed_episode = next(
+                        (ep for ep in podcast_episodes if ep.get('episode_title') == item_title.text),
+                        None
+                    )
+                elif isinstance(processed_podcasts, list):
+                    # If it's a list, assume it's a list of episodes
+                    processed_episode = next(
+                        (ep for ep in processed_podcasts
+                         if ep.get('rss_url') == original_rss_url and ep.get('episode_title') == item_title.text),
+                        None
+                    )
 
                 if processed_episode:
                     # Update the enclosure URL to the Firebase Storage URL

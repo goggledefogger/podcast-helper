@@ -46,7 +46,15 @@ export const searchPodcasts = async (query: string) => {
   return await response.json();
 };
 
-export const fetchCurrentJobs = async () => {
+export interface CurrentJob {
+  job_id: string;
+  status: JobStatus;
+  podcast_name: string;
+  episode_title: string;
+  rss_url: string;
+}
+
+export const fetchCurrentJobs = async (): Promise<CurrentJob[]> => {
   const response = await fetchWithCredentials(`${API_BASE_URL}/api/current_jobs`);
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -124,5 +132,31 @@ export const saveAutoProcessedPodcast = async (rssUrl: string): Promise<void> =>
 
   if (!response.ok) {
     throw new Error('Failed to save auto-processed podcast');
+  }
+};
+
+export interface PodcastInfo {
+  name: string;
+  imageUrl: string;
+}
+
+export const fetchPodcastInfo = async (rssUrl: string): Promise<PodcastInfo> => {
+  const response = await fetchWithCredentials(`${API_BASE_URL}/api/podcast_info`, {
+    method: 'POST',
+    body: JSON.stringify({ rss_url: rssUrl }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch podcast info');
+  }
+  return await response.json();
+};
+
+export const savePodcastInfo = async (podcast: { name: string; imageUrl: string; rssUrl: string }): Promise<void> => {
+  const response = await fetchWithCredentials(`${API_BASE_URL}/api/save_podcast_info`, {
+    method: 'POST',
+    body: JSON.stringify(podcast),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to save podcast info');
   }
 };
