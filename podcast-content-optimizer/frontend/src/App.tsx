@@ -11,11 +11,16 @@ import {
   deleteJob,
   fetchJobStatuses,
   deleteProcessedPodcast,
-  JobStatus
+  JobStatus,
+  enableAutoProcessing,
+  fetchAutoProcessedPodcasts,
+  saveAutoProcessedPodcast
 } from './api';
 import { ProcessedPodcast, getProcessedPodcasts, getFileUrl } from './firebase';
 import PromptEditor from './components/PromptEditor';
 import { API_BASE_URL } from './api';
+import AutoProcessedPodcast from './components/AutoProcessedPodcast';
+import { FaPodcast, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 
 // Add this line at the top of your file, after the imports
 Modal.setAppElement('#root');
@@ -52,6 +57,15 @@ const App: React.FC = () => {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [selectedPodcast, setSelectedPodcast] = useState<SearchResult | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [autoProcessingEnabled, setAutoProcessingEnabled] = useState<{ [key: string]: boolean }>({});
+  const [notification, setNotification] = useState<string | null>(null);
+  const [autoPodcasts, setAutoPodcasts] = useState<string[]>([]);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [selectedAutoPodcast, setSelectedAutoPodcast] = useState<string | null>(null);
+  const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
+  const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
+  const [isProcessingEpisode, setIsProcessingEpisode] = useState(false);
+  const [expandedPodcasts, setExpandedPodcasts] = useState<string[]>([]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
@@ -80,10 +94,13 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const podcasts = await getProcessedPodcasts();
-        setProcessedPodcasts(podcasts);
+        const { processed, autoProcessed } = await getProcessedPodcasts();
+        setProcessedPodcasts(processed || []); // Ensure it's an array
+        setAutoPodcasts(autoProcessed || []); // Ensure it's an array
+        setIsDataLoaded(true); // Set this to true when data is loaded
       } catch (error) {
         handleError(error as Error);
+        setIsDataLoaded(true); // Set this to true even if there's an error
       }
     };
 
@@ -109,17 +126,16 @@ const App: React.FC = () => {
     }
   };
 
-  const handleProcessEpisode = async () => {
-    if (selectedEpisode === null || !selectedPodcast) return;
+  const handleProcessEpisode = async (rssUrl: string, episodeIndex: number) => {
     setError('');
     setIsProcessing(true);
 
     try {
-      const data = await processEpisode(rssUrl, selectedEpisode);
+      const data = await processEpisode(rssUrl, episodeIndex);
       setCurrentJobId(data.job_id);
       setCurrentJobInfo({
-        podcastName: selectedPodcast.name,
-        episodeTitle: episodes[selectedEpisode].title
+        podcastName: rssUrl, // We might not have the podcast name here, so we use the RSS URL
+        episodeTitle: episodes[episodeIndex].title
       });
       closeSearchModal();
     } catch (err) {
@@ -178,8 +194,9 @@ const App: React.FC = () => {
       });
 
       if (Object.values(data).some(status => status.status === 'completed' || status.status === 'failed')) {
-        const updatedPodcasts = await getProcessedPodcasts();
-        setProcessedPodcasts(updatedPodcasts);
+        const { processed, autoProcessed } = await getProcessedPodcasts();
+        setProcessedPodcasts(processed);
+        setAutoPodcasts(autoProcessed);
       }
     } catch (error) {
       console.error('Error fetching job statuses:', error);
@@ -216,8 +233,9 @@ const App: React.FC = () => {
     try {
       await deleteProcessedPodcast(podcastTitle, episodeTitle);
       // After successful deletion, refresh the list of processed podcasts
-      const updatedPodcasts = await getProcessedPodcasts();
-      setProcessedPodcasts(updatedPodcasts);
+      const { processed, autoProcessed } = await getProcessedPodcasts();
+      setProcessedPodcasts(processed);
+      setAutoPodcasts(autoProcessed);
     } catch (error) {
       console.error('Error deleting podcast:', error);
       setError('Failed to delete podcast. Please try again.');
@@ -233,9 +251,6 @@ const App: React.FC = () => {
     setIsSearchModalOpen(false);
     setSearchQuery('');
     setSearchResults([]);
-    setSelectedPodcast(null);
-    setEpisodes([]);
-    setSelectedEpisode(null);
   };
 
   const handleSelectPodcast = (podcast: SearchResult) => {
@@ -243,6 +258,109 @@ const App: React.FC = () => {
     setRssUrl(podcast.rssUrl);
     fetchPodcastEpisodes(podcast.rssUrl);
   };
+
+  const handlePodcastSelect = useCallback(async (rssUrl: string) => {
+    setRssUrl(rssUrl);
+    setSelectedPodcast(null);
+    closeSearchModal();
+    await fetchPodcastEpisodes(rssUrl);
+  }, []);
+
+  const handleSearch = useCallback(async () => {
+    if (!searchQuery.trim()) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      const results = await searchPodcasts(searchQuery);
+      setSearchResults(results);
+    } catch (err) {
+      handleError(err as Error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery]);
+
+  const handleEnableAutoProcessing = async (rssUrl: string) => {
+    try {
+      await enableAutoProcessing(rssUrl);
+      setAutoPodcasts(prev => [...prev, rssUrl]);
+      setNotification('Auto-processing enabled for this podcast.');
+    } catch (error) {
+      console.error('Error enabling auto-processing:', error);
+      setError(error instanceof Error ? error.message : 'Failed to enable auto-processing. Please try again.');
+    }
+  };
+
+  // Add this function to clear the notification after a delay
+  const clearNotification = useCallback(() => {
+    setTimeout(() => {
+      setNotification(null);
+    }, 5000); // Clear after 5 seconds
+  }, []);
+
+  // Use useEffect to call clearNotification when notification changes
+  useEffect(() => {
+    if (notification) {
+      clearNotification();
+    }
+  }, [notification, clearNotification]);
+
+  const handleSelectAutoPodcast = useCallback(async (rssUrl: string) => {
+    setIsLoadingEpisodes(true);
+    try {
+      await fetchPodcastEpisodes(rssUrl);
+    } finally {
+      setIsLoadingEpisodes(false);
+    }
+  }, [fetchPodcastEpisodes]);
+
+  const handleEpisodeSelect = (rssUrl: string, episodeIndex: number) => {
+    setSelectedEpisodeIndex(episodeIndex);
+  };
+
+  const handleProcessSelectedEpisode = async (rssUrl: string, episodeIndex: number) => {
+    setIsProcessingEpisode(true);
+    try {
+      await handleProcessEpisode(rssUrl, episodeIndex);
+    } finally {
+      setIsProcessingEpisode(false);
+    }
+  };
+
+  const togglePodcastExpansion = (rssUrl: string) => {
+    setExpandedPodcasts(prev =>
+      prev.includes(rssUrl)
+        ? prev.filter(url => url !== rssUrl)
+        : [...prev, rssUrl]
+    );
+  };
+
+  const renderSearchResults = () => {
+    return (
+      <div className="search-results">
+        {searchResults.map((result) => (
+          <div key={result.uuid} className="search-result">
+            <img src={result.imageUrl} alt={result.name} className="podcast-image" />
+            <div className="podcast-info">
+              <h3>{result.name}</h3>
+              <p>{result.description}</p>
+              {autoPodcasts.includes(result.rssUrl) ? (
+                <span className="auto-processing-badge">Auto-processing enabled</span>
+              ) : (
+                <button onClick={() => handleEnableAutoProcessing(result.rssUrl)}>
+                  Enable Auto-processing
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  if (!isDataLoaded) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="App">
@@ -253,6 +371,12 @@ const App: React.FC = () => {
         </button>
       </header>
       <main className="App-main">
+        {notification && (
+          <div className="notification">
+            {notification}
+            <button onClick={() => setNotification(null)} className="close-notification">×</button>
+          </div>
+        )}
         <section className="search-section" aria-labelledby="search-heading">
           <h2 id="search-heading">Find and Process a Podcast</h2>
           <button onClick={openSearchModal} className="open-search-button">
@@ -287,68 +411,94 @@ const App: React.FC = () => {
 
         <section className="processed-podcasts" aria-labelledby="processed-heading">
           <h2 id="processed-heading">Processed Podcasts</h2>
-          {processedPodcasts.length > 0 ? (
-            <ul className="processed-list">
-              {processedPodcasts.map((podcast, index) => (
-                podcast && podcast.podcast_title && podcast.episode_title ? (
-                  <li key={index} className="processed-item">
-                    <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
-                    <div className="processed-links">
-                      {podcast.edited_url && (
-                        <a
-                          href="#"
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            const url = await getFirebaseUrl(podcast.edited_url);
-                            if (url) window.open(url, '_blank');
-                          }}
-                          className="view-link"
-                        >
-                          Download Edited Audio
-                        </a>
-                      )}
-                      {podcast.transcript_file && (
-                        <a
-                          href="#"
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            const url = await getFirebaseUrl(podcast.transcript_file);
-                            if (url) window.open(url, '_blank');
-                          }}
-                          className="view-link"
-                        >
-                          View Transcript
-                        </a>
-                      )}
-                      {podcast.unwanted_content_file && (
-                        <a
-                          href="#"
-                          onClick={async (e) => {
-                            e.preventDefault();
-                            const url = await getFirebaseUrl(podcast.unwanted_content_file);
-                            if (url) window.open(url, '_blank');
-                          }}
-                          className="view-link"
-                        >
-                          View Unwanted Content
-                        </a>
-                      )}
-                      {podcast.rss_url && (
-                        <a href={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
-                          View Modified RSS Feed
-                        </a>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleDeletePodcast(podcast.podcast_title, podcast.episode_title)}
-                      className="delete-podcast-button"
-                    >
-                      Delete Podcast
-                    </button>
-                  </li>
-                ) : null
-              ))}
-            </ul>
+          {(processedPodcasts.length > 0 || autoPodcasts.length > 0) ? (
+            <div>
+              <h3>Manually Processed Episodes</h3>
+              <ul className="processed-list">
+                {processedPodcasts.map((podcast, index) => (
+                  podcast && podcast.podcast_title && podcast.episode_title ? (
+                    <li key={index} className="processed-item">
+                      <h4>{podcast.podcast_title} - {podcast.episode_title}</h4>
+                      <div className="processed-links">
+                        {podcast.edited_url && (
+                          <a
+                            href="#"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              const url = await getFirebaseUrl(podcast.edited_url);
+                              if (url) window.open(url, '_blank');
+                            }}
+                            className="view-link"
+                          >
+                            Download Edited Audio
+                          </a>
+                        )}
+                        {podcast.transcript_file && (
+                          <a
+                            href="#"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              const url = await getFirebaseUrl(podcast.transcript_file);
+                              if (url) window.open(url, '_blank');
+                            }}
+                            className="view-link"
+                          >
+                            View Transcript
+                          </a>
+                        )}
+                        {podcast.unwanted_content_file && (
+                          <a
+                            href="#"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              const url = await getFirebaseUrl(podcast.unwanted_content_file);
+                              if (url) window.open(url, '_blank');
+                            }}
+                            className="view-link"
+                          >
+                            View Unwanted Content
+                          </a>
+                        )}
+                        {podcast.rss_url && (
+                          <a href={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                            View Modified RSS Feed
+                          </a>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDeletePodcast(podcast.podcast_title, podcast.episode_title)}
+                        className="delete-podcast-button"
+                      >
+                        Delete Podcast
+                      </button>
+                    </li>
+                  ) : null
+                ))}
+              </ul>
+
+              <section className="auto-processed-podcasts" aria-labelledby="auto-processed-heading">
+                <h2 id="auto-processed-heading">Auto-processed Podcasts</h2>
+                {autoPodcasts.length > 0 ? (
+                  <ul className="auto-processed-list">
+                    {autoPodcasts.map((rssUrl, index) => (
+                      <AutoProcessedPodcast
+                        key={`auto-${index}`}
+                        rssUrl={rssUrl}
+                        episodes={episodes}
+                        onProcessEpisode={handleProcessSelectedEpisode}
+                        onSelectPodcast={handleSelectAutoPodcast}
+                        isLoadingEpisodes={isLoadingEpisodes}
+                        isProcessingEpisode={isProcessingEpisode}
+                        isExpanded={expandedPodcasts.includes(rssUrl)}
+                        onToggleExpand={() => togglePodcastExpansion(rssUrl)}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="no-podcasts">No auto-processed podcasts available. Enable auto-processing for a podcast to see it here.</p>
+                )}
+              </section>
+            </div>
           ) : (
             <p className="no-podcasts">No processed podcasts available. Process an episode to see results here.</p>
           )}
@@ -369,76 +519,35 @@ const App: React.FC = () => {
         <Modal
           isOpen={isSearchModalOpen}
           onRequestClose={closeSearchModal}
-          contentLabel="Search and Process Podcasts"
+          contentLabel="Search Podcasts"
           className="search-modal"
           overlayClassName="search-modal-overlay"
         >
-          <h2>Search and Process Podcasts</h2>
-          {!selectedPodcast ? (
-            <>
-              <form onSubmit={(e) => { e.preventDefault(); handleSearchPodcasts(); }} className="search-container">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Enter podcast name"
-                  aria-label="Search for podcasts"
-                />
-                <button type="submit" disabled={isLoading || !searchQuery.trim()}>
-                  Search
-                </button>
-              </form>
-              {isLoading && <p>Searching...</p>}
-              {searchResults.length > 0 && (
-                <ul className="podcast-list">
-                  {searchResults.map((podcast) => (
-                    <li key={podcast.uuid} className="podcast-item">
-                      <div className="podcast-info">
-                        <h4>{podcast.name}</h4>
-                        <p>{podcast.description}</p>
-                      </div>
-                      {podcast.imageUrl && (
-                        <img src={podcast.imageUrl} alt={`${podcast.name} cover`} className="podcast-image" />
-                      )}
-                      <button onClick={() => handleSelectPodcast(podcast)} className="select-button">
-                        Select
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          ) : (
-            <>
-              <h3>{selectedPodcast.name}</h3>
-              <form onSubmit={(e) => { e.preventDefault(); handleProcessEpisode(); }} className="episode-container">
-                <select
-                  id="episode-select"
-                  value={selectedEpisode ?? ''}
-                  onChange={(e) => setSelectedEpisode(Number(e.target.value))}
-                  className="episode-select"
-                  disabled={isProcessing}
-                >
-                  <option value="">Select an episode</option>
-                  {episodes.map((episode, index) => (
-                    <option key={index} value={index}>
-                      {episode.title} - {formatDate(episode.published)} ({formatDuration(episode.duration, 'MM:SS')})
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  disabled={isLoading || selectedEpisode === null || isProcessing}
-                  className="process-button"
-                >
-                  {isProcessing ? 'Processing...' : 'Process Episode'}
-                </button>
-              </form>
-            </>
-          )}
+          <h2>Search Podcasts</h2>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Enter podcast name"
+          />
+          <button onClick={handleSearch}>Search</button>
+          {renderSearchResults()}
           <button onClick={closeSearchModal} className="close-modal-button">Close</button>
         </Modal>
       </main>
+
+      {isProcessingEpisode && currentJobId && (
+        <section className="processing-status" aria-labelledby="processing-status-heading">
+          <h2 id="processing-status-heading">Processing Status</h2>
+          <ProcessingStatus
+            jobId={currentJobId}
+            status={jobStatuses[currentJobId]}
+            onDelete={() => currentJobId && handleDeleteJob(currentJobId)}
+            podcastName={currentJobInfo?.podcastName}
+            episodeTitle={currentJobInfo?.episodeTitle}
+          />
+        </section>
+      )}
     </div>
   );
 };

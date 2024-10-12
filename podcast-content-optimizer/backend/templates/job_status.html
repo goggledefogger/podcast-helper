@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Job Status</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        function updateStatus() {
+            $.getJSON('/api/process_status/{{ job_id }}', function(data) {
+                if (data.status) {
+                    $('#status').text(data.status.status);
+                    $('#progress').text(data.status.progress + '%');
+                    $('#stage').text(data.status.current_stage);
+                    $('#message').text(data.status.message);
+
+                    if (data.status.status !== 'completed' && data.status.status !== 'failed') {
+                        setTimeout(updateStatus, 5000);
+                    } else if (data.status.status === 'completed') {
+                        window.location.href = '/api/modified_rss/{{ rss_url }}';
+                    }
+                } else {
+                    $('#status').text('Waiting for job to start');
+                    $('#progress').text('0%');
+                    $('#stage').text('INITIALIZATION');
+                    $('#message').text('Job is queued or starting');
+                    setTimeout(updateStatus, 5000);
+                }
+            });
+        }
+        $(document).ready(function() {
+            updateStatus();
+        });
+    </script>
+</head>
+<body>
+    <h1>Job Status</h1>
+    <p>RSS URL: {{ rss_url }}</p>
+    <p>Status: <span id="status">Waiting...</span></p>
+    <p>Progress: <span id="progress">0%</span></p>
+    <p>Stage: <span id="stage">Initializing...</span></p>
+    <p>Message: <span id="message">Fetching job status...</span></p>
+</body>
+</html>

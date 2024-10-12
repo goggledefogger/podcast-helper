@@ -8,7 +8,7 @@ import traceback
 def process_podcast_task(self, rss_url, episode_index, job_id):
     logging.info(f"Starting process_podcast_task for job_id: {job_id}")
     try:
-        update_job_status(job_id, 'in_progress', 'INITIALIZATION', 0, 'Starting podcast processing')
+        update_job_status(job_id, 'in_progress', 'INITIALIZATION', 5, 'Job started')
         append_job_log(job_id, {'stage': 'INITIALIZATION', 'message': 'Task started'})
 
         result = process_podcast_episode(rss_url, episode_index, job_id)

@@ -7,6 +7,7 @@ import google.generativeai as genai
 from openai import OpenAI
 from utils import parse_duration, format_duration  # Changed from utils.time_utils
 from prompt_loader import load_prompt  # Update this import
+import traceback
 
 load_dotenv()
 
@@ -22,16 +23,21 @@ def find_unwanted_content(transcript_file_path):
 
     logging.info(f"Transcript length: {len(transcript)} characters")
 
-    if LLM_PROVIDER == "openai":
-        llm_response = process_with_openai(transcript)
-    elif LLM_PROVIDER == "gemini":
-        llm_response = process_with_gemini(transcript)
-    else:
-        raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
+    try:
+        if LLM_PROVIDER == "openai":
+            llm_response = process_with_openai(transcript)
+        elif LLM_PROVIDER == "gemini":
+            llm_response = process_with_gemini(transcript)
+        else:
+            raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
 
-    parsed_response = parse_llm_response(llm_response)
-    logging.info(f"Found {len(parsed_response['unwanted_content'])} unwanted content segments")
-    return parsed_response
+        parsed_response = parse_llm_response(llm_response)
+        logging.info(f"Found {len(parsed_response['unwanted_content'])} unwanted content segments")
+        return parsed_response
+    except Exception as e:
+        logging.error(f"Error in find_unwanted_content: {str(e)}")
+        logging.error(traceback.format_exc())
+        return {"unwanted_content": []}  # Return an empty list if there's an error
 
 def process_with_openai(transcript):
     logging.info("Processing with OpenAI")
@@ -127,10 +133,19 @@ def parse_llm_response(llm_response):
     else:
         raise ValueError(f"Unexpected parsed content type: {type(parsed_content)}")
 
-    # Convert any time format to seconds
+    # Convert any time format to seconds, handling missing keys
     for segment in unwanted_content:
-        segment['start_time'] = parse_duration(segment['start_time'])
-        segment['end_time'] = parse_duration(segment['end_time'])
+        if 'start_time' in segment:
+            segment['start_time'] = parse_duration(segment['start_time'])
+        else:
+            logging.warning(f"Missing 'start_time' in segment: {segment}")
+            segment['start_time'] = 0  # Default to 0 if missing
+
+        if 'end_time' in segment:
+            segment['end_time'] = parse_duration(segment['end_time'])
+        else:
+            logging.warning(f"Missing 'end_time' in segment: {segment}")
+            segment['end_time'] = segment['start_time'] + 1  # Default to start_time + 1 if missing
 
     logging.info(f"Final unwanted content (first 3 segments): {unwanted_content[:3]}")
     return {"unwanted_content": unwanted_content}
