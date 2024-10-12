@@ -422,11 +422,18 @@ def save_prompt(model, prompt):
 
 @app.route('/api/prompts', methods=['GET'])
 def get_prompts():
-    prompts = {
-        'openai': load_prompt('openai'),
-        'gemini': load_prompt('gemini')
-    }
-    return jsonify(prompts), 200
+    logging.info("Received request for /api/prompts")
+    try:
+        openai_prompt = load_prompt('openai')
+        gemini_prompt = load_prompt('gemini')
+        logging.info(f"Loaded prompts - OpenAI: {bool(openai_prompt)}, Gemini: {bool(gemini_prompt)}")
+        return jsonify({
+            'openai': openai_prompt,
+            'gemini': gemini_prompt
+        }), 200
+    except Exception as e:
+        logging.error(f"Error fetching prompts: {str(e)}")
+        return jsonify({"error": "Failed to fetch prompts"}), 500
 
 @app.route('/api/prompts', methods=['POST'])
 def update_prompts():

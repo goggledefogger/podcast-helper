@@ -13,12 +13,8 @@ def load_prompt(model):
             prompts = data.get('prompts', {})
             return prompts.get(model, "")
         else:
-            # If the file doesn't exist, return default prompts
-            default_prompts = {
-                'openai': "Identify unwanted content in the following transcript...",
-                'gemini': "Find and list sections of unwanted content in this podcast transcript..."
-            }
-            return default_prompts.get(model, "")
+            logging.warning(f"Prompts file not found: {PROCESSED_PODCASTS_FILE}")
+            return ""
     except Exception as e:
         logging.error(f"Error loading prompts from Firebase: {str(e)}")
         return ""

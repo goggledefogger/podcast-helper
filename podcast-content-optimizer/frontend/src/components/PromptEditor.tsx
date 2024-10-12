@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchWithCredentials } from '../api';
+import { getProcessedPodcasts } from '../firebase';
 import './PromptEditor.css'; // Create this file for PromptEditor-specific styles
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
@@ -16,12 +17,8 @@ const PromptEditor: React.FC = () => {
 
   const fetchPrompts = async () => {
     try {
-      const response = await fetchWithCredentials(`${API_BASE_URL}/api/prompts`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch prompts');
-      }
-      const data = await response.json();
-      setGeminiPrompt(data.gemini);
+      const { prompts } = await getProcessedPodcasts();
+      setGeminiPrompt(prompts.gemini || '');
     } catch (error) {
       console.error('Error fetching prompts:', error);
       setMessage('Failed to load prompt. Please try again.');

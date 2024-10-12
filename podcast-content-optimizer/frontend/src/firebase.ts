@@ -22,7 +22,7 @@ export interface ProcessedPodcast {
   unwanted_content_file: string;
 }
 
-export const getProcessedPodcasts = async (): Promise<{ processed: ProcessedPodcast[], autoProcessed: string[] }> => {
+export const getProcessedPodcasts = async (): Promise<{ processed: ProcessedPodcast[], autoProcessed: string[], prompts: Record<string, string> }> => {
   try {
     const url = await getFileUrl('db.json');
     if (url) {
@@ -30,13 +30,14 @@ export const getProcessedPodcasts = async (): Promise<{ processed: ProcessedPodc
       const data = await response.json();
       return {
         processed: data.processed_podcasts as ProcessedPodcast[],
-        autoProcessed: data.auto_processed_podcasts as string[]
+        autoProcessed: data.auto_processed_podcasts as string[],
+        prompts: data.prompts || {}
       };
     }
-    return { processed: [], autoProcessed: [] };
+    return { processed: [], autoProcessed: [], prompts: {} };
   } catch (error) {
     console.error('Error fetching processed podcasts:', error);
-    return { processed: [], autoProcessed: [] };
+    return { processed: [], autoProcessed: [], prompts: {} };
   }
 };
 
