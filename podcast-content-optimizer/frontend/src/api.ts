@@ -94,3 +94,35 @@ export const deleteProcessedPodcast = async (podcastTitle: string, episodeTitle:
   }
   return await response.json();
 };
+
+export const enableAutoProcessing = async (rssUrl: string): Promise<void> => {
+  const response = await fetchWithCredentials(`${API_BASE_URL}/api/auto_process`, {
+    method: 'POST',
+    body: JSON.stringify({ rss_url: rssUrl }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to enable auto-processing');
+  }
+};
+
+export const fetchAutoProcessedPodcasts = async (): Promise<string[]> => {
+  const response = await fetchWithCredentials(`${API_BASE_URL}/api/auto_processed_podcasts`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch auto-processed podcasts');
+  }
+  return await response.json();
+};
+
+// Add this new function
+export const saveAutoProcessedPodcast = async (rssUrl: string): Promise<void> => {
+  const response = await fetchWithCredentials(`${API_BASE_URL}/api/save_auto_processed`, {
+    method: 'POST',
+    body: JSON.stringify({ rss_url: rssUrl }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to save auto-processed podcast');
+  }
+};
