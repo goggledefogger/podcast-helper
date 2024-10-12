@@ -3,7 +3,7 @@ from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
 from utils import get_podcast_episodes, url_to_file_path, file_path_to_url, load_auto_processed_podcasts, save_auto_processed_podcasts, is_episode_processed, load_processed_podcasts, get_db
-from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache
+from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache, create_modified_rss_feed
 from llm_processor import find_unwanted_content
 from audio_editor import edit_audio
 from job_manager import update_job_status, get_job_status, append_job_log, get_job_logs, get_current_jobs, delete_job
@@ -186,45 +186,10 @@ def serve_output_file(filename):
 @app.route('/api/modified_rss/<path:rss_url>')
 def get_modified_rss(rss_url):
     try:
-        db = get_db()
-        auto_processed = db.get('auto_processed_podcasts')
-        if auto_processed:
-            auto_processed = json.loads(auto_processed)
-        else:
-            auto_processed = []
-
-        if rss_url not in auto_processed:
-            return jsonify({'error': 'This podcast is not set for auto-processing'}), 400
-
-        last_processed_key = 'last_processed_' + rss_url
-        last_processed = db.get(last_processed_key)
-        if last_processed:
-            last_processed = datetime.fromisoformat(last_processed.decode('utf-8'))
-        else:
-            last_processed = datetime.min.replace(tzinfo=pytz.utc)
-
-        # Fetch and parse the original RSS feed
-        rss_content = fetch_rss_feed(rss_url)
-        feed = feedparser.parse(rss_content)
-
-        # Process new episodes
-        if 'entries' in feed:
-            for entry in feed.entries:
-                pub_date = entry.get('published_parsed')
-                if pub_date:
-                    episode_date = datetime(*pub_date[:6], tzinfo=pytz.utc)
-                    if episode_date > last_processed:
-                        # Process this new episode
-                        episode_title = entry.get('title', '')
-                        episode_url = entry.get('enclosures', [{}])[0].get('href', '')
-                        if episode_url:
-                            process_episode(rss_url, episode_title, episode_url)
-
-            # Update the last processed time
-            db.set(last_processed_key, datetime.now(pytz.utc).isoformat())
+        processed_podcasts = load_processed_podcasts()
 
         # Generate the modified RSS feed
-        modified_rss = create_modified_rss_feed(rss_content, load_processed_podcasts())
+        modified_rss = create_modified_rss_feed(rss_url, processed_podcasts['processed_podcasts'])
 
         if modified_rss:
             return modified_rss, 200, {'Content-Type': 'application/xml; charset=utf-8'}
@@ -246,12 +211,6 @@ def process_episode(rss_url, episode_title, episode_url):
     # For now, we'll just log that we would process it
     logging.info(f"Would process new episode: {episode_title} from {rss_url}")
     # In a real implementation, you would call your podcast processing function here
-
-def create_modified_rss_feed(original_rss, processed_podcasts):
-    # Implement the logic to create a modified RSS feed
-    # This should use the original RSS content and incorporate the processed episodes
-    # For now, we'll just return the original RSS content
-    return original_rss
 
 def save_processed_podcasts(data):
     try:

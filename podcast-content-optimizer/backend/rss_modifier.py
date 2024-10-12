@@ -164,6 +164,12 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
                 )
 
                 if processed_episode:
+                    # Update the enclosure URL to the Firebase Storage URL
+                    enclosure = item.find('enclosure')
+                    if enclosure is not None and processed_episode.get('edited_url'):
+                        enclosure.set('url', processed_episode['edited_url'])
+                        logging.info(f"Updated enclosure URL for episode: {item_title.text}")
+
                     # Only add "(Optimized)" if the episode has been processed
                     item_title.text = f"{item_title.text} (Optimized)"
 
@@ -179,11 +185,6 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
                     itunes_title = item.find('itunes:title', namespaces=NAMESPACES)
                     if itunes_title is not None:
                         itunes_title.text = f"{itunes_title.text} (Optimized)"
-
-                    enclosure = item.find('enclosure')
-                    if enclosure is not None:
-                        # Use the Firebase Storage URL directly
-                        enclosure.set('url', processed_episode['edited_url'])
 
                     # Update the duration if available
                     duration_elem = item.find('itunes:duration', namespaces=NAMESPACES)
