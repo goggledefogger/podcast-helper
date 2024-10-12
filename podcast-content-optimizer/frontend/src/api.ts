@@ -95,11 +95,12 @@ export const deleteProcessedPodcast = async (podcastTitle: string, episodeTitle:
   return await response.json();
 };
 
-export const enableAutoProcessing = async (rssUrl: string) => {
+export const enableAutoProcessing = async (rssUrl: string): Promise<void> => {
   const response = await fetchWithCredentials(`${API_BASE_URL}/api/auto_process`, {
     method: 'POST',
     body: JSON.stringify({ rss_url: rssUrl }),
   });
+
   if (!response.ok) {
     throw new Error('Failed to enable auto-processing');
   }

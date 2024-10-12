@@ -260,39 +260,19 @@ def process_podcast():
         return jsonify({"error": "Missing RSS URL"}), 400
 
     try:
-        # Check if this podcast is set for auto-processing
-        auto_processed_podcasts = load_auto_processed_podcasts()
-        is_auto_processed = rss_url in auto_processed_podcasts
+        logging.info(f"Processing podcast with RSS URL: {rss_url}, episode index: {episode_index}")
 
-        # Get podcast episodes
-        episodes = get_podcast_episodes(rss_url)
-        if not episodes:
-            return jsonify({"error": "No episodes found"}), 404
-
-        if episode_index >= len(episodes):
-            return jsonify({"error": "Episode index out of range"}), 400
-
-        chosen_episode = episodes[episode_index]
-
-        # Check if the episode has already been processed
-        if is_episode_processed(rss_url, chosen_episode['title']):
-            return jsonify({"message": "Episode already processed"}), 200
-
-        # Start processing
+        # Generate a job ID
         job_id = str(uuid.uuid4())
-        update_job_status(job_id, 'queued', 'INITIALIZATION', 0, 'Job queued')
 
         # Use Celery to process the podcast asynchronously
         process_podcast_task.delay(rss_url, episode_index, job_id)
 
-        return jsonify({
-            "message": "Processing started",
-            "job_id": job_id,
-            "rss_url": rss_url
-        }), 202
+        return jsonify({"message": "Processing started", "job_id": job_id}), 202
 
     except Exception as e:
         logging.error(f"Error in process_podcast: {str(e)}")
+        logging.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/process_status/<job_id>', methods=['GET'])

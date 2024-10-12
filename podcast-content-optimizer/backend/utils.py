@@ -132,20 +132,15 @@ def run_with_animation(func, *args, **kwargs):
 def load_processed_podcasts():
     try:
         blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
-        logging.info(f"Attempting to load data from Firebase: {PROCESSED_PODCASTS_FILE}")
         if blob.exists():
             json_data = blob.download_as_text()
             data = json.loads(json_data)
-            podcasts = data.get('processed_podcasts', [])
-            auto_processed = data.get('auto_processed_podcasts', [])
-            prompts = data.get('prompts', {})
-            logging.info(f"Successfully loaded {len(podcasts)} processed podcasts, {len(auto_processed)} auto-processed podcasts, and prompts from Firebase")
-            return {'processed_podcasts': podcasts, 'auto_processed_podcasts': auto_processed, 'prompts': prompts}
+            return data.get('processed_podcasts', [])
         else:
-            logging.info(f"No database file found in Firebase: {PROCESSED_PODCASTS_FILE}")
+            return []
     except Exception as e:
-        logging.error(f"Error loading data from Firebase: {str(e)}")
-    return {'processed_podcasts': [], 'auto_processed_podcasts': [], 'prompts': {}}
+        logging.error(f"Error loading processed podcasts from Firebase: {str(e)}")
+        return []
 
 def save_processed_podcast(podcast_data):
     try:
@@ -344,7 +339,7 @@ def download_from_firebase(firebase_url, local_path):
 
 def load_auto_processed_podcasts():
     data = load_processed_podcasts()
-    return data['auto_processed_podcasts']
+    return data.get('auto_processed_podcasts', [])
 
 def save_auto_processed_podcasts(auto_processed_podcasts):
     try:
@@ -365,7 +360,9 @@ def save_auto_processed_podcasts(auto_processed_podcasts):
 def is_episode_processed(rss_url, episode_title):
     processed_podcasts = load_processed_podcasts()
     return any(
-        podcast['rss_url'] == rss_url and podcast['episode_title'] == episode_title
+        isinstance(podcast, dict) and
+        podcast.get('rss_url') == rss_url and
+        podcast.get('episode_title') == episode_title
         for podcast in processed_podcasts
     )
 

@@ -1,6 +1,6 @@
 from celery_app import app
 from podcast_processor import process_podcast_episode
-from job_manager import update_job_status, append_job_log, get_job_status
+from job_manager import update_job_status, append_job_log
 import logging
 import traceback
 
@@ -8,10 +8,7 @@ import traceback
 def process_podcast_task(self, rss_url, episode_index, job_id):
     logging.info(f"Starting process_podcast_task for job_id: {job_id}")
     try:
-        # Set initial status (if not already set)
-        current_status = get_job_status(job_id)
-        if not current_status:
-            update_job_status(job_id, 'in_progress', 'INITIALIZATION', 5, 'Job started')
+        update_job_status(job_id, 'in_progress', 'INITIALIZATION', 5, 'Job started')
         append_job_log(job_id, {'stage': 'INITIALIZATION', 'message': 'Task started'})
 
         result = process_podcast_episode(rss_url, episode_index, job_id)

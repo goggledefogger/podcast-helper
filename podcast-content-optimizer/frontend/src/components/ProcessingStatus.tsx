@@ -30,7 +30,7 @@ interface JobStatus {
 
 const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete, podcastName, episodeTitle }) => {
   if (!status) {
-    return <div className="processing-status loading">Loading status...</div>;
+    return <div>Loading status...</div>;
   }
 
   const getStageStatus = (stage: string) => {
