@@ -20,6 +20,7 @@ import { ProcessedPodcast, getProcessedPodcasts, getFileUrl } from './firebase';
 import PromptEditor from './components/PromptEditor';
 import { API_BASE_URL } from './api';
 import AutoProcessedPodcast from './components/AutoProcessedPodcast';
+import { FaPodcast, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 
 // Add this line at the top of your file, after the imports
 Modal.setAppElement('#root');
@@ -64,6 +65,7 @@ const App: React.FC = () => {
   const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [isProcessingEpisode, setIsProcessingEpisode] = useState(false);
+  const [expandedPodcasts, setExpandedPodcasts] = useState<string[]>([]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
@@ -325,6 +327,14 @@ const App: React.FC = () => {
     }
   };
 
+  const togglePodcastExpansion = (rssUrl: string) => {
+    setExpandedPodcasts(prev =>
+      prev.includes(rssUrl)
+        ? prev.filter(url => url !== rssUrl)
+        : [...prev, rssUrl]
+    );
+  };
+
   const renderSearchResults = () => {
     return (
       <div className="search-results">
@@ -466,20 +476,28 @@ const App: React.FC = () => {
                 ))}
               </ul>
 
-              <h3>Auto-processed Podcasts</h3>
-              <ul className="auto-processed-list">
-                {autoPodcasts.map((rssUrl, index) => (
-                  <AutoProcessedPodcast
-                    key={`auto-${index}`}
-                    rssUrl={rssUrl}
-                    episodes={episodes}
-                    onProcessEpisode={handleProcessSelectedEpisode}
-                    onSelectPodcast={handleSelectAutoPodcast}
-                    isLoadingEpisodes={isLoadingEpisodes}
-                    isProcessingEpisode={isProcessingEpisode}
-                  />
-                ))}
-              </ul>
+              <section className="auto-processed-podcasts" aria-labelledby="auto-processed-heading">
+                <h2 id="auto-processed-heading">Auto-processed Podcasts</h2>
+                {autoPodcasts.length > 0 ? (
+                  <ul className="auto-processed-list">
+                    {autoPodcasts.map((rssUrl, index) => (
+                      <AutoProcessedPodcast
+                        key={`auto-${index}`}
+                        rssUrl={rssUrl}
+                        episodes={episodes}
+                        onProcessEpisode={handleProcessSelectedEpisode}
+                        onSelectPodcast={handleSelectAutoPodcast}
+                        isLoadingEpisodes={isLoadingEpisodes}
+                        isProcessingEpisode={isProcessingEpisode}
+                        isExpanded={expandedPodcasts.includes(rssUrl)}
+                        onToggleExpand={() => togglePodcastExpansion(rssUrl)}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="no-podcasts">No auto-processed podcasts available. Enable auto-processing for a podcast to see it here.</p>
+                )}
+              </section>
             </div>
           ) : (
             <p className="no-podcasts">No processed podcasts available. Process an episode to see results here.</p>

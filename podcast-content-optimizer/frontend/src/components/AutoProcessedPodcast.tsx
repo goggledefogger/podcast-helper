@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FaPodcast, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { API_BASE_URL } from '../api';
 
 interface Episode {
@@ -15,6 +16,8 @@ interface AutoProcessedPodcastProps {
   onSelectPodcast: (rssUrl: string) => Promise<void>;
   isLoadingEpisodes: boolean;
   isProcessingEpisode: boolean;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
 }
 
 const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
@@ -24,15 +27,16 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
   onSelectPodcast,
   isLoadingEpisodes,
   isProcessingEpisode,
+  isExpanded,
+  onToggleExpand,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
 
   const handleToggleExpand = async () => {
     if (!isExpanded) {
       await onSelectPodcast(rssUrl);
     }
-    setIsExpanded(!isExpanded);
+    onToggleExpand();
   };
 
   const handleEpisodeSelect = (episodeIndex: number) => {
@@ -48,16 +52,18 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
 
   return (
     <li className="auto-processed-item">
-      <h4>{rssUrl}</h4>
-      <button onClick={handleToggleExpand} disabled={isLoadingEpisodes}>
-        {isExpanded ? 'Hide Episodes' : 'Show Episodes'}
-      </button>
-      {isLoadingEpisodes && <p>Loading episodes...</p>}
+      <div className="auto-processed-header" onClick={handleToggleExpand}>
+        <FaPodcast className="podcast-icon" />
+        <h4>{rssUrl}</h4>
+        {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
+      </div>
+      {isLoadingEpisodes && <p className="loading-message">Loading episodes...</p>}
       {isExpanded && !isLoadingEpisodes && (
-        <div>
+        <div className="auto-processed-content">
           <select
             onChange={(e) => handleEpisodeSelect(parseInt(e.target.value))}
             value={selectedEpisodeIndex !== null ? selectedEpisodeIndex : ''}
+            className="episode-select"
           >
             <option value="">Select an episode to process</option>
             {episodes.map((episode, idx) => (
@@ -71,7 +77,7 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
           >
             {isProcessingEpisode ? 'Processing...' : 'Process Episode'}
           </button>
-          <a href={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(rssUrl)}`} target="_blank" rel="noopener noreferrer" className="view-link">
+          <a href={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(rssUrl)}`} target="_blank" rel="noopener noreferrer" className="view-rss-link">
             View Modified RSS Feed
           </a>
         </div>

@@ -135,31 +135,66 @@ def load_processed_podcasts():
         if blob.exists():
             json_data = blob.download_as_text()
             data = json.loads(json_data)
-            return data.get('processed_podcasts', [])
+            if isinstance(data, list):
+                # Convert old format (list) to new format (dict)
+                return {
+                    'processed_podcasts': data,
+                    'auto_processed_podcasts': []
+                }
+            elif isinstance(data, dict):
+                return data
+            else:
+                logging.warning(f"Unexpected data type in Firebase: {type(data)}. Initializing new structure.")
+                return {
+                    'processed_podcasts': [],
+                    'auto_processed_podcasts': []
+                }
         else:
-            return []
+            logging.info(f"No existing data found in Firebase. Initializing new structure.")
+            return {
+                'processed_podcasts': [],
+                'auto_processed_podcasts': []
+            }
     except Exception as e:
         logging.error(f"Error loading processed podcasts from Firebase: {str(e)}")
-        return []
+        logging.error(traceback.format_exc())
+        return {
+            'processed_podcasts': [],
+            'auto_processed_podcasts': []
+        }
 
 def save_processed_podcast(podcast_data):
     try:
         # Load existing data
         data = load_processed_podcasts()
-        processed_podcasts = data['processed_podcasts']
-        auto_processed_podcasts = data['auto_processed_podcasts']
+
+        # Ensure data is a dictionary
+        if not isinstance(data, dict):
+            logging.warning(f"Unexpected data type from load_processed_podcasts: {type(data)}. Initializing new structure.")
+            data = {
+                'processed_podcasts': [],
+                'auto_processed_podcasts': []
+            }
+
+        processed_podcasts = data.get('processed_podcasts', [])
+        auto_processed_podcasts = data.get('auto_processed_podcasts', [])
+
+        # Ensure processed_podcasts is a list
+        if not isinstance(processed_podcasts, list):
+            logging.warning(f"processed_podcasts is not a list. Type: {type(processed_podcasts)}. Initializing new list.")
+            processed_podcasts = []
 
         # Check if the podcast already exists in the list
-        existing_podcast = next((p for p in processed_podcasts if p['rss_url'] == podcast_data['rss_url'] and p['episode_title'] == podcast_data['episode_title']), None)
+        existing_podcast = next((p for p in processed_podcasts if p.get('rss_url') == podcast_data.get('rss_url') and p.get('episode_title') == podcast_data.get('episode_title')), None)
 
         if existing_podcast:
             # Update the existing podcast data
             existing_podcast.update(podcast_data)
-            logging.info(f"Updated existing podcast: {podcast_data['episode_title']}")
+            logging.info(f"Updated existing podcast: {podcast_data.get('episode_title')}")
         else:
             # Append new data
             processed_podcasts.append(podcast_data)
-            logging.info(f"Added new podcast: {podcast_data['episode_title']}")
+            logging.info(f"Added new podcast: {podcast_data.get('episode_title')}")
 
         # Convert file paths to Firebase Storage URLs
         for key in ['edited_url', 'transcript_file', 'unwanted_content_file', 'input_file', 'output_file']:
@@ -168,10 +203,14 @@ def save_processed_podcast(podcast_data):
                 podcast_data[key] = upload_to_firebase(podcast_data[key])
                 logging.info(f"Uploaded {key} to Firebase: {old_value} -> {podcast_data[key]}")
 
-        logging.info(f"Saving processed podcast to Firebase: {podcast_data['episode_title']}")
+        logging.info(f"Saving processed podcast to Firebase: {podcast_data.get('episode_title')}")
 
         # Write updated data to Firebase Storage
-        json_data = json.dumps({'processed_podcasts': processed_podcasts, 'auto_processed_podcasts': auto_processed_podcasts}, indent=2)
+        updated_data = {
+            'processed_podcasts': processed_podcasts,
+            'auto_processed_podcasts': auto_processed_podcasts
+        }
+        json_data = json.dumps(updated_data, indent=2)
         blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
         blob.upload_from_string(json_data, content_type='application/json')
 
