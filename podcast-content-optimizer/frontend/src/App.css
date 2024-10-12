@@ -1624,8 +1624,79 @@ button:disabled, select:disabled {
   background-color: var(--card-background);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 15px;
-  transition: box-shadow 0.3s ease;
+  padding: 20px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.processed-item h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.processed-item h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-weight: normal;
+  color: var(--text-color);
+}
+
+.auto-processing-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: var(--success-color);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 15px;
+  font-size: 0.8em;
+}
+
+.processed-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.view-link {
+  flex: 1 0 calc(50% - 5px);
+  text-align: center;
+  padding: 10px;
+  background-color: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.view-link:hover {
+  background-color: var(--secondary-color);
+}
+
+.delete-podcast-button {
+  width: 100%;
+  margin-top: 15px;
+  padding: 10px;
+  background-color: var(--error-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.delete-podcast-button:hover {
+  background-color: var(--secondary-color);
+}
+
+.auto-processed {
+  background-color: var(--stage-background);
+}
+
+.auto-processed p {
+  word-break: break-all;
+  margin-bottom: 15px;
 }
 
 @media (max-width: 768px) {
@@ -1670,75 +1741,6 @@ button:disabled, select:disabled {
   .processed-item h3 {
     font-size: 16px;
     margin-bottom: 10px;
-  }
-}
-
-.processed-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 15px;
-}
-
-.view-link {
-  flex: 1 0 calc(50% - 5px); /* This will make two buttons per row on larger screens */
-  min-width: 120px; /* Minimum width to prevent buttons from becoming too narrow */
-  padding: 10px;
-  text-align: center;
-  font-size: 14px;
-  background-color: var(--stage-background);
-  color: var(--link-color);
-  text-decoration: none;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
-}
-
-.view-link:hover, .view-link:focus {
-  background-color: var(--stage-in-progress);
-  color: var(--text-color);
-}
-
-.delete-podcast-button {
-  width: 100%;
-  margin-top: 15px;
-  padding: 12px;
-  font-size: 14px;
-  background-color: var(--error-color);
-  color: var(--button-text);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.delete-podcast-button:hover, .delete-podcast-button:focus {
-  background-color: var(--secondary-color);
-}
-
-@media (max-width: 768px) {
-  .processed-item {
-    padding: 15px;
-  }
-
-  .processed-links {
-    flex-direction: row; /* Keep it as row for mobile */
-  }
-
-  .view-link {
-    flex: 1 0 calc(50% - 5px); /* Two buttons per row on mobile */
-    font-size: 12px; /* Slightly smaller font for mobile */
-    padding: 8px; /* Slightly less padding for mobile */
-  }
-
-  .delete-podcast-button {
-    margin-top: 10px;
-    padding: 10px;
-  }
-
-  .processed-item h3 {
-    font-size: 16px;
-    margin-bottom: 10px;
-    word-break: break-word;
   }
 }
 

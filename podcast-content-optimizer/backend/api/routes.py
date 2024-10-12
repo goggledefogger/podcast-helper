@@ -2,7 +2,7 @@ from flask import jsonify, request, Response, send_from_directory, abort, curren
 from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
-from utils import get_podcast_episodes, url_to_file_path, file_path_to_url, load_auto_processed_podcasts, save_auto_processed_podcasts, is_episode_processed, load_processed_podcasts
+from utils import get_podcast_episodes, url_to_file_path, file_path_to_url, load_auto_processed_podcasts, save_auto_processed_podcasts, is_episode_processed, load_processed_podcasts, get_db
 from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache
 from llm_processor import find_unwanted_content
 from audio_editor import edit_audio
@@ -25,6 +25,8 @@ from firebase_admin import storage
 from prompt_loader import load_prompt
 import feedparser
 from api.tasks import process_podcast_task
+from datetime import datetime, timedelta
+import pytz
 
 # Update the OUTPUT_DIR definition
 OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'output'))
@@ -168,28 +170,75 @@ def serve_output_file(filename):
         logging.error(f"Error serving file from Firebase Storage: {filename}, Error: {str(e)}")
         return jsonify({"error": f"Error serving file: {str(e)}"}), 500
 
-@app.route('/api/modified_rss/<path:rss_url>', methods=['GET'])
+@app.route('/api/modified_rss/<path:rss_url>')
 def get_modified_rss(rss_url):
     try:
-        auto_processed_podcasts = load_auto_processed_podcasts()
-        if rss_url in auto_processed_podcasts:
-            # Check for new episodes and process if necessary
-            episodes = get_podcast_episodes(rss_url)
-            if episodes:
-                latest_episode = episodes[0]
-                if not is_episode_processed(rss_url, latest_episode['title']):
-                    process_podcast_episode(rss_url, episode_index=0)
+        db = get_db()
+        auto_processed = db.get('auto_processed_podcasts')
+        if auto_processed:
+            auto_processed = json.loads(auto_processed)
+        else:
+            auto_processed = []
 
-        # Get the modified RSS feed
-        processed_podcasts = load_processed_podcasts()
-        modified_rss = get_or_create_modified_rss(rss_url, processed_podcasts)
+        if rss_url not in auto_processed:
+            return jsonify({'error': 'This podcast is not set for auto-processing'}), 400
+
+        last_processed_key = 'last_processed_' + rss_url
+        last_processed = db.get(last_processed_key)
+        if last_processed:
+            last_processed = datetime.fromisoformat(last_processed.decode('utf-8'))
+        else:
+            last_processed = datetime.min.replace(tzinfo=pytz.utc)
+
+        # Fetch and parse the original RSS feed
+        rss_content = fetch_rss_feed(rss_url)
+        feed = feedparser.parse(rss_content)
+
+        # Process new episodes
+        if 'entries' in feed:
+            for entry in feed.entries:
+                pub_date = entry.get('published_parsed')
+                if pub_date:
+                    episode_date = datetime(*pub_date[:6], tzinfo=pytz.utc)
+                    if episode_date > last_processed:
+                        # Process this new episode
+                        episode_title = entry.get('title', '')
+                        episode_url = entry.get('enclosures', [{}])[0].get('href', '')
+                        if episode_url:
+                            process_episode(rss_url, episode_title, episode_url)
+
+            # Update the last processed time
+            db.set(last_processed_key, datetime.now(pytz.utc).isoformat())
+
+        # Generate the modified RSS feed
+        modified_rss = create_modified_rss_feed(rss_content, load_processed_podcasts())
 
         if modified_rss:
             return modified_rss, 200, {'Content-Type': 'application/xml; charset=utf-8'}
         else:
             return jsonify({"error": "Failed to generate modified RSS feed"}), 500
     except Exception as e:
+        logging.error(f"Error in get_modified_rss: {str(e)}")
+        logging.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
+
+def fetch_rss_feed(rss_url):
+    response = requests.get(rss_url)
+    response.raise_for_status()
+    return response.content
+
+def process_episode(rss_url, episode_title, episode_url):
+    # Implement the logic to process a new episode
+    # This could involve downloading, transcribing, and editing the episode
+    # For now, we'll just log that we would process it
+    logging.info(f"Would process new episode: {episode_title} from {rss_url}")
+    # In a real implementation, you would call your podcast processing function here
+
+def create_modified_rss_feed(original_rss, processed_podcasts):
+    # Implement the logic to create a modified RSS feed
+    # This should use the original RSS content and incorporate the processed episodes
+    # For now, we'll just return the original RSS content
+    return original_rss
 
 def save_processed_podcasts(data):
     try:
@@ -452,18 +501,26 @@ def test_modified_rss():
 
 # Add this new route for auto-processing
 @app.route('/api/auto_process', methods=['POST'])
-def auto_process_podcast():
+def enable_auto_processing():
     data = request.json
     rss_url = data.get('rss_url')
+
     if not rss_url:
-        return jsonify({"error": "Missing RSS URL"}), 400
+        return jsonify({'error': 'RSS URL is required'}), 400
 
-    auto_processed_podcasts = load_auto_processed_podcasts()
-    if rss_url not in auto_processed_podcasts:
-        auto_processed_podcasts.append(rss_url)
-        save_auto_processed_podcasts(auto_processed_podcasts)
+    db = get_db()
+    auto_processed = db.get('auto_processed_podcasts')
+    if auto_processed:
+        auto_processed = json.loads(auto_processed)
+    else:
+        auto_processed = []
 
-    return jsonify({"message": "Auto-processing enabled for this podcast"}), 200
+    if rss_url not in auto_processed:
+        auto_processed.append(rss_url)
+        db.set('auto_processed_podcasts', json.dumps(auto_processed))
+        db.set('last_processed_' + rss_url, datetime.now(pytz.utc).isoformat())
+
+    return jsonify({'message': 'Auto-processing enabled successfully'}), 200
 
 @app.route('/api/auto_processed_podcasts', methods=['GET'])
 def get_auto_processed_podcasts():

@@ -13,7 +13,7 @@ import {
   deleteProcessedPodcast,
   JobStatus,
   enableAutoProcessing,
-  fetchAutoProcessedPodcasts // Add this line
+  fetchAutoProcessedPodcasts
 } from './api';
 import { ProcessedPodcast, getProcessedPodcasts, getFileUrl } from './firebase';
 import PromptEditor from './components/PromptEditor';
@@ -85,10 +85,9 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const podcasts = await getProcessedPodcasts();
-        setProcessedPodcasts(podcasts);
-        const autoProcessedList = await fetchAutoProcessedPodcasts();
-        setAutoPodcasts(autoProcessedList);
+        const { processed, autoProcessed } = await getProcessedPodcasts();
+        setProcessedPodcasts(processed);
+        setAutoPodcasts(autoProcessed);
       } catch (error) {
         handleError(error as Error);
       }
@@ -185,8 +184,9 @@ const App: React.FC = () => {
       });
 
       if (Object.values(data).some(status => status.status === 'completed' || status.status === 'failed')) {
-        const updatedPodcasts = await getProcessedPodcasts();
-        setProcessedPodcasts(updatedPodcasts);
+        const { processed, autoProcessed } = await getProcessedPodcasts();
+        setProcessedPodcasts(processed);
+        setAutoPodcasts(autoProcessed);
       }
     } catch (error) {
       console.error('Error fetching job statuses:', error);
@@ -223,8 +223,9 @@ const App: React.FC = () => {
     try {
       await deleteProcessedPodcast(podcastTitle, episodeTitle);
       // After successful deletion, refresh the list of processed podcasts
-      const updatedPodcasts = await getProcessedPodcasts();
-      setProcessedPodcasts(updatedPodcasts);
+      const { processed, autoProcessed } = await getProcessedPodcasts();
+      setProcessedPodcasts(processed);
+      setAutoPodcasts(autoProcessed);
     } catch (error) {
       console.error('Error deleting podcast:', error);
       setError('Failed to delete podcast. Please try again.');
@@ -272,8 +273,13 @@ const App: React.FC = () => {
   const handleEnableAutoProcessing = async (rssUrl: string) => {
     try {
       await enableAutoProcessing(rssUrl);
-      setAutoProcessingEnabled(prev => ({ ...prev, [rssUrl]: true }));
-      setAutoPodcasts(prev => [...prev, rssUrl]);
+      setAutoPodcasts(prev => {
+        const newAutoPodcasts = Array.isArray(prev) ? [...prev] : [];
+        if (!newAutoPodcasts.includes(rssUrl)) {
+          newAutoPodcasts.push(rssUrl);
+        }
+        return newAutoPodcasts;
+      });
       setNotification('Auto-processing enabled for this podcast. New episodes will be processed automatically.');
       closeSearchModal();
     } catch (error) {
@@ -305,7 +311,7 @@ const App: React.FC = () => {
             <div className="podcast-info">
               <h3>{result.name}</h3>
               <p>{result.description}</p>
-              {autoPodcasts.includes(result.rssUrl) ? (
+              {autoPodcasts && autoPodcasts.includes(result.rssUrl) ? (
                 <span className="auto-processing-badge">Auto-processing enabled</span>
               ) : (
                 <>
@@ -371,12 +377,13 @@ const App: React.FC = () => {
 
         <section className="processed-podcasts" aria-labelledby="processed-heading">
           <h2 id="processed-heading">Processed Podcasts</h2>
-          {processedPodcasts.length > 0 ? (
+          {processedPodcasts.length > 0 || autoPodcasts.length > 0 ? (
             <ul className="processed-list">
               {processedPodcasts.map((podcast, index) => (
                 podcast && podcast.podcast_title && podcast.episode_title ? (
                   <li key={index} className="processed-item">
-                    <h3>{podcast.podcast_title} - {podcast.episode_title}</h3>
+                    <h3>{podcast.podcast_title}</h3>
+                    <h4>{podcast.episode_title}</h4>
                     {autoPodcasts.includes(podcast.rss_url) && (
                       <span className="auto-processing-badge">Auto-processing enabled</span>
                     )}
@@ -434,6 +441,16 @@ const App: React.FC = () => {
                     </button>
                   </li>
                 ) : null
+              ))}
+              {autoPodcasts.map((rssUrl, index) => (
+                <li key={`auto-${index}`} className="processed-item auto-processed">
+                  <h3>Auto-processed Podcast</h3>
+                  <p>{rssUrl}</p>
+                  <span className="auto-processing-badge">Auto-processing enabled</span>
+                  <a href={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(rssUrl)}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                    View Modified RSS Feed
+                  </a>
+                </li>
               ))}
             </ul>
           ) : (
