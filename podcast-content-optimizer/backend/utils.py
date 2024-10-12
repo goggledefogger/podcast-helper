@@ -173,11 +173,13 @@ def save_processed_podcast(podcast_data):
             logging.warning(f"Unexpected data type from load_processed_podcasts: {type(data)}. Initializing new structure.")
             data = {
                 'processed_podcasts': [],
-                'auto_processed_podcasts': []
+                'auto_processed_podcasts': [],
+                'prompts': {}  # Ensure prompts key exists
             }
 
         processed_podcasts = data.get('processed_podcasts', [])
         auto_processed_podcasts = data.get('auto_processed_podcasts', [])
+        prompts = data.get('prompts', {})  # Preserve existing prompts
 
         # Ensure processed_podcasts is a list
         if not isinstance(processed_podcasts, list):
@@ -208,7 +210,8 @@ def save_processed_podcast(podcast_data):
         # Write updated data to Firebase Storage
         updated_data = {
             'processed_podcasts': processed_podcasts,
-            'auto_processed_podcasts': auto_processed_podcasts
+            'auto_processed_podcasts': auto_processed_podcasts,
+            'prompts': prompts  # Preserve existing prompts
         }
         json_data = json.dumps(updated_data, indent=2)
         blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
