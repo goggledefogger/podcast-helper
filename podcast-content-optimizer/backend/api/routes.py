@@ -59,15 +59,28 @@ def load_processed_podcasts():
         if blob.exists():
             json_data = blob.download_as_text()
             data = json.loads(json_data)
-            podcasts = data.get('processed_podcasts', [])
-            prompts = data.get('prompts', {})
-            logging.info(f"Successfully loaded {len(podcasts)} processed podcasts and prompts from Firebase")
-            return {'processed_podcasts': podcasts, 'prompts': prompts}
+            if isinstance(data, list):
+                # Convert old format (list) to new format (dict)
+                data = {
+                    'processed_podcasts': data,
+                    'prompts': {},
+                    'auto_processed_podcasts': []
+                }
+            elif not isinstance(data, dict):
+                logging.warning(f"Loaded data is not a dictionary or list. Type: {type(data)}")
+                data = {
+                    'processed_podcasts': [],
+                    'prompts': {},
+                    'auto_processed_podcasts': []
+                }
+            logging.info(f"Successfully loaded data from Firebase")
+            return data
         else:
             logging.info(f"No database file found in Firebase: {PROCESSED_PODCASTS_FILE}")
     except Exception as e:
         logging.error(f"Error loading data from Firebase: {str(e)}")
-    return {'processed_podcasts': [], 'prompts': {}}
+        logging.error(traceback.format_exc())
+    return {'processed_podcasts': [], 'prompts': {}, 'auto_processed_podcasts': []}
 
 def save_processed_podcast(podcast_data):
     try:
@@ -488,19 +501,18 @@ def enable_auto_processing():
     if not rss_url:
         return jsonify({'error': 'RSS URL is required'}), 400
 
-    db = get_db()
-    auto_processed = db.get('auto_processed_podcasts')
-    if auto_processed:
-        auto_processed = json.loads(auto_processed)
-    else:
-        auto_processed = []
-
-    if rss_url not in auto_processed:
-        auto_processed.append(rss_url)
-        db.set('auto_processed_podcasts', json.dumps(auto_processed))
-        db.set('last_processed_' + rss_url, datetime.now(pytz.utc).isoformat())
-
-    return jsonify({'message': 'Auto-processing enabled successfully'}), 200
+    try:
+        auto_processed = load_auto_processed_podcasts()
+        if not isinstance(auto_processed, list):
+            auto_processed = []
+        if rss_url not in auto_processed:
+            auto_processed.append(rss_url)
+            save_auto_processed_podcasts(auto_processed)
+        return jsonify({'message': 'Auto-processing enabled successfully'}), 200
+    except Exception as e:
+        logging.error(f"Error enabling auto-processing: {str(e)}")
+        logging.error(traceback.format_exc())  # Add this line to get the full traceback
+        return jsonify({'error': f'Failed to enable auto-processing: {str(e)}'}), 500
 
 @app.route('/api/auto_processed_podcasts', methods=['GET'])
 def get_auto_processed_podcasts():
@@ -511,6 +523,24 @@ def get_auto_processed_podcasts():
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/api/save_auto_processed', methods=['POST'])
+def save_auto_processed():
+    data = request.json
+    rss_url = data.get('rss_url')
+
+    if not rss_url:
+        return jsonify({'error': 'RSS URL is required'}), 400
+
+    try:
+        auto_processed = load_auto_processed_podcasts()
+        if rss_url not in auto_processed:
+            auto_processed.append(rss_url)
+            save_auto_processed_podcasts(auto_processed)
+        return jsonify({'message': 'Auto-processed podcast saved successfully'}), 200
+    except Exception as e:
+        logging.error(f"Error saving auto-processed podcast: {str(e)}")
+        return jsonify({'error': 'Failed to save auto-processed podcast'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

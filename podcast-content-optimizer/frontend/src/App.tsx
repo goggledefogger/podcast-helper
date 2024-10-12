@@ -13,7 +13,8 @@ import {
   deleteProcessedPodcast,
   JobStatus,
   enableAutoProcessing,
-  fetchAutoProcessedPodcasts
+  fetchAutoProcessedPodcasts,
+  saveAutoProcessedPodcast
 } from './api';
 import { ProcessedPodcast, getProcessedPodcasts, getFileUrl } from './firebase';
 import PromptEditor from './components/PromptEditor';
@@ -284,7 +285,7 @@ const App: React.FC = () => {
       setNotification('Auto-processing enabled for this podcast.');
     } catch (error) {
       console.error('Error enabling auto-processing:', error);
-      setNotification('Failed to enable auto-processing. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to enable auto-processing. Please try again.');
     }
   };
 

@@ -339,16 +339,26 @@ def download_from_firebase(firebase_url, local_path):
 
 def load_auto_processed_podcasts():
     data = load_processed_podcasts()
-    return data.get('auto_processed_podcasts', [])
+    if isinstance(data, dict):
+        auto_processed = data.get('auto_processed_podcasts', [])
+    elif isinstance(data, list):
+        # If data is a list, it's likely the old format where auto-processed podcasts weren't stored
+        auto_processed = []
+    else:
+        logging.error(f"Unexpected data type in load_processed_podcasts: {type(data)}")
+        auto_processed = []
+    return list(auto_processed) if auto_processed is not None else []
 
 def save_auto_processed_podcasts(auto_processed_podcasts):
     try:
         data = load_processed_podcasts()
+        if not isinstance(data, dict):
+            data = {
+                'processed_podcasts': [],
+                'prompts': {},
+                'auto_processed_podcasts': []
+            }
         data['auto_processed_podcasts'] = auto_processed_podcasts
-
-        # Preserve existing prompts
-        if 'prompts' not in data:
-            data['prompts'] = {}
 
         json_data = json.dumps(data, indent=2)
         blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
@@ -356,6 +366,8 @@ def save_auto_processed_podcasts(auto_processed_podcasts):
         logging.info(f"Successfully saved auto-processed podcasts to Firebase: {PROCESSED_PODCASTS_FILE}")
     except Exception as e:
         logging.error(f"Error saving auto-processed podcasts to Firebase: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise  # Re-raise the exception to be caught in the route handler
 
 def is_episode_processed(rss_url, episode_title):
     processed_podcasts = load_processed_podcasts()
