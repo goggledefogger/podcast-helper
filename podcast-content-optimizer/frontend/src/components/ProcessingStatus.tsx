@@ -27,6 +27,7 @@ interface JobStatus {
   progress: number;
   message: string;
   timestamp: number;
+  rss_url?: string;
 }
 
 const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete, podcastName, episodeTitle, podcastImageUrl }) => {
@@ -57,6 +58,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDe
         {podcastImageUrl && <img src={podcastImageUrl} alt={podcastName} className="podcast-image" />}
         <div className="podcast-details">
           {podcastName && <h3>{podcastName}</h3>}
+          {status.rss_url && <p className="rss-url">{status.rss_url}</p>}
           {episodeTitle && <h4>{episodeTitle}</h4>}
         </div>
       </div>
@@ -66,13 +68,14 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDe
       </div>
       <p className="current-stage">Current Stage: <span className="stage-value">{status.current_stage}</span></p>
       <div className="processing-stages">
+        <div className="stage-line"></div>
         {STAGES.map((stage) => (
           <div
             key={stage}
             className={`stage ${getStageStatus(stage)}`}
           >
-            <span className="stage-name">{stage}</span>
             <span className="stage-icon"></span>
+            <span className="stage-name">{stage}</span>
           </div>
         ))}
       </div>

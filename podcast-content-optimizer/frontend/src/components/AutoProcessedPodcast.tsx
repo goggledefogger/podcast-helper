@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaPodcast, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaPodcast, FaChevronDown, FaChevronUp, FaCopy } from 'react-icons/fa';
 import { API_BASE_URL } from '../api';
 import { formatDuration, formatDate } from '../utils/timeUtils';
 import './AutoProcessedPodcast.css';
@@ -24,8 +24,6 @@ interface AutoProcessedPodcastProps {
   onSelectPodcast: (rssUrl: string) => Promise<void>;
   isLoadingEpisodes: boolean;
   isProcessingEpisode: boolean;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
 }
 
 const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
@@ -36,18 +34,16 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
   onSelectPodcast,
   isLoadingEpisodes,
   isProcessingEpisode,
-  isExpanded,
-  onToggleExpand,
 }) => {
+  console.log('AutoProcessedPodcast props:', { rssUrl, podcastInfo });
+  const [isExpanded, setIsExpanded] = useState(false);
   const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
-
-  console.log('AutoProcessedPodcast props:', { rssUrl, podcastInfo }); // Add this line for debugging
 
   const handleToggleExpand = async () => {
     if (!isExpanded) {
       await onSelectPodcast(rssUrl);
     }
-    onToggleExpand();
+    setIsExpanded(!isExpanded);
   };
 
   const handleEpisodeSelect = (episodeIndex: number) => {
@@ -59,6 +55,15 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
       await onProcessEpisode(rssUrl, selectedEpisodeIndex);
       setSelectedEpisodeIndex(null);
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      // You can add a notification here if you want to inform the user that the link was copied
+      console.log('Link copied to clipboard');
+    }, (err) => {
+      console.error('Could not copy text: ', err);
+    });
   };
 
   return (
@@ -98,9 +103,31 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
               {isProcessingEpisode ? 'Processing...' : 'Process Episode'}
             </button>
           </form>
-          <a href={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(rssUrl)}`} target="_blank" rel="noopener noreferrer" className="view-rss-link">
-            View Modified RSS Feed
-          </a>
+          <div className="rss-links">
+            <div className="rss-link-container">
+              <label>Original RSS Feed:</label>
+              <div className="rss-url-wrapper">
+                <input type="text" value={rssUrl} readOnly className="rss-url-input" />
+                <button onClick={() => copyToClipboard(rssUrl)} className="copy-button">
+                  <FaCopy />
+                </button>
+              </div>
+            </div>
+            <div className="rss-link-container">
+              <label>Modified RSS Feed:</label>
+              <div className="rss-url-wrapper">
+                <input
+                  type="text"
+                  value={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(rssUrl)}`}
+                  readOnly
+                  className="rss-url-input"
+                />
+                <button onClick={() => copyToClipboard(`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(rssUrl)}`)} className="copy-button">
+                  <FaCopy />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </li>

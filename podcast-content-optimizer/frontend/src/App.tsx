@@ -96,9 +96,9 @@ const App: React.FC = () => {
         setAutoPodcasts(autoProcessed);
         setPodcastInfo(podcastInfo);
         console.log('Fetched podcastInfo:', podcastInfo); // Add this line for debugging
-        setIsDataLoaded(true);
       } catch (error) {
         handleError(error as Error);
+      } finally {
         setIsDataLoaded(true);
       }
     };
@@ -284,7 +284,6 @@ const App: React.FC = () => {
       await enableAutoProcessing(podcast.rssUrl);
       await savePodcastInfo(podcast);
 
-      // Update the autoPodcasts and podcastInfo state immediately
       setAutoPodcasts(prev => [...prev, podcast.rssUrl]);
       setPodcastInfo(prev => ({
         ...prev,
@@ -292,7 +291,7 @@ const App: React.FC = () => {
       }));
 
       setNotification('Auto-processing enabled for this podcast.');
-      closeSearchModal(); // Close the modal after enabling auto-processing
+      closeSearchModal();
     } catch (error) {
       console.error('Error enabling auto-processing:', error);
       setError(error instanceof Error ? error.message : 'Failed to enable auto-processing. Please try again.');
@@ -408,7 +407,7 @@ const App: React.FC = () => {
               jobId={currentJobId}
               status={jobStatuses[currentJobId]}
               onDelete={() => handleDeleteJob(currentJobId)}
-              podcastName={currentJobInfo?.podcastName}
+              podcastName={podcastInfo[currentJobInfo?.rssUrl || '']?.name || currentJobInfo?.podcastName}
               episodeTitle={currentJobInfo?.episodeTitle}
               podcastImageUrl={podcastInfo[currentJobInfo?.rssUrl || '']?.imageUrl}
             />
@@ -510,8 +509,6 @@ const App: React.FC = () => {
                         onSelectPodcast={handleSelectAutoPodcast}
                         isLoadingEpisodes={isLoadingEpisodes}
                         isProcessingEpisode={isProcessingEpisode}
-                        isExpanded={expandedPodcasts.includes(rssUrl)}
-                        onToggleExpand={() => togglePodcastExpansion(rssUrl)}
                       />
                     ))}
                   </ul>

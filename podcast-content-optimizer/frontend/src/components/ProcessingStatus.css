@@ -83,34 +83,55 @@
 .processing-stages {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
-  flex-wrap: wrap;
+  position: relative;
+  padding: 10px 0;
 }
 
 .stage {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: calc(25% - 10px);
-  margin-bottom: 15px;
-}
-
-.stage-name {
-  font-size: 0.8em;
-  text-align: center;
-  margin-bottom: 5px;
-  height: 2.4em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+  background-color: var(--card-background);
+  padding: 5px;
+  border-radius: 8px;
+  width: 80px; /* Set a fixed width for all stages */
 }
 
 .stage-icon {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background-color: var(--border-color);
   position: relative;
+  transition: all 0.3s ease;
+  margin-bottom: 5px;
+  z-index: 2;
+}
+
+.stage-name {
+  font-size: 0.6em; /* Smaller font size for all stages */
+  text-align: center;
+  word-wrap: break-word;
+  transition: all 0.3s ease;
+}
+
+.stage-line {
+  display: none;
+}
+
+.stage:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -40px; /* Adjust based on the space between stages */
+  width: 40px; /* Adjust based on the space between stages */
+  height: 2px;
+  background-color: var(--border-color);
+  z-index: 0;
 }
 
 .stage.completed .stage-icon {
@@ -124,6 +145,20 @@
 
 .stage.pending .stage-icon {
   background-color: var(--border-color);
+}
+
+.stage.completed .stage-name,
+.stage.in_progress .stage-name {
+  font-weight: bold;
+}
+
+.stage.in_progress {
+  transform: scale(1.2);
+  z-index: 2;
+}
+
+.stage.in_progress .stage-name {
+  font-size: 0.7em; /* Slightly larger font for the current stage */
 }
 
 @keyframes pulse {
@@ -169,11 +204,21 @@
 
 @media (max-width: 768px) {
   .processing-stages {
-    justify-content: space-around;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .stage {
-    width: calc(50% - 10px);
+    width: 60px; /* Smaller width for mobile */
+    margin: 5px;
+  }
+
+  .stage:not(:last-child)::after {
+    display: none; /* Remove lines between stages on mobile */
+  }
+
+  .stage.in_progress {
+    transform: scale(1.1); /* Slightly smaller scale for mobile */
   }
 
   .podcast-info {
@@ -252,4 +297,22 @@
 
 [data-theme="dark"] .delete-job-button:hover {
   background-color: #ff4d4d;
+}
+
+/* Add these new styles */
+.stage.completed {
+  background-color: rgba(40, 167, 69, 0.1);
+}
+
+.stage.in_progress {
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.stage.pending {
+  background-color: rgba(108, 117, 125, 0.1);
+}
+
+.stage {
+  padding: 10px;
+  border-radius: 8px;
 }
