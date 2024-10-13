@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaPodcast, FaChevronDown, FaChevronUp, FaCopy } from 'react-icons/fa';
 import { API_BASE_URL } from '../api';
 import { formatDuration, formatDate } from '../utils/timeUtils';
+import { fetchEpisodes, PodcastInfo } from '../api';
 import './AutoProcessedPodcast.css';
 
 interface Episode {
@@ -11,14 +12,8 @@ interface Episode {
   duration: number;
 }
 
-interface PodcastInfo {
-  name: string;
-  imageUrl: string;
-}
-
 interface AutoProcessedPodcastProps {
   rssUrl: string;
-  episodes: Episode[];
   podcastInfo?: PodcastInfo;
   onProcessEpisode: (rssUrl: string, episodeIndex: number) => Promise<void>;
   onSelectPodcast: (rssUrl: string) => Promise<void>;
@@ -28,14 +23,31 @@ interface AutoProcessedPodcastProps {
 
 const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
   rssUrl,
-  episodes,
   podcastInfo,
   onProcessEpisode,
   onSelectPodcast,
   isLoadingEpisodes,
   isProcessingEpisode,
 }) => {
-  console.log('AutoProcessedPodcast props:', { rssUrl, podcastInfo });
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+
+  useEffect(() => {
+    const fetchAndUpdateEpisodes = async () => {
+      try {
+        const fetchedEpisodes = await fetchEpisodes(rssUrl);
+        setEpisodes(fetchedEpisodes);
+      } catch (error) {
+        console.error('Error fetching episodes:', error);
+      }
+    };
+
+    fetchAndUpdateEpisodes();
+    // Set up an interval to periodically check for updates
+    const intervalId = setInterval(fetchAndUpdateEpisodes, 3600000); // Check every hour
+
+    return () => clearInterval(intervalId);
+  }, [rssUrl]);
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
 

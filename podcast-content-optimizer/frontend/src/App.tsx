@@ -20,6 +20,7 @@ import PromptEditor from './components/PromptEditor';
 import { API_BASE_URL } from './api';
 import AutoProcessedPodcast from './components/AutoProcessedPodcast';
 import { FaPodcast, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import PreventDefaultLink from './components/PreventDefaultLink';
 
 // Add this line at the top of your file, after the imports
 Modal.setAppElement('#root');
@@ -238,7 +239,7 @@ const App: React.FC = () => {
       setAutoPodcasts(autoProcessed);
     } catch (error) {
       console.error('Error deleting podcast:', error);
-      setError('Failed to delete podcast. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to delete podcast. Please try again.');
     }
   };
 
@@ -374,6 +375,11 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleLinkClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Add any necessary logic here
+  };
+
   if (!isDataLoaded) {
     return <div>Loading...</div>;
   }
@@ -440,48 +446,45 @@ const App: React.FC = () => {
                       <h4>{podcast.podcast_title} - {podcast.episode_title}</h4>
                       <div className="processed-links">
                         {podcast.edited_url && (
-                          <a
-                            href="javascript:void(0)"
-                            onClick={async (e) => {
-                              e.preventDefault();
+                          <PreventDefaultLink
+                            onClick={async () => {
                               const url = await getFileUrl(podcast.edited_url);
                               if (url) window.open(url, '_blank');
                             }}
                             className="view-link"
                           >
                             Download Edited Audio
-                          </a>
+                          </PreventDefaultLink>
                         )}
                         {podcast.transcript_file && (
-                          <a
-                            href="javascript:void(0)"
-                            onClick={async (e) => {
-                              e.preventDefault();
+                          <PreventDefaultLink
+                            onClick={async () => {
                               const url = await getFileUrl(podcast.transcript_file);
                               if (url) window.open(url, '_blank');
                             }}
                             className="view-link"
                           >
                             View Transcript
-                          </a>
+                          </PreventDefaultLink>
                         )}
                         {podcast.unwanted_content_file && (
-                          <a
-                            href="javascript:void(0)"
-                            onClick={async (e) => {
-                              e.preventDefault();
+                          <PreventDefaultLink
+                            onClick={async () => {
                               const url = await getFileUrl(podcast.unwanted_content_file);
                               if (url) window.open(url, '_blank');
                             }}
                             className="view-link"
                           >
                             View Unwanted Content
-                          </a>
+                          </PreventDefaultLink>
                         )}
                         {podcast.rss_url && (
-                          <a href={`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`} target="_blank" rel="noopener noreferrer" className="view-link">
+                          <PreventDefaultLink
+                            onClick={() => window.open(`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`, '_blank')}
+                            className="view-link"
+                          >
                             View Modified RSS Feed
-                          </a>
+                          </PreventDefaultLink>
                         )}
                       </div>
                       <button
@@ -503,7 +506,7 @@ const App: React.FC = () => {
                       <AutoProcessedPodcast
                         key={`auto-${index}`}
                         rssUrl={rssUrl}
-                        episodes={episodes}
+                        // Remove the episodes prop
                         podcastInfo={podcastInfo[rssUrl]}
                         onProcessEpisode={handleProcessSelectedEpisode}
                         onSelectPodcast={handleSelectAutoPodcast}

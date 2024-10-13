@@ -52,7 +52,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
             processed_podcasts = []
 
         # Check if this episode has been processed before
-        existing_podcast = next((p for p in processed_podcasts if p.get('rss_url') == rss_url and p.get('episode_title') == chosen_episode['title']), None)
+        existing_podcast = next((p for p in processed_podcasts['processed_podcasts'].get(rss_url, [])
+                                 if p.get('episode_title') == chosen_episode['title']), None)
 
         if existing_podcast:
             logging.info(f"Found existing podcast: {existing_podcast}")

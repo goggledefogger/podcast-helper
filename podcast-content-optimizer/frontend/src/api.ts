@@ -160,3 +160,12 @@ export const savePodcastInfo = async (podcast: { name: string; imageUrl: string;
     throw new Error('Failed to save podcast info');
   }
 };
+
+export const getModifiedRssFeed = async (rssUrl: string): Promise<string> => {
+  const encodedRssUrl = encodeURIComponent(rssUrl);
+  const response = await fetch(`${API_BASE_URL}/api/modified_rss/${encodedRssUrl}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch modified RSS feed');
+  }
+  return await response.text();
+};

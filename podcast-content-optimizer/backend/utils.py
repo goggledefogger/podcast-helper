@@ -372,9 +372,7 @@ def save_processed_podcast(podcast_data):
         }
 
         # Save to Firebase
-        json_data = json.dumps(data, indent=2)
-        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
-        blob.upload_from_string(json_data, content_type='application/json')
+        save_processed_podcasts(data)
 
         logging.info(f"Successfully saved processed podcast to Firebase: {podcast_data['episode_title']}")
     except Exception as e:
