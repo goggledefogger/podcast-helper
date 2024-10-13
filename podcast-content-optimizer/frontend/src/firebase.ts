@@ -16,28 +16,35 @@ export const storage = getStorage(app);
 export interface ProcessedPodcast {
   podcast_title: string;
   episode_title: string;
-  rss_url: string;
   edited_url: string;
   transcript_file: string;
   unwanted_content_file: string;
+  rss_url: string; // Add this line
 }
 
-export const getProcessedPodcasts = async (): Promise<{ processed: ProcessedPodcast[], autoProcessed: string[], prompts: Record<string, string> }> => {
+export const getProcessedPodcasts = async (): Promise<{
+  processed: Record<string, ProcessedPodcast[]>,
+  autoProcessed: string[],
+  prompts: Record<string, string>,
+  podcastInfo: Record<string, { name: string; imageUrl: string }>
+}> => {
   try {
     const url = await getFileUrl('db.json');
     if (url) {
       const response = await fetch(url);
       const data = await response.json();
+      console.log('Fetched data:', data); // Add this line for debugging
       return {
-        processed: data.processed_podcasts as ProcessedPodcast[],
-        autoProcessed: data.auto_processed_podcasts as string[],
-        prompts: data.prompts || {}
+        processed: data.processed_podcasts || {},
+        autoProcessed: data.auto_processed_podcasts || [],
+        prompts: data.prompts || {},
+        podcastInfo: data.podcast_info || {}
       };
     }
-    return { processed: [], autoProcessed: [], prompts: {} };
+    return { processed: {}, autoProcessed: [], prompts: {}, podcastInfo: {} };
   } catch (error) {
     console.error('Error fetching processed podcasts:', error);
-    return { processed: [], autoProcessed: [], prompts: {} };
+    return { processed: {}, autoProcessed: [], prompts: {}, podcastInfo: {} };
   }
 };
 

@@ -1,0 +1,214 @@
+.auto-processed-item {
+  margin-bottom: 20px;
+}
+
+.auto-processed-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 10px;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.auto-processed-header .podcast-image {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
+.auto-processed-header .podcast-icon {
+  font-size: 24px;
+  color: var(--primary-color);
+  margin-right: 10px;
+}
+
+.auto-processed-header h4 {
+  margin: 0;
+  flex-grow: 1;
+}
+
+.auto-processed-content {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.episode-select {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.process-episode-button {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.process-episode-button:hover:not(:disabled) {
+  background-color: var(--secondary-color);
+}
+
+.process-episode-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.view-rss-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.view-rss-link:hover {
+  text-decoration: underline;
+}
+
+/* Dark mode styles */
+[data-theme="dark"] .auto-processed-header,
+[data-theme="dark"] .auto-processed-content {
+  background-color: var(--card-background);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .episode-select {
+  background-color: var(--input-background);
+  color: var(--input-text);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .process-episode-button {
+  background-color: var(--primary-color);
+  color: var(--button-text);
+}
+
+[data-theme="dark"] .process-episode-button:hover:not(:disabled) {
+  background-color: var(--secondary-color);
+}
+
+[data-theme="dark"] .view-rss-link {
+  color: var(--link-color);
+}
+
+.podcast-title-container {
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.podcast-title-container h4 {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.podcast-title-container .rss-url {
+  font-size: 0.8em;
+  color: #666;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rss-links {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.rss-link-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.rss-link-container label {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.rss-url-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.rss-url-input {
+  flex-grow: 1;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--input-background);
+  color: var(--input-text);
+}
+
+.copy-button {
+  background-color: var(--primary-color);
+  color: var(--button-text);
+  border: none;
+  padding: 8px;
+  margin-left: 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.copy-button:hover {
+  background-color: var(--secondary-color);
+}
+
+/* Dark mode styles */
+[data-theme="dark"] .rss-url-input {
+  background-color: var(--input-background);
+  color: var(--input-text);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .copy-button {
+  background-color: var(--primary-color);
+  color: var(--button-text);
+}
+
+[data-theme="dark"] .copy-button:hover {
+  background-color: var(--secondary-color);
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .rss-links {
+    flex-direction: column;
+  }
+
+  .rss-link {
+    width: 100%;
+  }
+
+  .rss-url-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rss-url-input {
+    margin-bottom: 5px;
+  }
+
+  .copy-button {
+    margin-left: 0;
+  }
+}

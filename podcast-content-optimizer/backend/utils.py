@@ -135,93 +135,39 @@ def load_processed_podcasts():
         if blob.exists():
             json_data = blob.download_as_text()
             data = json.loads(json_data)
-            if isinstance(data, list):
-                # Convert old format (list) to new format (dict)
-                return {
-                    'processed_podcasts': data,
-                    'auto_processed_podcasts': []
-                }
-            elif isinstance(data, dict):
-                return data
-            else:
-                logging.warning(f"Unexpected data type in Firebase: {type(data)}. Initializing new structure.")
-                return {
-                    'processed_podcasts': [],
-                    'auto_processed_podcasts': []
-                }
-        else:
-            logging.info(f"No existing data found in Firebase. Initializing new structure.")
             return {
-                'processed_podcasts': [],
-                'auto_processed_podcasts': []
+                'processed_podcasts': data.get('processed_podcasts', {}),
+                'auto_processed_podcasts': data.get('auto_processed_podcasts', []),
+                'podcast_info': data.get('podcast_info', {}),
+                'prompts': data.get('prompts', {})
             }
+        else:
+            return {'processed_podcasts': {}, 'auto_processed_podcasts': [], 'podcast_info': {}, 'prompts': {}}
     except Exception as e:
         logging.error(f"Error loading processed podcasts from Firebase: {str(e)}")
         logging.error(traceback.format_exc())
-        return {
-            'processed_podcasts': [],
-            'auto_processed_podcasts': []
-        }
+        return {'processed_podcasts': {}, 'auto_processed_podcasts': [], 'podcast_info': {}, 'prompts': {}}
 
-def save_processed_podcast(podcast_data):
+def save_processed_podcasts(data):
     try:
-        # Load existing data
-        data = load_processed_podcasts()
-
-        # Ensure data is a dictionary
-        if not isinstance(data, dict):
-            logging.warning(f"Unexpected data type from load_processed_podcasts: {type(data)}. Initializing new structure.")
-            data = {
-                'processed_podcasts': [],
-                'auto_processed_podcasts': [],
-                'prompts': {}  # Ensure prompts key exists
-            }
-
-        processed_podcasts = data.get('processed_podcasts', [])
-        auto_processed_podcasts = data.get('auto_processed_podcasts', [])
-        prompts = data.get('prompts', {})  # Preserve existing prompts
-
-        # Ensure processed_podcasts is a list
-        if not isinstance(processed_podcasts, list):
-            logging.warning(f"processed_podcasts is not a list. Type: {type(processed_podcasts)}. Initializing new list.")
-            processed_podcasts = []
-
-        # Check if the podcast already exists in the list
-        existing_podcast = next((p for p in processed_podcasts if p.get('rss_url') == podcast_data.get('rss_url') and p.get('episode_title') == podcast_data.get('episode_title')), None)
-
-        if existing_podcast:
-            # Update the existing podcast data
-            existing_podcast.update(podcast_data)
-            logging.info(f"Updated existing podcast: {podcast_data.get('episode_title')}")
-        else:
-            # Append new data
-            processed_podcasts.append(podcast_data)
-            logging.info(f"Added new podcast: {podcast_data.get('episode_title')}")
-
-        # Convert file paths to Firebase Storage URLs
-        for key in ['edited_url', 'transcript_file', 'unwanted_content_file', 'input_file', 'output_file']:
-            if key in podcast_data and podcast_data[key]:
-                old_value = podcast_data[key]
-                podcast_data[key] = upload_to_firebase(podcast_data[key])
-                logging.info(f"Uploaded {key} to Firebase: {old_value} -> {podcast_data[key]}")
-
-        logging.info(f"Saving processed podcast to Firebase: {podcast_data.get('episode_title')}")
-
-        # Write updated data to Firebase Storage
-        updated_data = {
-            'processed_podcasts': processed_podcasts,
-            'auto_processed_podcasts': auto_processed_podcasts,
-            'prompts': prompts  # Preserve existing prompts
-        }
-        json_data = json.dumps(updated_data, indent=2)
+        json_data = json.dumps(data, indent=2)
         blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
         blob.upload_from_string(json_data, content_type='application/json')
-
-        logging.info(f"Successfully saved processed podcast to Firebase: {PROCESSED_PODCASTS_FILE}")
-
+        logging.info(f"Successfully saved processed podcasts data to Firebase")
     except Exception as e:
-        logging.error(f"Error saving processed podcast to Firebase: {str(e)}")
+        logging.error(f"Error saving processed podcasts data to Firebase: {str(e)}")
         logging.error(traceback.format_exc())
+
+def save_auto_processed_podcasts(auto_processed_podcasts):
+    try:
+        data = load_processed_podcasts()
+        data['auto_processed_podcasts'] = auto_processed_podcasts
+        save_processed_podcasts(data)
+        logging.info(f"Successfully saved auto-processed podcasts to Firebase")
+    except Exception as e:
+        logging.error(f"Error saving auto-processed podcasts to Firebase: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise
 
 def parse_duration(duration):
     """
@@ -391,36 +337,46 @@ def load_auto_processed_podcasts():
         auto_processed = []
     return list(auto_processed) if auto_processed is not None else []
 
-def save_auto_processed_podcasts(auto_processed_podcasts):
-    try:
-        data = load_processed_podcasts()
-        if not isinstance(data, dict):
-            data = {
-                'processed_podcasts': [],
-                'prompts': {},
-                'auto_processed_podcasts': []
-            }
-        data['auto_processed_podcasts'] = auto_processed_podcasts
-
-        json_data = json.dumps(data, indent=2)
-        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
-        blob.upload_from_string(json_data, content_type='application/json')
-        logging.info(f"Successfully saved auto-processed podcasts to Firebase: {PROCESSED_PODCASTS_FILE}")
-    except Exception as e:
-        logging.error(f"Error saving auto-processed podcasts to Firebase: {str(e)}")
-        logging.error(traceback.format_exc())
-        raise  # Re-raise the exception to be caught in the route handler
-
 def is_episode_processed(rss_url, episode_title):
     processed_podcasts = load_processed_podcasts()
     return any(
-        isinstance(podcast, dict) and
-        podcast.get('rss_url') == rss_url and
-        podcast.get('episode_title') == episode_title
-        for podcast in processed_podcasts
+        episode['episode_title'] == episode_title
+        for episode in processed_podcasts['processed_podcasts'].get(rss_url, [])
     )
 
 def get_db():
     if not hasattr(get_db, 'db'):
         get_db.db = redis.Redis(host='localhost', port=6379, db=0)
     return get_db.db
+
+def save_processed_podcast(podcast_data):
+    try:
+        data = load_processed_podcasts()
+        rss_url = podcast_data['rss_url']
+
+        if rss_url not in data['processed_podcasts']:
+            data['processed_podcasts'][rss_url] = []
+
+        # Check if the episode already exists
+        existing_episode = next((ep for ep in data['processed_podcasts'][rss_url] if ep['episode_title'] == podcast_data['episode_title']), None)
+
+        if existing_episode:
+            existing_episode.update(podcast_data)
+        else:
+            data['processed_podcasts'][rss_url].append(podcast_data)
+
+        # Update podcast info
+        data['podcast_info'][rss_url] = {
+            'name': podcast_data['podcast_title'],
+            'imageUrl': podcast_data.get('image_url', '')
+        }
+
+        # Save to Firebase
+        json_data = json.dumps(data, indent=2)
+        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
+        blob.upload_from_string(json_data, content_type='application/json')
+
+        logging.info(f"Successfully saved processed podcast to Firebase: {podcast_data['episode_title']}")
+    except Exception as e:
+        logging.error(f"Error saving processed podcast to Firebase: {str(e)}")
+        logging.error(traceback.format_exc())

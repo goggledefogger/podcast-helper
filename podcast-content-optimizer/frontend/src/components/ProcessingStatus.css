@@ -2,23 +2,63 @@
   background-color: var(--card-background);
   color: var(--text-color);
   border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .podcast-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.podcast-image {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-right: 20px;
+}
+
+.podcast-details {
+  flex-grow: 1;
+}
+
+.podcast-details h3 {
+  margin: 0;
+  font-size: 1.4em;
+  color: var(--text-color);
+}
+
+.podcast-details h4 {
+  margin: 5px 0 0;
+  font-size: 1.1em;
+  color: var(--text-color);
+  font-weight: normal;
+}
+
+.status-title {
+  font-size: 1.2em;
   margin-bottom: 15px;
 }
 
-.podcast-info h3 {
-  margin: 0;
-  font-size: 1.2em;
-  color: var(--text-color);
+.status-value {
+  font-weight: bold;
+  text-transform: capitalize;
 }
 
-.podcast-info h4 {
-  margin: 5px 0 0;
-  font-size: 1em;
-  color: var(--text-color);
-  font-weight: normal;
+.status-value.completed {
+  color: var(--success-color);
+}
+
+.status-value.failed {
+  color: var(--error-color);
+}
+
+.status-value.in_progress {
+  color: var(--primary-color);
 }
 
 .progress-bar {
@@ -43,34 +83,55 @@
 .processing-stages {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
-  flex-wrap: wrap;
+  position: relative;
+  padding: 10px 0;
 }
 
 .stage {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100px;
-  margin-bottom: 15px;
-}
-
-.stage-name {
-  font-size: 0.8em;
-  text-align: center;
-  margin-bottom: 5px;
-  height: 2.4em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+  background-color: var(--card-background);
+  padding: 5px;
+  border-radius: 8px;
+  width: 80px; /* Set a fixed width for all stages */
 }
 
 .stage-icon {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background-color: var(--border-color);
   position: relative;
+  transition: all 0.3s ease;
+  margin-bottom: 5px;
+  z-index: 2;
+}
+
+.stage-name {
+  font-size: 0.6em; /* Smaller font size for all stages */
+  text-align: center;
+  word-wrap: break-word;
+  transition: all 0.3s ease;
+}
+
+.stage-line {
+  display: none;
+}
+
+.stage:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -40px; /* Adjust based on the space between stages */
+  width: 40px; /* Adjust based on the space between stages */
+  height: 2px;
+  background-color: var(--border-color);
+  z-index: 0;
 }
 
 .stage.completed .stage-icon {
@@ -84,6 +145,20 @@
 
 .stage.pending .stage-icon {
   background-color: var(--border-color);
+}
+
+.stage.completed .stage-name,
+.stage.in_progress .stage-name {
+  font-weight: bold;
+}
+
+.stage.in_progress {
+  transform: scale(1.2);
+  z-index: 2;
+}
+
+.stage.in_progress .stage-name {
+  font-size: 0.7em; /* Slightly larger font for the current stage */
 }
 
 @keyframes pulse {
@@ -115,39 +190,56 @@
   background-color: var(--error-color);
   color: var(--button-text);
   border: none;
-  padding: 5px 10px;
+  padding: 10px 15px;
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s;
+  font-size: 1em;
+  margin-top: 15px;
 }
 
 .delete-job-button:hover {
   background-color: var(--secondary-color);
-  color: var(--button-text);
 }
 
 @media (max-width: 768px) {
   .processing-stages {
-    justify-content: space-around;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .stage {
-    width: 60px;
-    margin: 0 5px 15px;
+    width: 60px; /* Smaller width for mobile */
+    margin: 5px;
   }
 
-  .stage-name {
-    font-size: 0.7em;
+  .stage:not(:last-child)::after {
+    display: none; /* Remove lines between stages on mobile */
   }
 
-  .podcast-info h3 {
-    font-size: 1.1em;
+  .stage.in_progress {
+    transform: scale(1.1); /* Slightly smaller scale for mobile */
   }
 
-  .podcast-info h4 {
-    font-size: 0.9em;
+  .podcast-info {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
+  .podcast-image {
+    margin-bottom: 10px;
+    margin-right: 0;
+  }
+
+  .podcast-details h3 {
+    font-size: 1.2em;
+  }
+
+  .podcast-details h4 {
+    font-size: 1em;
+  }
+
+  .status-title,
   .current-stage,
   .status-message,
   .timestamp {
@@ -156,7 +248,6 @@
 
   .delete-job-button {
     width: 100%;
-    margin-top: 15px;
   }
 }
 
@@ -166,21 +257,17 @@
   border-color: var(--border-color);
 }
 
-[data-theme="dark"] .podcast-info h3,
-[data-theme="dark"] .podcast-info h4 {
+[data-theme="dark"] .podcast-details h3,
+[data-theme="dark"] .podcast-details h4 {
   color: var(--text-color);
 }
 
 [data-theme="dark"] .progress-bar {
-  background-color: #333333;  /* Darker background for better contrast */
+  background-color: #333333;
 }
 
 [data-theme="dark"] .progress-fill {
   background-color: var(--primary-color);
-}
-
-[data-theme="dark"] .stage {
-  background-color: transparent;  /* Remove background color */
 }
 
 [data-theme="dark"] .stage-icon {
@@ -188,26 +275,44 @@
 }
 
 [data-theme="dark"] .stage.completed .stage-icon {
-  background-color: #4caf50;  /* A brighter green for better contrast */
+  background-color: #4caf50;
 }
 
 [data-theme="dark"] .stage.in_progress .stage-icon {
-  background-color: #2196f3;  /* A brighter blue for better contrast */
+  background-color: #2196f3;
 }
 
 [data-theme="dark"] .stage.pending .stage-icon {
-  background-color: #9e9e9e;  /* A lighter gray for better contrast */
+  background-color: #9e9e9e;
 }
 
 [data-theme="dark"] .timestamp {
-  color: #bdbdbd;  /* Lighter color for better readability */
+  color: #bdbdbd;
 }
 
 [data-theme="dark"] .delete-job-button {
-  background-color: #ff6b6b;  /* Brighter red for better visibility */
+  background-color: #ff6b6b;
   color: #ffffff;
 }
 
 [data-theme="dark"] .delete-job-button:hover {
   background-color: #ff4d4d;
+}
+
+/* Add these new styles */
+.stage.completed {
+  background-color: rgba(40, 167, 69, 0.1);
+}
+
+.stage.in_progress {
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.stage.pending {
+  background-color: rgba(108, 117, 125, 0.1);
+}
+
+.stage {
+  padding: 10px;
+  border-radius: 8px;
 }
