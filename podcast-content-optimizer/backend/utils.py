@@ -135,12 +135,9 @@ def load_processed_podcasts():
         if blob.exists():
             json_data = blob.download_as_text()
             data = json.loads(json_data)
-            return {
-                'processed_podcasts': data.get('processed_podcasts', {}),
-                'auto_processed_podcasts': data.get('auto_processed_podcasts', []),
-                'podcast_info': data.get('podcast_info', {}),
-                'prompts': data.get('prompts', {})
-            }
+            if not isinstance(data, dict):
+                data = {'processed_podcasts': {}, 'auto_processed_podcasts': [], 'podcast_info': {}, 'prompts': {}}
+            return data
         else:
             return {'processed_podcasts': {}, 'auto_processed_podcasts': [], 'podcast_info': {}, 'prompts': {}}
     except Exception as e:

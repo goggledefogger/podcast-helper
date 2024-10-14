@@ -47,10 +47,6 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         logging.info(f"Loaded processed podcasts. Type: {type(processed_podcasts)}")
         logging.info(f"Processed podcasts content: {str(processed_podcasts)[:1000]}...")  # Log the first 1000 characters
 
-        if not isinstance(processed_podcasts, list):
-            logging.error(f"processed_podcasts is not a list. Type: {type(processed_podcasts)}")
-            processed_podcasts = []
-
         # Check if this episode has been processed before
         existing_podcast = next((p for p in processed_podcasts['processed_podcasts'].get(rss_url, [])
                                  if p.get('episode_title') == chosen_episode['title']), None)
