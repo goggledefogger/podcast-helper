@@ -58,7 +58,11 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl }) =
     <li className="auto-processed-item">
       <div className="auto-processed-header" onClick={handleToggleExpand}>
         {podcastInfo[rssUrl]?.imageUrl && (
-          <img src={podcastInfo[rssUrl].imageUrl} alt={podcastInfo[rssUrl].name} className="podcast-image" />
+          <img
+            src={podcastInfo[rssUrl].imageUrl}
+            alt={podcastInfo[rssUrl].name || 'Podcast'}
+            className="podcast-image"
+          />
         )}
         <FaPodcast className="podcast-icon" />
         <div className="podcast-title-container">

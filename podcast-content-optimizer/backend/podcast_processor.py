@@ -35,6 +35,7 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
 
         chosen_episode = episodes[episode_index]
         podcast_title = episodes[0]['podcast_title']
+        podcast_image_url = episodes[0].get('image_url', '')  # Get the image URL from the first episode
         logging.info(f"Selected episode: {chosen_episode['title']} from podcast: {podcast_title}")
 
         # Create episode folder
@@ -70,7 +71,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
                 "rss_url": rss_url,
                 "status": "processing",
                 "job_id": job_id,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "image_url": podcast_image_url  # Add this line to include the image URL
             }
 
         # Update file paths to use Firebase Storage URLs

@@ -191,7 +191,11 @@ const AppContent: React.FC = () => {
               jobId={job.job_id}
               status={jobStatuses[job.job_id]}
               onDelete={() => handleDeleteJob(job.job_id)}
-              jobInfo={jobInfos[job.job_id]}
+              jobInfo={{
+                podcastName: job.podcast_name || podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
+                episodeTitle: job.episode_title || 'Unknown Episode',
+                rssUrl: job.rss_url
+              }}
               podcastImageUrl={podcastInfo[job.rss_url]?.imageUrl}
             />
           ))}

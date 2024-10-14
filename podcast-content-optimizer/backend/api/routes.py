@@ -314,6 +314,7 @@ def search_podcasts(query):
 @app.route('/api/current_jobs', methods=['GET'])
 def get_current_jobs_route():
     jobs = get_current_jobs()
+    logging.info(f"Returning current jobs: {jobs}")
     return jsonify(jobs), 200
 
 @app.route('/api/delete_job/<job_id>', methods=['DELETE', 'OPTIONS'])

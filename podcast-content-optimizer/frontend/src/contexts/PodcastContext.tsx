@@ -7,7 +7,8 @@ import {
   enableAutoProcessing,
   savePodcastInfo,
   processEpisode as apiProcessEpisode,
-  fetchCurrentJobs
+  fetchCurrentJobs,
+  CurrentJob as ApiCurrentJob
 } from '../api';
 
 interface PodcastInfo {
@@ -68,10 +69,8 @@ interface PodcastContextType {
   fetchAllData: () => Promise<void>;
 }
 
-// Update the CurrentJob interface
-interface CurrentJob {
-  job_id: string;
-  status: 'queued' | 'in_progress' | 'completed' | 'failed';
+// Update the CurrentJob interface to match the API
+interface CurrentJob extends ApiCurrentJob {
   podcast_name: string;
   episode_title: string;
   rss_url: string;
@@ -110,17 +109,20 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setProcessedPodcasts(podcastData.processed);
       setAutoPodcasts(podcastData.autoProcessed);
       setPodcastInfo(podcastData.podcastInfo);
-      setCurrentJobs(jobs);
+      setCurrentJobs(jobs as CurrentJob[]);
 
       const newJobInfos: Record<string, JobInfo> = {};
       jobs.forEach(job => {
         newJobInfos[job.job_id] = {
-          podcastName: podcastData.podcastInfo[job.rss_url]?.name || job.podcast_name,
-          episodeTitle: job.episode_title,
+          podcastName: job.podcast_name || podcastData.podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
+          episodeTitle: job.episode_title || 'Unknown Episode',
           rssUrl: job.rss_url
         };
       });
       setJobInfos(newJobInfos);
+
+      console.log(`Updated job infos: ${JSON.stringify(newJobInfos)}`);
+      console.log(`Updated podcast info: ${JSON.stringify(podcastData.podcastInfo)}`);
 
       if (jobs.length > 0) {
         const statuses = await apiFetchJobStatuses(jobs.map(job => job.job_id));

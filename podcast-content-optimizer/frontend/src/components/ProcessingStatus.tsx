@@ -1,6 +1,5 @@
 import React from 'react';
 import './ProcessingStatus.css';
-import { usePodcastContext } from '../contexts/PodcastContext';
 
 const STAGES = [
   'INITIALIZATION',

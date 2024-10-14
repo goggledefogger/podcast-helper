@@ -362,11 +362,15 @@ def save_processed_podcast(podcast_data):
         else:
             data['processed_podcasts'][rss_url].append(podcast_data)
 
-        # Update podcast info
-        data['podcast_info'][rss_url] = {
-            'name': podcast_data['podcast_title'],
-            'imageUrl': podcast_data.get('image_url', '')
-        }
+        # Update podcast info, preserving the existing image URL if not provided in podcast_data
+        if rss_url not in data['podcast_info']:
+            data['podcast_info'][rss_url] = {}
+
+        data['podcast_info'][rss_url]['name'] = podcast_data['podcast_title']
+        if 'image_url' in podcast_data and podcast_data['image_url']:
+            data['podcast_info'][rss_url]['imageUrl'] = podcast_data['image_url']
+        elif 'imageUrl' not in data['podcast_info'][rss_url]:
+            data['podcast_info'][rss_url]['imageUrl'] = ''
 
         # Save to Firebase
         save_processed_podcasts(data)
