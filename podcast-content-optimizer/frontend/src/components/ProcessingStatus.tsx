@@ -1,24 +1,30 @@
 import React from 'react';
 import './ProcessingStatus.css';
+import { usePodcastContext } from '../contexts/PodcastContext';
 
 const STAGES = [
   'INITIALIZATION',
   'FETCH_EPISODES',
   'DOWNLOAD',
   'TRANSCRIPTION',
-  'CONTENT_DETECTION',  // Changed from 'CONTENT_ANALYSIS'
+  'CONTENT_DETECTION',
   'AUDIO_EDITING',
   'RSS_MODIFICATION',
   'COMPLETION'
 ];
 
+interface JobInfo {
+  podcastName: string;
+  episodeTitle: string;
+  rssUrl: string;
+}
+
 interface ProcessingStatusProps {
   jobId: string;
   status: JobStatus | undefined;
   onDelete?: () => void;
-  podcastName?: string;
-  episodeTitle?: string;
-  podcastImageUrl?: string;  // Add this line
+  jobInfo?: JobInfo;
+  podcastImageUrl?: string;
 }
 
 interface JobStatus {
@@ -27,11 +33,10 @@ interface JobStatus {
   progress: number;
   message: string;
   timestamp: number;
-  rss_url?: string;
 }
 
-const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete, podcastName, episodeTitle, podcastImageUrl }) => {
-  if (!status) {
+const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete, jobInfo, podcastImageUrl }) => {
+  if (!status || !jobInfo) {
     return <div>Loading status...</div>;
   }
 
@@ -55,11 +60,11 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDe
   return (
     <div className="processing-status">
       <div className="podcast-info">
-        {podcastImageUrl && <img src={podcastImageUrl} alt={podcastName} className="podcast-image" />}
+        {podcastImageUrl && <img src={podcastImageUrl} alt={jobInfo?.podcastName} className="podcast-image" />}
         <div className="podcast-details">
-          {podcastName && <h3>{podcastName}</h3>}
-          {status.rss_url && <p className="rss-url">{status.rss_url}</p>}
-          {episodeTitle && <h4>{episodeTitle}</h4>}
+          <h3>{jobInfo.podcastName || 'Unknown Podcast'}</h3>
+          {jobInfo.rssUrl && <p className="rss-url">{jobInfo.rssUrl}</p>}
+          <h4>{jobInfo.episodeTitle || 'Unknown Episode'}</h4>
         </div>
       </div>
       <h3 className="status-title">Processing Status: <span className={`status-value ${status.status}`}>{status.status}</span></h3>

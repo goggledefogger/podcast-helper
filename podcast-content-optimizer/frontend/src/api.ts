@@ -48,7 +48,7 @@ export const searchPodcasts = async (query: string) => {
 
 export interface CurrentJob {
   job_id: string;
-  status: JobStatus;
+  status: 'queued' | 'in_progress' | 'completed' | 'failed';
   podcast_name: string;
   episode_title: string;
   rss_url: string;

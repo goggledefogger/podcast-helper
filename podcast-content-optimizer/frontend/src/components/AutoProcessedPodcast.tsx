@@ -2,58 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { FaPodcast, FaChevronDown, FaChevronUp, FaCopy } from 'react-icons/fa';
 import { API_BASE_URL } from '../api';
 import { formatDuration, formatDate } from '../utils/timeUtils';
-import { fetchEpisodes, PodcastInfo } from '../api';
 import './AutoProcessedPodcast.css';
-
-interface Episode {
-  number: number;
-  title: string;
-  published: string;
-  duration: number;
-}
+import { usePodcastContext } from '../contexts/PodcastContext';
 
 interface AutoProcessedPodcastProps {
   rssUrl: string;
-  podcastInfo?: PodcastInfo;
-  onProcessEpisode: (rssUrl: string, episodeIndex: number) => Promise<void>;
-  onSelectPodcast: (rssUrl: string) => Promise<void>;
-  isLoadingEpisodes: boolean;
-  isProcessingEpisode: boolean;
 }
 
-const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
-  rssUrl,
-  podcastInfo,
-  onProcessEpisode,
-  onSelectPodcast,
-  isLoadingEpisodes,
-  isProcessingEpisode,
-}) => {
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-
-  useEffect(() => {
-    const fetchAndUpdateEpisodes = async () => {
-      try {
-        const fetchedEpisodes = await fetchEpisodes(rssUrl);
-        setEpisodes(fetchedEpisodes);
-      } catch (error) {
-        console.error('Error fetching episodes:', error);
-      }
-    };
-
-    fetchAndUpdateEpisodes();
-    // Set up an interval to periodically check for updates
-    const intervalId = setInterval(fetchAndUpdateEpisodes, 3600000); // Check every hour
-
-    return () => clearInterval(intervalId);
-  }, [rssUrl]);
-
+const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl }) => {
+  const {
+    podcastInfo,
+    episodes,
+    fetchEpisodes,
+    isLoadingEpisodes,
+    isProcessingEpisode,
+    handleProcessEpisode,
+    handleSelectPodcast
+  } = usePodcastContext();
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
 
+  useEffect(() => {
+    if (isExpanded && !episodes[rssUrl]) {
+      fetchEpisodes(rssUrl);
+    }
+  }, [isExpanded, rssUrl, episodes, fetchEpisodes]);
+
   const handleToggleExpand = async () => {
     if (!isExpanded) {
-      await onSelectPodcast(rssUrl);
+      await handleSelectPodcast(rssUrl);
     }
     setIsExpanded(!isExpanded);
   };
@@ -64,14 +41,13 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
 
   const handleProcessSelectedEpisode = async () => {
     if (selectedEpisodeIndex !== null) {
-      await onProcessEpisode(rssUrl, selectedEpisodeIndex);
+      await handleProcessEpisode(rssUrl, selectedEpisodeIndex);
       setSelectedEpisodeIndex(null);
     }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      // You can add a notification here if you want to inform the user that the link was copied
       console.log('Link copied to clipboard');
     }, (err) => {
       console.error('Could not copy text: ', err);
@@ -81,12 +57,12 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
   return (
     <li className="auto-processed-item">
       <div className="auto-processed-header" onClick={handleToggleExpand}>
-        {podcastInfo && podcastInfo.imageUrl && (
-          <img src={podcastInfo.imageUrl} alt={podcastInfo.name} className="podcast-image" />
+        {podcastInfo[rssUrl]?.imageUrl && (
+          <img src={podcastInfo[rssUrl].imageUrl} alt={podcastInfo[rssUrl].name} className="podcast-image" />
         )}
         <FaPodcast className="podcast-icon" />
         <div className="podcast-title-container">
-          <h4>{podcastInfo ? podcastInfo.name : 'Loading...'}</h4>
+          <h4>{podcastInfo[rssUrl]?.name || 'Loading...'}</h4>
           <p className="rss-url">{rssUrl}</p>
         </div>
         {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
@@ -101,7 +77,7 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({
               className="episode-select"
             >
               <option value="">Select an episode to process</option>
-              {episodes.map((episode, idx) => (
+              {episodes[rssUrl]?.map((episode, idx) => (
                 <option key={idx} value={idx}>
                   {episode.title} - {formatDate(episode.published)} ({formatDuration(episode.duration)})
                 </option>
