@@ -15,11 +15,14 @@ This project is designed to process podcast audio files, transcribe them, and id
 - Web interface for podcast selection and processing
 - Automatic generation of new magical RSS feeds
 - Caching system for improved performance
+- Progress tracking for podcast processing
+- Customizable content filtering options
 
 ## Requirements
 
 - Python 3.7+
 - FFmpeg (for audio processing)
+- Node.js and npm (for frontend development)
 
 ## Cloud configuration
 
@@ -51,10 +54,15 @@ This project is designed to process podcast audio files, transcribe them, and id
 
 4. Copy the frontend `.env.example` file to `.env` and fill in your API base URL and Firebase config:
    ```
-   cp sample.env .env
+   cp .env.example .env
    ```
    Then edit the `.env` file with your preferred text editor and add your Firebase config (available in the Firebase web console).
 
+5. Install frontend dependencies:
+   ```
+   cd frontend
+   npm install
+   ```
 
 ## Taddy API Setup
 
@@ -72,6 +80,23 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
    ```
    Replace `your_taddy_api_key_here` and `your_taddy_user_id_here` with your Taddy API key and User ID.
 
+## Development Configuration
+
+1. Set up Firebase:
+   - Create a new Firebase project in the Firebase Console
+   - Enable Authentication, Firestore, and Storage services
+   - Add a web app to your project and copy the configuration
+   - Update the frontend `.env` file with your Firebase configuration
+
+2. Configure backend services:
+   - Set up OpenAI API credentials
+   - Set up Google Cloud credentials for Gemini (if using)
+   - Update the backend `.env` file with the necessary API keys and credentials
+
+3. Set up local development environment:
+   - Install Redis for caching and Celery task queue
+   - Configure your IDE for Python and JavaScript development
+
 ## Usage
 
 1. Start the celery worker and redis server:
@@ -87,21 +112,26 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
 
 3. Start the React frontend:
    ```
+   cd frontend
    npm start
    ```
 
-3. Open a web browser and navigate to `http://localhost:3000`.
+4. Open a web browser and navigate to `http://localhost:3000`.
 
-3. Use the search functionality to find podcasts, or enter an RSS URL directly.
+5. Sign up or log in to your account.
 
-4. Select an episode to process.
+6. Use the search functionality to find podcasts, or enter an RSS URL directly.
 
-5. The application will:
+7. Select an episode to process.
+
+8. The application will:
    - Download the podcast if it's not already present
    - Transcribe the audio
    - Analyze the transcript to identify specific content segments
    - Generate output files and save them to Firebase storage
    - Create a modified RSS feed with links to the edited content
+
+9. Track the progress of your podcast processing in the user dashboard.
 
 ## Output
 
@@ -112,7 +142,7 @@ To use the Taddy API for podcast search functionality, you need to set up the fo
 
 ## Customization
 
-You can customize the content identification process by modifying the prompts in the `find_unwanted_content` function within `llm_processor.py`.
+You can customize the content identification process by modifying the prompts in the `find_unwanted_content` function within `llm_processor.py`. Users can also adjust their content filtering preferences in the web interface.
 
 ## Contributing
 
