@@ -48,7 +48,7 @@ export const searchPodcasts = async (query: string) => {
 
 export interface CurrentJob {
   job_id: string;
-  status: JobStatus;
+  status: 'queued' | 'in_progress' | 'completed' | 'failed';
   podcast_name: string;
   episode_title: string;
   rss_url: string;
@@ -159,4 +159,13 @@ export const savePodcastInfo = async (podcast: { name: string; imageUrl: string;
   if (!response.ok) {
     throw new Error('Failed to save podcast info');
   }
+};
+
+export const getModifiedRssFeed = async (rssUrl: string): Promise<string> => {
+  const encodedRssUrl = encodeURIComponent(rssUrl);
+  const response = await fetch(`${API_BASE_URL}/api/modified_rss/${encodedRssUrl}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch modified RSS feed');
+  }
+  return await response.text();
 };

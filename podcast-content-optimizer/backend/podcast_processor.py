@@ -35,6 +35,7 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
 
         chosen_episode = episodes[episode_index]
         podcast_title = episodes[0]['podcast_title']
+        podcast_image_url = episodes[0].get('image_url', '')  # Get the image URL from the first episode
         logging.info(f"Selected episode: {chosen_episode['title']} from podcast: {podcast_title}")
 
         # Create episode folder
@@ -47,12 +48,9 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         logging.info(f"Loaded processed podcasts. Type: {type(processed_podcasts)}")
         logging.info(f"Processed podcasts content: {str(processed_podcasts)[:1000]}...")  # Log the first 1000 characters
 
-        if not isinstance(processed_podcasts, list):
-            logging.error(f"processed_podcasts is not a list. Type: {type(processed_podcasts)}")
-            processed_podcasts = []
-
         # Check if this episode has been processed before
-        existing_podcast = next((p for p in processed_podcasts if p.get('rss_url') == rss_url and p.get('episode_title') == chosen_episode['title']), None)
+        existing_podcast = next((p for p in processed_podcasts['processed_podcasts'].get(rss_url, [])
+                                 if p.get('episode_title') == chosen_episode['title']), None)
 
         if existing_podcast:
             logging.info(f"Found existing podcast: {existing_podcast}")
@@ -73,7 +71,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
                 "rss_url": rss_url,
                 "status": "processing",
                 "job_id": job_id,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "image_url": podcast_image_url  # Add this line to include the image URL
             }
 
         # Update file paths to use Firebase Storage URLs

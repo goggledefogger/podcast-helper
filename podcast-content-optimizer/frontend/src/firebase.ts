@@ -22,24 +22,42 @@ export interface ProcessedPodcast {
   rss_url: string; // Add this line
 }
 
-export const getProcessedPodcasts = async (): Promise<{
+let cachedData: {
+  processed: Record<string, ProcessedPodcast[]>,
+  autoProcessed: string[],
+  prompts: Record<string, string>,
+  podcastInfo: Record<string, { name: string; imageUrl: string }>
+} | null = null;
+
+let lastFetchTime = 0;
+const FETCH_COOLDOWN = 1000; // 1 second cooldown
+
+export const getProcessedPodcasts = async (forceRefresh = false): Promise<{
   processed: Record<string, ProcessedPodcast[]>,
   autoProcessed: string[],
   prompts: Record<string, string>,
   podcastInfo: Record<string, { name: string; imageUrl: string }>
 }> => {
+  const now = Date.now();
+  if (!forceRefresh && cachedData && now - lastFetchTime < FETCH_COOLDOWN) {
+    console.log('Using cached data');
+    return cachedData;
+  }
+
   try {
     const url = await getFileUrl('db.json');
     if (url) {
       const response = await fetch(url);
       const data = await response.json();
-      console.log('Fetched data:', data); // Add this line for debugging
-      return {
+      console.log('Fetched data:', data);
+      cachedData = {
         processed: data.processed_podcasts || {},
         autoProcessed: data.auto_processed_podcasts || [],
         prompts: data.prompts || {},
         podcastInfo: data.podcast_info || {}
       };
+      lastFetchTime = now;
+      return cachedData;
     }
     return { processed: {}, autoProcessed: [], prompts: {}, podcastInfo: {} };
   } catch (error) {

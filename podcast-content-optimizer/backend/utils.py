@@ -135,12 +135,9 @@ def load_processed_podcasts():
         if blob.exists():
             json_data = blob.download_as_text()
             data = json.loads(json_data)
-            return {
-                'processed_podcasts': data.get('processed_podcasts', {}),
-                'auto_processed_podcasts': data.get('auto_processed_podcasts', []),
-                'podcast_info': data.get('podcast_info', {}),
-                'prompts': data.get('prompts', {})
-            }
+            if not isinstance(data, dict):
+                data = {'processed_podcasts': {}, 'auto_processed_podcasts': [], 'podcast_info': {}, 'prompts': {}}
+            return data
         else:
             return {'processed_podcasts': {}, 'auto_processed_podcasts': [], 'podcast_info': {}, 'prompts': {}}
     except Exception as e:
@@ -365,16 +362,18 @@ def save_processed_podcast(podcast_data):
         else:
             data['processed_podcasts'][rss_url].append(podcast_data)
 
-        # Update podcast info
-        data['podcast_info'][rss_url] = {
-            'name': podcast_data['podcast_title'],
-            'imageUrl': podcast_data.get('image_url', '')
-        }
+        # Update podcast info, preserving the existing image URL if not provided in podcast_data
+        if rss_url not in data['podcast_info']:
+            data['podcast_info'][rss_url] = {}
+
+        data['podcast_info'][rss_url]['name'] = podcast_data['podcast_title']
+        if 'image_url' in podcast_data and podcast_data['image_url']:
+            data['podcast_info'][rss_url]['imageUrl'] = podcast_data['image_url']
+        elif 'imageUrl' not in data['podcast_info'][rss_url]:
+            data['podcast_info'][rss_url]['imageUrl'] = ''
 
         # Save to Firebase
-        json_data = json.dumps(data, indent=2)
-        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
-        blob.upload_from_string(json_data, content_type='application/json')
+        save_processed_podcasts(data)
 
         logging.info(f"Successfully saved processed podcast to Firebase: {podcast_data['episode_title']}")
     except Exception as e:

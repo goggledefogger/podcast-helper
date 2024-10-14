@@ -181,8 +181,11 @@ def get_modified_rss(rss_url):
     try:
         processed_podcasts = load_processed_podcasts()
 
+        # Ensure we're passing the correct structure to create_modified_rss_feed
+        rss_specific_podcasts = processed_podcasts['processed_podcasts'].get(rss_url, [])
+
         # Generate the modified RSS feed
-        modified_rss = create_modified_rss_feed(rss_url, processed_podcasts['processed_podcasts'])
+        modified_rss = create_modified_rss_feed(rss_url, {rss_url: rss_specific_podcasts})
 
         if modified_rss:
             return modified_rss, 200, {'Content-Type': 'application/xml; charset=utf-8'}
@@ -311,6 +314,7 @@ def search_podcasts(query):
 @app.route('/api/current_jobs', methods=['GET'])
 def get_current_jobs_route():
     jobs = get_current_jobs()
+    logging.info(f"Returning current jobs: {jobs}")
     return jsonify(jobs), 200
 
 @app.route('/api/delete_job/<job_id>', methods=['DELETE', 'OPTIONS'])

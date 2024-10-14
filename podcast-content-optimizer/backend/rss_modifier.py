@@ -160,18 +160,10 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
             if item_title is not None:
                 # Check if this episode has been processed
                 processed_episode = None
-                if isinstance(processed_podcasts, dict):
-                    # If it's a dict, assume it's structured as {rss_url: [episodes]}
-                    podcast_episodes = processed_podcasts.get(original_rss_url, [])
+                if original_rss_url in processed_podcasts:
+                    podcast_episodes = processed_podcasts[original_rss_url]
                     processed_episode = next(
                         (ep for ep in podcast_episodes if ep.get('episode_title') == item_title.text),
-                        None
-                    )
-                elif isinstance(processed_podcasts, list):
-                    # If it's a list, assume it's a list of episodes
-                    processed_episode = next(
-                        (ep for ep in processed_podcasts
-                         if ep.get('rss_url') == original_rss_url and ep.get('episode_title') == item_title.text),
                         None
                     )
 
@@ -242,15 +234,10 @@ def get_or_create_modified_rss(original_rss_url, processed_podcasts):
 
     logging.info(f"Creating new modified RSS feed for {original_rss_url}")
     try:
-        # Ensure processed_podcasts is a list
-        if isinstance(processed_podcasts, dict):
-            processed_podcasts = processed_podcasts.get('processed_podcasts', [])
-        elif isinstance(processed_podcasts, str):
-            processed_podcasts = json.loads(processed_podcasts).get('processed_podcasts', [])
-
-        if not isinstance(processed_podcasts, list):
-            logging.error(f"processed_podcasts is not a list. Type: {type(processed_podcasts)}")
-            processed_podcasts = []
+        # Ensure processed_podcasts is a dictionary
+        if not isinstance(processed_podcasts, dict):
+            logging.error(f"processed_podcasts is not a dictionary. Type: {type(processed_podcasts)}")
+            processed_podcasts = {}
 
         modified_rss = create_modified_rss_feed(original_rss_url, processed_podcasts)
         if not modified_rss:
