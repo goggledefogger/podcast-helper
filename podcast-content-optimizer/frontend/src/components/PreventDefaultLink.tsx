@@ -13,9 +13,9 @@ const PreventDefaultLink: React.FC<PreventDefaultLinkProps> = ({ children, onCli
   };
 
   return (
-    <a href="#" onClick={handleClick} className={className}>
+    <button onClick={handleClick} className={className}>
       {children}
-    </a>
+    </button>
   );
 };
 

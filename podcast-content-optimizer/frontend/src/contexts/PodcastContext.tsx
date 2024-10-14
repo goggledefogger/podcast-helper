@@ -156,7 +156,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [episodes, setError]);
 
-  const fetchJobStatuses = async () => {
+  const fetchJobStatuses = useCallback(async () => {
     const jobIds = [...currentJobs.map(job => job.job_id)].filter(Boolean) as string[];
 
     if (jobIds.length === 0) return;
@@ -184,9 +184,9 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (error) {
       console.error('Error fetching job statuses:', error);
     }
-  };
+  }, [currentJobs, setJobStatuses, setCurrentJobs, setProcessedPodcasts, setAutoPodcasts, setPodcastInfo]);
 
-  const handleProcessEpisode = async (rssUrl: string, episodeIndex: number) => {
+  const handleProcessEpisode = useCallback(async (rssUrl: string, episodeIndex: number) => {
     setIsProcessingEpisode(true);
     setError('');
     try {
@@ -213,21 +213,21 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsProcessingEpisode(false);
     }
-  };
+  }, [podcastInfo, episodes, setCurrentJobs, setJobInfos, setError, setIsProcessingEpisode]);
 
-  const handleSelectPodcast = async (rssUrl: string) => {
+  const handleSelectPodcast = useCallback(async (rssUrl: string) => {
     // Implement the logic here
-  };
+  }, []);
 
-  const handleDeleteJob = async (jobId: string) => {
+  const handleDeleteJob = useCallback(async (jobId: string) => {
     // Implement the logic here
-  };
+  }, []);
 
-  const handleDeletePodcast = async (podcastTitle: string, episodeTitle: string) => {
+  const handleDeletePodcast = useCallback(async (podcastTitle: string, episodeTitle: string) => {
     // Implement the logic here
-  };
+  }, []);
 
-  const handleEnableAutoProcessing = async (podcast: SearchResult) => {
+  const handleEnableAutoProcessing = useCallback(async (podcast: SearchResult) => {
     try {
       await enableAutoProcessing(podcast.rssUrl);
       await savePodcastInfo(podcast);
@@ -244,7 +244,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Error enabling auto-processing:', error);
       setError(error instanceof Error ? error.message : 'Failed to enable auto-processing. Please try again.');
     }
-  };
+  }, [setAutoPodcasts, setPodcastInfo, setError]);
 
   const contextValue = useMemo(() => ({
     podcastInfo,
