@@ -1,11 +1,10 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo, useRef } from 'react';
-import { getProcessedPodcasts } from '../firebase';
+import { getProcessedPodcasts, AutoProcessedPodcast } from '../firebase';
 import {
   JobStatus,
   fetchEpisodes as apiFetchEpisodes,
   fetchJobStatuses as apiFetchJobStatuses,
   enableAutoProcessing,
-  savePodcastInfo,
   processEpisode as apiProcessEpisode,
   fetchCurrentJobs,
   CurrentJob as ApiCurrentJob,
@@ -44,8 +43,8 @@ interface PodcastContextType {
   setPodcastInfo: React.Dispatch<React.SetStateAction<Record<string, PodcastInfo>>>;
   processedPodcasts: Record<string, any[]>;
   setProcessedPodcasts: React.Dispatch<React.SetStateAction<Record<string, any[]>>>;
-  autoPodcasts: string[];
-  setAutoPodcasts: React.Dispatch<React.SetStateAction<string[]>>;
+  autoPodcasts: AutoProcessedPodcast[];
+  setAutoPodcasts: React.Dispatch<React.SetStateAction<AutoProcessedPodcast[]>>;
   currentJobs: CurrentJob[];
   setCurrentJobs: React.Dispatch<React.SetStateAction<CurrentJob[]>>;
   jobStatuses: Record<string, JobStatus>;
@@ -83,7 +82,7 @@ const PodcastContext = createContext<PodcastContextType | undefined>(undefined);
 export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [podcastInfo, setPodcastInfo] = useState<Record<string, PodcastInfo>>({});
   const [processedPodcasts, setProcessedPodcasts] = useState<Record<string, any[]>>({});
-  const [autoPodcasts, setAutoPodcasts] = useState<string[]>([]);
+  const [autoPodcasts, setAutoPodcasts] = useState<AutoProcessedPodcast[]>([]);
   const [currentJobs, setCurrentJobs] = useState<CurrentJob[]>([]);
   const [jobStatuses, setJobStatuses] = useState<Record<string, JobStatus>>({});
   const [jobInfos, setJobInfos] = useState<Record<string, JobInfo>>({});
@@ -109,7 +108,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ]);
       console.log('Data fetched successfully');
       setProcessedPodcasts(podcastData.processed);
-      setAutoPodcasts(podcastData.autoProcessed);
+      setAutoPodcasts(podcastData.autoProcessed);  // This should now be correct
       setPodcastInfo(podcastData.podcastInfo);
       setCurrentJobs(jobs as CurrentJob[]);
 
@@ -177,7 +176,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (Object.values(data).some(status => status.status === 'completed' || status.status === 'failed')) {
         const { processed, autoProcessed, podcastInfo: newPodcastInfo } = await getProcessedPodcasts();
         setProcessedPodcasts(processed);
-        setAutoPodcasts(autoProcessed);
+        setAutoPodcasts(autoProcessed);  // This should now be correct
         setPodcastInfo(newPodcastInfo);
       }
     } catch (error) {
@@ -280,10 +279,13 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const handleEnableAutoProcessing = useCallback(async (podcast: SearchResult) => {
     try {
-      await enableAutoProcessing(podcast.rssUrl);
-      await savePodcastInfo(podcast);
+      const response = await enableAutoProcessing(podcast.rssUrl);
+      const newAutoPodcast: AutoProcessedPodcast = {
+        rss_url: podcast.rssUrl,
+        enabled_at: response.enabled_at // Assuming the API returns the enabled_at timestamp
+      };
 
-      setAutoPodcasts(prev => [...prev, podcast.rssUrl]);
+      setAutoPodcasts(prev => [...prev, newAutoPodcast]);
       setPodcastInfo(prev => ({
         ...prev,
         [podcast.rssUrl]: { name: podcast.name, imageUrl: podcast.imageUrl }

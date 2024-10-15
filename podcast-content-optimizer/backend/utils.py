@@ -13,6 +13,7 @@ import re
 import firebase_admin
 from firebase_admin import credentials, storage
 import redis
+from datetime import datetime, timezone
 
 # Initialize Firebase app
 cred = credentials.Certificate('etc/firebaseServiceAccountKey.json')
@@ -135,10 +136,10 @@ def load_processed_podcasts():
         if blob.exists():
             json_data = blob.download_as_text()
             data = json.loads(json_data)
-            if not isinstance(data, dict):
-                data = {'processed_podcasts': {}, 'auto_processed_podcasts': [], 'podcast_info': {}, 'prompts': {}}
+            logging.debug(f"Loaded processed podcasts data: {json.dumps(data, indent=2)}")
             return data
         else:
+            logging.warning(f"File {PROCESSED_PODCASTS_FILE} does not exist in Firebase Storage")
             return {'processed_podcasts': {}, 'auto_processed_podcasts': [], 'podcast_info': {}, 'prompts': {}}
     except Exception as e:
         logging.error(f"Error loading processed podcasts from Firebase: {str(e)}")
@@ -150,9 +151,10 @@ def save_processed_podcasts(data):
         json_data = json.dumps(data, indent=2)
         blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
         blob.upload_from_string(json_data, content_type='application/json')
-        logging.info(f"Successfully saved processed podcasts data to Firebase")
+        logging.info(f"[save_processed_podcasts] Successfully saved processed podcasts data to Firebase")
+        logging.debug(f"[save_processed_podcasts] Saved data: {json_data}")
     except Exception as e:
-        logging.error(f"Error saving processed podcasts data to Firebase: {str(e)}")
+        logging.error(f"[save_processed_podcasts] Error saving processed podcasts data to Firebase: {str(e)}")
         logging.error(traceback.format_exc())
 
 def save_auto_processed_podcasts(auto_processed_podcasts):
@@ -324,15 +326,74 @@ def download_from_firebase(firebase_url, local_path):
 
 def load_auto_processed_podcasts():
     data = load_processed_podcasts()
-    if isinstance(data, dict):
+    return data.get('auto_processed_podcasts', [])
+
+def save_auto_processed_podcast(rss_url):
+    try:
+        logging.info(f"[save_auto_processed_podcast] Starting for RSS URL: {rss_url}")
+        data = load_processed_podcasts()
+        logging.debug(f"[save_auto_processed_podcast] Loaded data: {json.dumps(data, indent=2)}")
+
         auto_processed = data.get('auto_processed_podcasts', [])
-    elif isinstance(data, list):
-        # If data is a list, it's likely the old format where auto-processed podcasts weren't stored
-        auto_processed = []
+        logging.debug(f"[save_auto_processed_podcast] Current auto_processed_podcasts: {auto_processed}")
+
+        current_time = datetime.now(timezone.utc).isoformat()
+
+        # Check if the RSS URL is already in the list
+        existing_entry = next((item for item in auto_processed if item['rss_url'] == rss_url), None)
+
+        if existing_entry:
+            logging.info(f"[save_auto_processed_podcast] Updating existing entry for {rss_url}")
+            existing_entry['enabled_at'] = current_time
+            logging.debug(f"[save_auto_processed_podcast] Updated existing entry: {existing_entry}")
+        else:
+            logging.info(f"[save_auto_processed_podcast] Adding new entry for {rss_url}")
+            new_entry = {
+                'rss_url': rss_url,
+                'enabled_at': current_time
+            }
+            auto_processed.append(new_entry)
+            logging.debug(f"[save_auto_processed_podcast] Added new entry: {new_entry}")
+
+        # Always fetch and update podcast information
+        try:
+            feed = feedparser.parse(rss_url)
+            podcast_title = feed.feed.get('title', 'Unknown Podcast')
+            podcast_image = feed.feed.get('image', {}).get('href', '')
+
+            if 'podcast_info' not in data:
+                data['podcast_info'] = {}
+
+            data['podcast_info'][rss_url] = {
+                'name': podcast_title,
+                'imageUrl': podcast_image
+            }
+            logging.info(f"[save_auto_processed_podcast] Updated podcast info for {rss_url}")
+            logging.debug(f"[save_auto_processed_podcast] New podcast info: {data['podcast_info'][rss_url]}")
+        except Exception as e:
+            logging.error(f"[save_auto_processed_podcast] Error fetching podcast info: {str(e)}")
+            logging.error(traceback.format_exc())
+
+        data['auto_processed_podcasts'] = auto_processed
+        logging.debug(f"[save_auto_processed_podcast] Data after modification: {json.dumps(data, indent=2)}")
+
+        save_processed_podcasts(data)
+        logging.info(f"[save_auto_processed_podcast] Auto-processed podcast saved successfully: {rss_url}")
+    except Exception as e:
+        logging.error(f"[save_auto_processed_podcast] Error saving auto-processed podcast: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise
+
+def get_auto_process_enable_date(rss_url):
+    data = load_processed_podcasts()
+    auto_processed = data.get('auto_processed_podcasts', [])
+
+    entry = next((item for item in auto_processed if item['rss_url'] == rss_url), None)
+
+    if entry and 'enabled_at' in entry:
+        return datetime.fromisoformat(entry['enabled_at'])
     else:
-        logging.error(f"Unexpected data type in load_processed_podcasts: {type(data)}")
-        auto_processed = []
-    return list(auto_processed) if auto_processed is not None else []
+        return None
 
 def is_episode_processed(rss_url, episode_title):
     processed_podcasts = load_processed_podcasts()
@@ -386,3 +447,12 @@ def save_processed_podcast(podcast_data):
     except Exception as e:
         logging.error(f"Error saving processed podcast to Firebase: {str(e)}")
         logging.error(traceback.format_exc())
+
+def is_episode_new(rss_url, episode_published_date):
+    enable_date = get_auto_process_enable_date(rss_url)
+    if enable_date is None:
+        logging.info(f"Auto-processing not enabled for {rss_url}")
+        return False
+    is_new = episode_published_date > enable_date
+    logging.info(f"Checking if episode is new - Published: {episode_published_date}, Enabled at: {enable_date}, Is New: {is_new}")
+    return is_new
