@@ -62,7 +62,7 @@ interface PodcastContextType {
   handleSelectPodcast: (rssUrl: string) => Promise<void>;
   handleDeleteJob: (jobId: string) => Promise<void>;
   handleDeletePodcast: (podcastTitle: string, episodeTitle: string) => Promise<void>;
-  handleEnableAutoProcessing: (podcast: SearchResult) => Promise<void>;
+  handleEnableAutoProcessing: (podcast: SearchResult) => Promise<string>;
   error: string;
   setError: React.Dispatch<React.SetStateAction<string>>;
   fetchJobStatuses: () => Promise<void>;
@@ -282,7 +282,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const response = await enableAutoProcessing(podcast.rssUrl);
       const newAutoPodcast: AutoProcessedPodcast = {
         rss_url: podcast.rssUrl,
-        enabled_at: response.enabled_at // Assuming the API returns the enabled_at timestamp
+        enabled_at: response.enabled_at
       };
 
       setAutoPodcasts(prev => [...prev, newAutoPodcast]);
@@ -291,11 +291,11 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         [podcast.rssUrl]: { name: podcast.name, imageUrl: podcast.imageUrl }
       }));
 
-      // Optionally, you can set a success message here
-      // setNotification('Auto-processing enabled for this podcast.');
+      return `Auto-processing enabled for ${podcast.name}`;
     } catch (error) {
       console.error('Error enabling auto-processing:', error);
       setError(error instanceof Error ? error.message : 'Failed to enable auto-processing. Please try again.');
+      throw error;
     }
   }, [setAutoPodcasts, setPodcastInfo, setError]);
 

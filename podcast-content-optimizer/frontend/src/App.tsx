@@ -1,22 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Modal from 'react-modal';
+import Modal from 'react-modal'; // Add this import
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
-import { searchPodcasts } from './api';
 import PromptEditor from './components/PromptEditor';
 import AutoProcessedPodcast from './components/AutoProcessedPodcast';
+import SearchModal from './components/SearchModal';
 import { PodcastProvider, usePodcastContext } from './contexts/PodcastContext';
 import PreventDefaultLink from './components/PreventDefaultLink';
 
+// Add this line to set the app element
 Modal.setAppElement('#root');
-
-interface SearchResult {
-  uuid: string;
-  name: string;
-  description: string;
-  imageUrl: string;
-  rssUrl: string;
-}
 
 const AppContent: React.FC = () => {
   const {
@@ -31,18 +24,14 @@ const AppContent: React.FC = () => {
     setError,
     handleDeleteJob,
     handleDeletePodcast,
-    handleEnableAutoProcessing,
     fetchJobStatuses,
     isLoading,
     fetchAllData
   } = usePodcastContext();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [notification, setNotification] = useState<string | null>(null);
-  const [isSearchLoading, setIsSearchLoading] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
@@ -89,25 +78,7 @@ const AppContent: React.FC = () => {
   }, [currentJobs.length, fetchJobStatuses]);
 
   const openSearchModal = () => setIsSearchModalOpen(true);
-  const closeSearchModal = () => {
-    setIsSearchModalOpen(false);
-    setSearchQuery('');
-    setSearchResults([]);
-  };
-
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) return;
-    setIsSearchLoading(true);
-    setError('');
-    try {
-      const results = await searchPodcasts(searchQuery);
-      setSearchResults(results);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setIsSearchLoading(false);
-    }
-  }, [searchQuery, setError]);
+  const closeSearchModal = () => setIsSearchModalOpen(false);
 
   const clearNotification = useCallback(() => {
     setTimeout(() => {
@@ -121,32 +92,13 @@ const AppContent: React.FC = () => {
     }
   }, [notification, clearNotification]);
 
-  const renderSearchResults = () => {
-    return (
-      <div className="search-results">
-        {searchResults.map((result) => (
-          <div key={result.uuid} className="search-result">
-            <img src={result.imageUrl} alt={result.name} className="podcast-image" />
-            <div className="podcast-info">
-              <h3>{result.name}</h3>
-              <p>{result.description}</p>
-              {autoPodcasts.some(podcast => podcast.rss_url === result.rssUrl) ? (
-                <span className="auto-processing-badge">Auto-processing enabled</span>
-              ) : (
-                <button onClick={() => handleEnableAutoProcessing(result)}>
-                  Enable Auto-processing
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
+
+  const handleNotification = (message: string) => {
+    setNotification(message);
+  };
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -270,28 +222,11 @@ const AppContent: React.FC = () => {
           <PromptEditor />
         </section>
 
-        <Modal
+        <SearchModal
           isOpen={isSearchModalOpen}
           onRequestClose={closeSearchModal}
-          contentLabel="Search Podcasts"
-          className="search-modal"
-          overlayClassName="search-modal-overlay"
-        >
-          <h2>Search Podcasts</h2>
-          <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }}>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Enter podcast name"
-            />
-            <button type="submit" disabled={isSearchLoading}>
-              {isSearchLoading ? 'Searching...' : 'Search'}
-            </button>
-          </form>
-          {renderSearchResults()}
-          <button onClick={closeSearchModal} className="close-modal-button">Close</button>
-        </Modal>
+          onNotification={handleNotification}
+        />
       </main>
 
       {isProcessingEpisode && (
