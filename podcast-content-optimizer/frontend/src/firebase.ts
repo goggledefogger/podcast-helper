@@ -19,12 +19,17 @@ export interface ProcessedPodcast {
   edited_url: string;
   transcript_file: string;
   unwanted_content_file: string;
-  rss_url: string; // Add this line
+  rss_url: string;
+}
+
+export interface AutoProcessedPodcast {
+  rss_url: string;
+  enabled_at: string;
 }
 
 let cachedData: {
   processed: Record<string, ProcessedPodcast[]>,
-  autoProcessed: string[],
+  autoProcessed: AutoProcessedPodcast[],
   prompts: Record<string, string>,
   podcastInfo: Record<string, { name: string; imageUrl: string }>
 } | null = null;
@@ -34,7 +39,7 @@ const FETCH_COOLDOWN = 5000; // 5 seconds cooldown
 
 export const getProcessedPodcasts = async (forceRefresh = false): Promise<{
   processed: Record<string, ProcessedPodcast[]>,
-  autoProcessed: string[],
+  autoProcessed: AutoProcessedPodcast[],
   prompts: Record<string, string>,
   podcastInfo: Record<string, { name: string; imageUrl: string }>
 }> => {

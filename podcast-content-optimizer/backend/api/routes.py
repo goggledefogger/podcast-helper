@@ -3,7 +3,7 @@ from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
 from utils import get_podcast_episodes, url_to_file_path, file_path_to_url, load_auto_processed_podcasts, save_auto_processed_podcasts, is_episode_processed, load_processed_podcasts, get_db, save_processed_podcasts
-from rss_modifier import get_or_create_modified_rss, invalidate_rss_cache, create_modified_rss_feed
+from rss_modifier import create_modified_rss_feed, get_modified_rss_feed
 from llm_processor import find_unwanted_content
 from audio_editor import edit_audio
 from job_manager import update_job_status, get_job_status, append_job_log, get_job_logs, get_current_jobs, delete_job
@@ -27,6 +27,8 @@ import feedparser
 from api.tasks import process_podcast_task
 from datetime import datetime, timedelta
 import pytz
+from utils import save_auto_processed_podcast, load_processed_podcasts
+from rss_modifier import get_modified_rss_feed
 
 # Update the OUTPUT_DIR definition
 OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'output'))
@@ -179,31 +181,40 @@ def serve_output_file(filename):
 @app.route('/api/modified_rss/<path:rss_url>')
 def get_modified_rss(rss_url):
     try:
+        logging.info(f"Received request for modified RSS feed: {rss_url}")
+
+        # Ensure the podcast is set for auto-processing
+        save_auto_processed_podcast(rss_url)
+
         processed_podcasts = load_processed_podcasts()
+        logging.info(f"Loaded processed podcasts for {rss_url}")
 
         # Ensure we're passing the correct structure to create_modified_rss_feed
         rss_specific_podcasts = processed_podcasts['processed_podcasts'].get(rss_url, [])
+        logging.info(f"Found {len(rss_specific_podcasts)} processed episodes for {rss_url}")
 
         # Generate the modified RSS feed
-        modified_rss = create_modified_rss_feed(rss_url, {rss_url: rss_specific_podcasts})
+        modified_rss = get_modified_rss_feed(rss_url, {rss_url: rss_specific_podcasts})
 
         if modified_rss:
+            logging.info(f"Successfully generated modified RSS feed for {rss_url}")
             # Create a response object
             response = make_response(modified_rss)
 
             # Set the content type
             response.headers['Content-Type'] = 'application/xml; charset=utf-8'
 
-            # Add cache control headers
+            # Add cache control headers to prevent caching
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
 
             return response
         else:
-            return jsonify({"error": "Failed to generate modified RSS feed"}), 500
+            logging.error(f"Failed to create modified RSS feed for {rss_url}")
+            return jsonify({"error": "Failed to create modified RSS feed"}), 500
     except Exception as e:
-        logging.error(f"Error in get_modified_rss: {str(e)}")
+        logging.error(f"Error in get_modified_rss for {rss_url}: {str(e)}")
         logging.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
@@ -485,17 +496,19 @@ def enable_auto_processing():
     data = request.json
     rss_url = data.get('rss_url')
 
+    logging.info(f"[enable_auto_processing] Received request for RSS URL: {rss_url}")
+
     if not rss_url:
+        logging.error("[enable_auto_processing] No RSS URL provided")
         return jsonify({'error': 'RSS URL is required'}), 400
 
     try:
-        auto_processed = load_auto_processed_podcasts()
-        if rss_url not in auto_processed:
-            auto_processed.append(rss_url)
-            save_auto_processed_podcasts(auto_processed)
+        logging.info(f"[enable_auto_processing] Calling save_auto_processed_podcast for: {rss_url}")
+        save_auto_processed_podcast(rss_url)
+        logging.info(f"[enable_auto_processing] Auto-processing enabled successfully for: {rss_url}")
         return jsonify({'message': 'Auto-processing enabled successfully'}), 200
     except Exception as e:
-        logging.error(f"Error enabling auto-processing: {str(e)}")
+        logging.error(f"[enable_auto_processing] Error enabling auto-processing: {str(e)}")
         logging.error(traceback.format_exc())
         return jsonify({'error': f'Failed to enable auto-processing: {str(e)}'}), 500
 
@@ -518,10 +531,8 @@ def save_auto_processed():
         return jsonify({'error': 'RSS URL is required'}), 400
 
     try:
-        auto_processed = load_auto_processed_podcasts()
-        if rss_url not in auto_processed:
-            auto_processed.append(rss_url)
-            save_auto_processed_podcasts(auto_processed)
+        logging.info(f"Received request to save auto-processed podcast: {rss_url}")
+        save_auto_processed_podcast(rss_url)
         return jsonify({'message': 'Auto-processed podcast saved successfully'}), 200
     except Exception as e:
         logging.error(f"Error saving auto-processed podcast: {str(e)}")

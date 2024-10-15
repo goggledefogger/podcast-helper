@@ -7,9 +7,10 @@ import { usePodcastContext } from '../contexts/PodcastContext';
 
 interface AutoProcessedPodcastProps {
   rssUrl: string;
+  enabledAt: string;
 }
 
-const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl }) => {
+const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl, enabledAt }) => {
   const {
     podcastInfo,
     episodes,
@@ -18,7 +19,7 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl }) =
     isProcessingEpisode,
     handleProcessEpisode,
     handleSelectPodcast,
-    processedPodcasts // Add this to get the processed podcasts
+    processedPodcasts
   } = usePodcastContext();
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
@@ -55,7 +56,6 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl }) =
     });
   };
 
-  // Function to check if an episode has been processed
   const isEpisodeProcessed = (episodeTitle: string) => {
     return processedPodcasts[rssUrl]?.some(podcast => podcast.episode_title === episodeTitle);
   };
@@ -73,6 +73,7 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl }) =
         <div className="podcast-title-container">
           <h4>{podcastInfo[rssUrl]?.name || 'Loading...'}</h4>
           <p className="rss-url">{rssUrl}</p>
+          <p className="enabled-at">Enabled at: {new Date(enabledAt).toLocaleString()}</p>
         </div>
         {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
       </div>

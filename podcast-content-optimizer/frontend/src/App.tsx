@@ -3,12 +3,10 @@ import Modal from 'react-modal';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
 import { searchPodcasts } from './api';
-import { getFileUrl } from './firebase';
 import PromptEditor from './components/PromptEditor';
-import { API_BASE_URL } from './api';
 import AutoProcessedPodcast from './components/AutoProcessedPodcast';
-import PreventDefaultLink from './components/PreventDefaultLink';
 import { PodcastProvider, usePodcastContext } from './contexts/PodcastContext';
+import PreventDefaultLink from './components/PreventDefaultLink';
 
 Modal.setAppElement('#root');
 
@@ -61,12 +59,7 @@ const AppContent: React.FC = () => {
   }, [theme]);
 
   const toggleTheme = () => {
-    console.log('Toggle theme called');
-    setTheme(prevTheme => {
-      const newTheme = prevTheme === 'light' ? 'dark' : 'light';
-      console.log('New theme:', newTheme);
-      return newTheme;
-    });
+    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
   };
 
   useEffect(() => {
@@ -93,7 +86,7 @@ const AppContent: React.FC = () => {
     return () => {
       stopPolling();
     };
-  }, [currentJobs.length, fetchJobStatuses]); // Only depend on the length of currentJobs
+  }, [currentJobs.length, fetchJobStatuses]);
 
   const openSearchModal = () => setIsSearchModalOpen(true);
   const closeSearchModal = () => {
@@ -116,14 +109,12 @@ const AppContent: React.FC = () => {
     }
   }, [searchQuery, setError]);
 
-  // Add this function to clear the notification after a delay
   const clearNotification = useCallback(() => {
     setTimeout(() => {
       setNotification(null);
-    }, 5000); // Clear after 5 seconds
+    }, 5000);
   }, []);
 
-  // Use useEffect to call clearNotification when notification changes
   useEffect(() => {
     if (notification) {
       clearNotification();
@@ -139,7 +130,7 @@ const AppContent: React.FC = () => {
             <div className="podcast-info">
               <h3>{result.name}</h3>
               <p>{result.description}</p>
-              {autoPodcasts.includes(result.rssUrl) ? (
+              {autoPodcasts.some(podcast => podcast.rss_url === result.rssUrl) ? (
                 <span className="auto-processing-badge">Auto-processing enabled</span>
               ) : (
                 <button onClick={() => handleEnableAutoProcessing(result)}>
@@ -215,47 +206,24 @@ const AppContent: React.FC = () => {
                     <li key={`${rssUrl}-${index}`} className="processed-item">
                       <h4>{podcast.podcast_title} - {podcast.episode_title}</h4>
                       <div className="processed-links">
-                        {podcast.edited_url && (
-                          <PreventDefaultLink
-                            onClick={async () => {
-                              const url = await getFileUrl(podcast.edited_url);
-                              if (url) window.open(url, '_blank');
-                            }}
-                            className="view-link"
-                          >
-                            Download Edited Audio
-                          </PreventDefaultLink>
-                        )}
-                        {podcast.transcript_file && (
-                          <PreventDefaultLink
-                            onClick={async () => {
-                              const url = await getFileUrl(podcast.transcript_file);
-                              if (url) window.open(url, '_blank');
-                            }}
-                            className="view-link"
-                          >
-                            View Transcript
-                          </PreventDefaultLink>
-                        )}
-                        {podcast.unwanted_content_file && (
-                          <PreventDefaultLink
-                            onClick={async () => {
-                              const url = await getFileUrl(podcast.unwanted_content_file);
-                              if (url) window.open(url, '_blank');
-                            }}
-                            className="view-link"
-                          >
-                            View Unwanted Content
-                          </PreventDefaultLink>
-                        )}
-                        {podcast.rss_url && (
-                          <PreventDefaultLink
-                            onClick={() => window.open(`${API_BASE_URL}/api/modified_rss/${encodeURIComponent(podcast.rss_url)}`, '_blank')}
-                            className="view-link"
-                          >
-                            View Modified RSS Feed
-                          </PreventDefaultLink>
-                        )}
+                        <PreventDefaultLink
+                          onClick={() => window.open(podcast.edited_url, '_blank')}
+                          className="view-link"
+                        >
+                          View Edited Audio
+                        </PreventDefaultLink>
+                        <PreventDefaultLink
+                          onClick={() => window.open(podcast.transcript_file, '_blank')}
+                          className="view-link"
+                        >
+                          View Transcript
+                        </PreventDefaultLink>
+                        <PreventDefaultLink
+                          onClick={() => window.open(podcast.unwanted_content_file, '_blank')}
+                          className="view-link"
+                        >
+                          View Unwanted Content
+                        </PreventDefaultLink>
                       </div>
                       <button
                         onClick={() => handleDeletePodcast(podcast.podcast_title, podcast.episode_title)}
@@ -272,10 +240,11 @@ const AppContent: React.FC = () => {
                 <h2 id="auto-processed-heading">Auto-processed Podcasts</h2>
                 {autoPodcasts.length > 0 ? (
                   <ul className="auto-processed-list">
-                    {autoPodcasts.map((rssUrl, index) => (
+                    {autoPodcasts.map((podcast, index) => (
                       <AutoProcessedPodcast
                         key={`auto-${index}`}
-                        rssUrl={rssUrl}
+                        rssUrl={podcast.rss_url}
+                        enabledAt={podcast.enabled_at}
                       />
                     ))}
                   </ul>
