@@ -99,7 +99,7 @@
   background-color: var(--card-background);
   padding: 5px;
   border-radius: 8px;
-  width: 80px; /* Set a fixed width for all stages */
+  width: 80px;
 }
 
 .stage-icon {
@@ -113,22 +113,18 @@
 }
 
 .stage-name {
-  font-size: 0.6em; /* Smaller font size for all stages */
+  font-size: 0.6em;
   text-align: center;
   word-wrap: break-word;
   transition: all 0.3s ease;
-}
-
-.stage-line {
-  display: none;
 }
 
 .stage:not(:last-child)::after {
   content: '';
   position: absolute;
   top: 50%;
-  right: -40px; /* Adjust based on the space between stages */
-  width: 40px; /* Adjust based on the space between stages */
+  right: -40px;
+  width: 40px;
   height: 2px;
   background-color: var(--border-color);
   z-index: 0;
@@ -158,7 +154,7 @@
 }
 
 .stage.in_progress .stage-name {
-  font-size: 0.7em; /* Slightly larger font for the current stage */
+  font-size: 0.7em;
 }
 
 @keyframes pulse {
@@ -209,16 +205,16 @@
   }
 
   .stage {
-    width: 60px; /* Smaller width for mobile */
+    width: 60px;
     margin: 5px;
   }
 
   .stage:not(:last-child)::after {
-    display: none; /* Remove lines between stages on mobile */
+    display: none;
   }
 
   .stage.in_progress {
-    transform: scale(1.1); /* Slightly smaller scale for mobile */
+    transform: scale(1.1);
   }
 
   .podcast-info {

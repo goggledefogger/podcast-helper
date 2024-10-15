@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPodcast, FaChevronDown, FaChevronUp, FaCopy } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaCopy } from 'react-icons/fa';
 import { API_BASE_URL } from '../api';
 import { formatDuration, formatDate } from '../utils/timeUtils';
 import './AutoProcessedPodcast.css';
@@ -17,7 +17,8 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl }) =
     isLoadingEpisodes,
     isProcessingEpisode,
     handleProcessEpisode,
-    handleSelectPodcast
+    handleSelectPodcast,
+    processedPodcasts // Add this to get the processed podcasts
   } = usePodcastContext();
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
@@ -54,6 +55,11 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl }) =
     });
   };
 
+  // Function to check if an episode has been processed
+  const isEpisodeProcessed = (episodeTitle: string) => {
+    return processedPodcasts[rssUrl]?.some(podcast => podcast.episode_title === episodeTitle);
+  };
+
   return (
     <li className="auto-processed-item">
       <div className="auto-processed-header" onClick={handleToggleExpand}>
@@ -64,7 +70,6 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl }) =
             className="podcast-image"
           />
         )}
-        <FaPodcast className="podcast-icon" />
         <div className="podcast-title-container">
           <h4>{podcastInfo[rssUrl]?.name || 'Loading...'}</h4>
           <p className="rss-url">{rssUrl}</p>
@@ -83,7 +88,10 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl }) =
               <option value="">Select an episode to process</option>
               {episodes[rssUrl]?.map((episode, idx) => (
                 <option key={idx} value={idx}>
-                  {episode.title} - {formatDate(episode.published)} ({formatDuration(episode.duration)})
+                  {episode.title}
+                  {isEpisodeProcessed(episode.title) ? ' (Optimized)' : ''}
+                  {' - '}
+                  {formatDate(episode.published)} ({formatDuration(episode.duration)})
                 </option>
               ))}
             </select>

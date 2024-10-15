@@ -1,4 +1,4 @@
-from flask import jsonify, request, Response, send_from_directory, abort, current_app, send_file, redirect, render_template_string, url_for, render_template
+from flask import jsonify, request, Response, send_from_directory, abort, current_app, send_file, redirect, render_template_string, url_for, render_template, make_response
 from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
@@ -188,7 +188,18 @@ def get_modified_rss(rss_url):
         modified_rss = create_modified_rss_feed(rss_url, {rss_url: rss_specific_podcasts})
 
         if modified_rss:
-            return modified_rss, 200, {'Content-Type': 'application/xml; charset=utf-8'}
+            # Create a response object
+            response = make_response(modified_rss)
+
+            # Set the content type
+            response.headers['Content-Type'] = 'application/xml; charset=utf-8'
+
+            # Add cache control headers
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+
+            return response
         else:
             return jsonify({"error": "Failed to generate modified RSS feed"}), 500
     except Exception as e:
@@ -364,20 +375,26 @@ def delete_processed_podcast():
 
         # Load existing processed podcasts
         processed_data = load_processed_podcasts()
-        processed_podcasts = processed_data.get('processed_podcasts', [])
+        processed_podcasts = processed_data.get('processed_podcasts', {})
 
-        if not isinstance(processed_podcasts, list):
-            logging.error(f"Expected processed_podcasts to be a list, got {type(processed_podcasts)}")
+        if not isinstance(processed_podcasts, dict):
+            logging.error(f"Expected processed_podcasts to be a dict, got {type(processed_podcasts)}")
             return jsonify({"error": "Internal server error"}), 500
 
-        # Find and remove the podcast from the list
-        processed_podcasts = [p for p in processed_podcasts if not (p['podcast_title'] == podcast_title and p['episode_title'] == episode_title)]
+        # Find and remove the podcast from the dictionary
+        rss_urls_to_delete = []
+        for rss_url, episodes in processed_podcasts.items():
+            processed_podcasts[rss_url] = [ep for ep in episodes if not (ep['podcast_title'] == podcast_title and ep['episode_title'] == episode_title)]
+            if not processed_podcasts[rss_url]:
+                rss_urls_to_delete.append(rss_url)
 
-        # Save the updated list
+        # Remove empty RSS URLs
+        for rss_url in rss_urls_to_delete:
+            del processed_podcasts[rss_url]
+
+        # Save the updated data
         processed_data['processed_podcasts'] = processed_podcasts
-        json_data = json.dumps(processed_data, indent=2)
-        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
-        blob.upload_from_string(json_data, content_type='application/json')
+        save_processed_podcasts(processed_data)
 
         # Delete files from Firebase Storage
         episode_folder = get_episode_folder(podcast_title, episode_title)
@@ -473,15 +490,13 @@ def enable_auto_processing():
 
     try:
         auto_processed = load_auto_processed_podcasts()
-        if not isinstance(auto_processed, list):
-            auto_processed = []
         if rss_url not in auto_processed:
             auto_processed.append(rss_url)
             save_auto_processed_podcasts(auto_processed)
         return jsonify({'message': 'Auto-processing enabled successfully'}), 200
     except Exception as e:
         logging.error(f"Error enabling auto-processing: {str(e)}")
-        logging.error(traceback.format_exc())  # Add this line to get the full traceback
+        logging.error(traceback.format_exc())
         return jsonify({'error': f'Failed to enable auto-processing: {str(e)}'}), 500
 
 @app.route('/api/auto_processed_podcasts', methods=['GET'])
