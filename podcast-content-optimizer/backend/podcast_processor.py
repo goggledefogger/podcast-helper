@@ -4,7 +4,8 @@ from utils import (
     get_podcast_episodes, download_episode, run_with_animation,
     save_processed_podcast, file_path_to_url, safe_filename,
     get_episode_folder, upload_to_firebase, PROCESSED_PODCASTS_FILE,
-    file_exists_in_firebase, download_from_firebase, load_processed_podcasts
+    file_exists_in_firebase, download_from_firebase, load_processed_podcasts,
+    get_db
 )
 from job_manager import update_job_status
 import whisper
@@ -23,20 +24,18 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
 
     try:
         # Get available episodes
-        logging.info("STAGE:FETCH_EPISODES:Starting")
-        update_job_status(job_id, 'in_progress', 'FETCH_EPISODES', 10, 'Fetching episodes')
         episodes = run_with_animation(get_podcast_episodes, rss_url)
-        logging.info(f"Found {len(episodes)} episodes")
-        logging.info("STAGE:FETCH_EPISODES:Completed")
-        update_job_status(job_id, 'in_progress', 'FETCH_EPISODES', 20, 'Episodes fetched')
-
         if episode_index >= len(episodes):
             raise ValueError("Episode index out of range")
 
         chosen_episode = episodes[episode_index]
         podcast_title = episodes[0]['podcast_title']
-        podcast_image_url = episodes[0].get('image_url', '')  # Get the image URL from the first episode
-        logging.info(f"Selected episode: {chosen_episode['title']} from podcast: {podcast_title}")
+        episode_title = chosen_episode['title']
+
+        # Set job status in Redis
+        db = get_db()
+        job_key = f"job:{rss_url}:{episode_title}"
+        db.set(job_key, 'in_progress')
 
         # Create episode folder
         episode_folder = get_episode_folder(podcast_title, chosen_episode['title'])
@@ -72,7 +71,7 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
                 "status": "processing",
                 "job_id": job_id,
                 "timestamp": datetime.now().isoformat(),
-                "image_url": podcast_image_url  # Add this line to include the image URL
+                "image_url": episodes[0].get('image_url', '')  # Get the image URL from the first episode
             }
 
         # Update file paths to use Firebase Storage URLs
@@ -245,10 +244,15 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         logging.info("STAGE:CLEANUP:Completed cleanup of local files")
         update_job_status(job_id, 'in_progress', 'CLEANUP', 98, 'Local files cleaned up')
 
+        # Update job status when completed
+        db.set(job_key, 'completed')
+
         return result
 
     except Exception as e:
         logging.error(f"Error in podcast processing: {str(e)}")
         logging.error(traceback.format_exc())
         update_job_status(job_id, 'failed', 'ERROR', 0, f'Error: {str(e)}')
+        # Update job status when failed
+        db.set(job_key, 'failed')
         raise

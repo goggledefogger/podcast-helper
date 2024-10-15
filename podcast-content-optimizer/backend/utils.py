@@ -337,9 +337,16 @@ def load_auto_processed_podcasts():
 def is_episode_processed(rss_url, episode_title):
     processed_podcasts = load_processed_podcasts()
     return any(
-        episode['episode_title'] == episode_title
+        episode['episode_title'] == episode_title and episode['status'] == 'completed'
         for episode in processed_podcasts['processed_podcasts'].get(rss_url, [])
     )
+
+def is_episode_being_processed(rss_url, episode_title):
+    # Check if there's an active job for this episode
+    db = get_db()
+    job_key = f"job:{rss_url}:{episode_title}"
+    job_status = db.get(job_key)
+    return job_status is not None and job_status.decode() in ['queued', 'in_progress']
 
 def get_db():
     if not hasattr(get_db, 'db'):

@@ -9,13 +9,16 @@ import requests
 import os
 from mutagen.mp3 import MP3
 from cache import cache_get, cache_set
-from utils import format_duration
+from utils import format_duration, is_episode_processed, is_episode_being_processed, get_podcast_episodes
 from flask import request
 from io import StringIO
 from utils import safe_filename
 import urllib.parse
 from firebase_admin import storage
 import json
+from podcast_processor import process_podcast_episode
+from api.tasks import process_podcast_task
+import uuid
 
 # Define common namespace prefixes
 NAMESPACES = {
@@ -49,8 +52,6 @@ def download_image(image_url, podcast_title):
 
 def create_modified_rss_feed(original_rss_url, processed_podcasts):
     logging.info(f"Creating modified RSS feed for {original_rss_url}")
-    logging.info(f"Type of processed_podcasts: {type(processed_podcasts)}")
-    logging.info(f"Content of processed_podcasts: {processed_podcasts}")
 
     try:
         # Parse the original RSS feed
@@ -158,42 +159,23 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         for item in channel.findall('item'):
             item_title = item.find('title')
             if item_title is not None:
-                # Check if this episode has been processed
-                processed_episode = None
-                if original_rss_url in processed_podcasts:
-                    podcast_episodes = processed_podcasts[original_rss_url]
-                    processed_episode = next(
-                        (ep for ep in podcast_episodes if ep.get('episode_title') == item_title.text),
-                        None
-                    )
+                episode_title = item_title.text
+                processed_episode = next(
+                    (ep for ep in processed_podcasts.get(original_rss_url, [])
+                     if ep.get('episode_title') == episode_title and ep.get('status') == 'completed'),
+                    None
+                )
 
                 if processed_episode:
-                    # Update the enclosure URL to the Firebase Storage URL
-                    enclosure = item.find('enclosure')
-                    if enclosure is not None and processed_episode.get('edited_url'):
-                        enclosure.set('url', processed_episode['edited_url'])
-                        logging.info(f"Updated enclosure URL for episode: {item_title.text}")
-
-                    # Only add "(Optimized)" if the episode has been processed
-                    item_title.text = f"{item_title.text} (Optimized)"
-
-                    # Update other elements for processed episodes
-                    guid = item.find('guid')
-                    if guid is not None:
-                        guid.text = f"{guid.text}_optimized"
-
-                    pub_date = item.find('pubDate')
-                    if pub_date is not None:
-                        pub_date.text = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
-
-                    itunes_title = item.find('itunes:title', namespaces=NAMESPACES)
-                    if itunes_title is not None:
-                        itunes_title.text = f"{itunes_title.text} (Optimized)"
-
-                    # Update the duration if available
-                    duration_elem = item.find('itunes:duration', namespaces=NAMESPACES)
-                    if duration_elem is not None and 'duration' in processed_episode:
-                        duration_elem.text = format_duration(processed_episode['duration'])
+                    # Update the item for processed episodes
+                    update_processed_item(item, processed_episode, namespaces)
+                elif is_episode_being_processed(original_rss_url, episode_title):
+                    # Remove the item from the feed if it's currently being processed
+                    channel.remove(item)
+                    logging.info(f"Removed episode from feed (currently processing): {episode_title}")
+                else:
+                    # Keep the original episode in the feed without modifications
+                    logging.info(f"Keeping original episode in feed: {episode_title}")
 
         # Update namespace-specific identifiers
         for prefix, uri in namespaces.items():
@@ -211,19 +193,55 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         logging.error(traceback.format_exc())
         return None
 
+def update_processed_item(item, processed_episode, namespaces):
+    # Update the enclosure URL to the Firebase Storage URL
+    enclosure = item.find('enclosure')
+    if enclosure is not None and processed_episode.get('edited_url'):
+        enclosure.set('url', processed_episode['edited_url'])
+
+    # Add "(Optimized)" to the title
+    item_title = item.find('title')
+    if item_title is not None:
+        item_title.text = f"{item_title.text} (Optimized)"
+
+    # Update other elements for processed episodes
+    guid = item.find('guid')
+    if guid is not None:
+        guid.text = f"{guid.text}_optimized"
+
+    pub_date = item.find('pubDate')
+    if pub_date is not None:
+        pub_date.text = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
+
+    itunes_title = item.find('itunes:title', namespaces=namespaces)
+    if itunes_title is not None:
+        itunes_title.text = f"{itunes_title.text} (Optimized)"
+
+    # Update the duration if available
+    duration_elem = item.find('itunes:duration', namespaces=namespaces)
+    if duration_elem is not None and 'duration' in processed_episode:
+        duration_elem.text = format_duration(processed_episode['duration'])
+
+def process_new_episode(rss_url, episode_title):
+    logging.info(f"Checking if processing is needed for episode: {episode_title} from {rss_url}")
+
+    if is_episode_processed(rss_url, episode_title) or is_episode_being_processed(rss_url, episode_title):
+        logging.info(f"Episode {episode_title} is already processed or being processed. Skipping.")
+        return
+
+    logging.info(f"Starting to process new episode: {episode_title} from {rss_url}")
+    episodes = get_podcast_episodes(rss_url)
+    episode_index = next((i for i, ep in enumerate(episodes) if ep['title'] == episode_title), None)
+
+    if episode_index is not None:
+        job_id = str(uuid.uuid4())
+        process_podcast_task.delay(rss_url, episode_index, job_id)
+        logging.info(f"Initiated processing for new episode: {episode_title} with job_id: {job_id}")
+    else:
+        logging.error(f"Could not find episode {episode_title} in the feed")
+
 def get_or_create_modified_rss(original_rss_url, processed_podcasts):
     logging.info(f"Entering get_or_create_modified_rss with URL: {original_rss_url}")
-    logging.info(f"Type of processed_podcasts: {type(processed_podcasts)}")
-
-    # Safely log the content of processed_podcasts
-    if isinstance(processed_podcasts, dict):
-        logging.info(f"Content of processed_podcasts (first 500 chars): {str(processed_podcasts)[:500]}...")
-    elif isinstance(processed_podcasts, list):
-        logging.info(f"Number of processed podcasts: {len(processed_podcasts)}")
-        if processed_podcasts:
-            logging.info(f"First podcast: {str(processed_podcasts[0])[:500]}...")
-    else:
-        logging.info(f"processed_podcasts: {str(processed_podcasts)[:500]}...")
 
     cache_key = f"modified_rss:{original_rss_url}"
     cached_rss = rss_cache.get(cache_key)

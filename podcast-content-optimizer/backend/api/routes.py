@@ -1,4 +1,4 @@
-from flask import jsonify, request, Response, send_from_directory, abort, current_app, send_file, redirect, render_template_string, url_for, render_template
+from flask import jsonify, request, Response, send_from_directory, abort, current_app, send_file, redirect, render_template_string, url_for, render_template, make_response
 from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
@@ -188,7 +188,18 @@ def get_modified_rss(rss_url):
         modified_rss = create_modified_rss_feed(rss_url, {rss_url: rss_specific_podcasts})
 
         if modified_rss:
-            return modified_rss, 200, {'Content-Type': 'application/xml; charset=utf-8'}
+            # Create a response object
+            response = make_response(modified_rss)
+
+            # Set the content type
+            response.headers['Content-Type'] = 'application/xml; charset=utf-8'
+
+            # Add cache control headers
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+
+            return response
         else:
             return jsonify({"error": "Failed to generate modified RSS feed"}), 500
     except Exception as e:
@@ -479,15 +490,13 @@ def enable_auto_processing():
 
     try:
         auto_processed = load_auto_processed_podcasts()
-        if not isinstance(auto_processed, list):
-            auto_processed = []
         if rss_url not in auto_processed:
             auto_processed.append(rss_url)
             save_auto_processed_podcasts(auto_processed)
         return jsonify({'message': 'Auto-processing enabled successfully'}), 200
     except Exception as e:
         logging.error(f"Error enabling auto-processing: {str(e)}")
-        logging.error(traceback.format_exc())  # Add this line to get the full traceback
+        logging.error(traceback.format_exc())
         return jsonify({'error': f'Failed to enable auto-processing: {str(e)}'}), 500
 
 @app.route('/api/auto_processed_podcasts', methods=['GET'])
