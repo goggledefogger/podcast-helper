@@ -364,20 +364,21 @@ def delete_processed_podcast():
 
         # Load existing processed podcasts
         processed_data = load_processed_podcasts()
-        processed_podcasts = processed_data.get('processed_podcasts', [])
+        processed_podcasts = processed_data.get('processed_podcasts', {})
 
-        if not isinstance(processed_podcasts, list):
-            logging.error(f"Expected processed_podcasts to be a list, got {type(processed_podcasts)}")
+        if not isinstance(processed_podcasts, dict):
+            logging.error(f"Expected processed_podcasts to be a dict, got {type(processed_podcasts)}")
             return jsonify({"error": "Internal server error"}), 500
 
-        # Find and remove the podcast from the list
-        processed_podcasts = [p for p in processed_podcasts if not (p['podcast_title'] == podcast_title and p['episode_title'] == episode_title)]
+        # Find and remove the podcast from the dictionary
+        for rss_url, episodes in processed_podcasts.items():
+            processed_podcasts[rss_url] = [ep for ep in episodes if not (ep['podcast_title'] == podcast_title and ep['episode_title'] == episode_title)]
+            if not processed_podcasts[rss_url]:
+                del processed_podcasts[rss_url]
 
-        # Save the updated list
+        # Save the updated data
         processed_data['processed_podcasts'] = processed_podcasts
-        json_data = json.dumps(processed_data, indent=2)
-        blob = storage.bucket().blob(PROCESSED_PODCASTS_FILE)
-        blob.upload_from_string(json_data, content_type='application/json')
+        save_processed_podcasts(processed_data)
 
         # Delete files from Firebase Storage
         episode_folder = get_episode_folder(podcast_title, episode_title)

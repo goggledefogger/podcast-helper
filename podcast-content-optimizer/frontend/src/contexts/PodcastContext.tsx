@@ -8,7 +8,9 @@ import {
   savePodcastInfo,
   processEpisode as apiProcessEpisode,
   fetchCurrentJobs,
-  CurrentJob as ApiCurrentJob
+  CurrentJob as ApiCurrentJob,
+  deleteJob,
+  deleteProcessedPodcast
 } from '../api';
 
 interface PodcastInfo {
@@ -121,9 +123,6 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
       setJobInfos(newJobInfos);
 
-      console.log(`Updated job infos: ${JSON.stringify(newJobInfos)}`);
-      console.log(`Updated podcast info: ${JSON.stringify(podcastData.podcastInfo)}`);
-
       if (jobs.length > 0) {
         const statuses = await apiFetchJobStatuses(jobs.map(job => job.job_id));
         setJobStatuses(statuses);
@@ -199,6 +198,19 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         rss_url: rssUrl
       };
       setCurrentJobs(prev => [...prev, newJob]);
+
+      // Immediately set a temporary job status
+      setJobStatuses(prev => ({
+        ...prev,
+        [data.job_id]: {
+          status: 'queued',
+          current_stage: 'INITIALIZATION',
+          progress: 0,
+          message: 'Job queued, waiting to start...',
+          timestamp: Date.now() / 1000
+        }
+      }));
+
       setJobInfos(prev => ({
         ...prev,
         [data.job_id]: {
@@ -207,25 +219,64 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
           rssUrl: newJob.rss_url
         }
       }));
+
+      // Fetch the actual job status
+      fetchJobStatuses();
     } catch (error) {
       console.error('Error processing episode:', error);
       setError(error instanceof Error ? error.message : 'Failed to process episode. Please try again.');
     } finally {
       setIsProcessingEpisode(false);
     }
-  }, [podcastInfo, episodes, setCurrentJobs, setJobInfos, setError, setIsProcessingEpisode]);
+  }, [podcastInfo, episodes, setCurrentJobs, setJobInfos, setJobStatuses, setError, setIsProcessingEpisode, fetchJobStatuses]);
 
   const handleSelectPodcast = useCallback(async (rssUrl: string) => {
     // Implement the logic here
   }, []);
 
   const handleDeleteJob = useCallback(async (jobId: string) => {
-    // Implement the logic here
-  }, []);
+    try {
+      await deleteJob(jobId);
+      setCurrentJobs(prevJobs => prevJobs.filter(job => job.job_id !== jobId));
+      setJobStatuses(prevStatuses => {
+        const newStatuses = { ...prevStatuses };
+        delete newStatuses[jobId];
+        return newStatuses;
+      });
+      setJobInfos(prevInfos => {
+        const newInfos = { ...prevInfos };
+        delete newInfos[jobId];
+        return newInfos;
+      });
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete job');
+    }
+  }, [setCurrentJobs, setJobStatuses, setJobInfos, setError]);
 
   const handleDeletePodcast = useCallback(async (podcastTitle: string, episodeTitle: string) => {
-    // Implement the logic here
-  }, []);
+    try {
+      await deleteProcessedPodcast(podcastTitle, episodeTitle);
+      setProcessedPodcasts(prevPodcasts => {
+        const newPodcasts = { ...prevPodcasts };
+        Object.keys(newPodcasts).forEach(rssUrl => {
+          newPodcasts[rssUrl] = newPodcasts[rssUrl].filter(
+            podcast => !(podcast.podcast_title === podcastTitle && podcast.episode_title === episodeTitle)
+          );
+          if (newPodcasts[rssUrl].length === 0) {
+            delete newPodcasts[rssUrl];
+          }
+        });
+        return newPodcasts;
+      });
+      // You can add a success notification here if you have a notification system
+      console.log('Episode deleted successfully');
+    } catch (error) {
+      console.error('Error deleting podcast:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete podcast. Please try again.');
+      // You can add an error notification here if you have a notification system
+    }
+  }, [setProcessedPodcasts, setError]);
 
   const handleEnableAutoProcessing = useCallback(async (podcast: SearchResult) => {
     try {

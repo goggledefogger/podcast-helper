@@ -30,7 +30,7 @@ let cachedData: {
 } | null = null;
 
 let lastFetchTime = 0;
-const FETCH_COOLDOWN = 1000; // 1 second cooldown
+const FETCH_COOLDOWN = 5000; // 5 seconds cooldown
 
 export const getProcessedPodcasts = async (forceRefresh = false): Promise<{
   processed: Record<string, ProcessedPodcast[]>,
@@ -49,7 +49,6 @@ export const getProcessedPodcasts = async (forceRefresh = false): Promise<{
     if (url) {
       const response = await fetch(url);
       const data = await response.json();
-      console.log('Fetched data:', data);
       cachedData = {
         processed: data.processed_podcasts || {},
         autoProcessed: data.auto_processed_podcasts || [],

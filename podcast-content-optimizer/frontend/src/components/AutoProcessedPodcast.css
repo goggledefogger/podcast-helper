@@ -79,32 +79,6 @@
   text-decoration: underline;
 }
 
-/* Dark mode styles */
-[data-theme="dark"] .auto-processed-header,
-[data-theme="dark"] .auto-processed-content {
-  background-color: var(--card-background);
-  border-color: var(--border-color);
-}
-
-[data-theme="dark"] .episode-select {
-  background-color: var(--input-background);
-  color: var(--input-text);
-  border-color: var(--border-color);
-}
-
-[data-theme="dark"] .process-episode-button {
-  background-color: var(--primary-color);
-  color: var(--button-text);
-}
-
-[data-theme="dark"] .process-episode-button:hover:not(:disabled) {
-  background-color: var(--secondary-color);
-}
-
-[data-theme="dark"] .view-rss-link {
-  color: var(--link-color);
-}
-
 .podcast-title-container {
   flex-grow: 1;
   overflow: hidden;
@@ -173,23 +147,6 @@
   background-color: var(--secondary-color);
 }
 
-/* Dark mode styles */
-[data-theme="dark"] .rss-url-input {
-  background-color: var(--input-background);
-  color: var(--input-text);
-  border-color: var(--border-color);
-}
-
-[data-theme="dark"] .copy-button {
-  background-color: var(--primary-color);
-  color: var(--button-text);
-}
-
-[data-theme="dark"] .copy-button:hover {
-  background-color: var(--secondary-color);
-}
-
-/* Responsive styles */
 @media (max-width: 768px) {
   .rss-links {
     flex-direction: column;
@@ -210,5 +167,17 @@
 
   .copy-button {
     margin-left: 0;
+  }
+
+  .auto-processed-header {
+    flex-wrap: wrap;
+  }
+
+  .auto-processed-header .podcast-image {
+    margin-bottom: 10px;
+  }
+
+  .auto-processed-header .podcast-title-container {
+    width: 100%;
   }
 }

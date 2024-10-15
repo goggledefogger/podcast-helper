@@ -261,7 +261,7 @@ const AppContent: React.FC = () => {
                         onClick={() => handleDeletePodcast(podcast.podcast_title, podcast.episode_title)}
                         className="delete-podcast-button"
                       >
-                        Delete Podcast
+                        Delete Episode
                       </button>
                     </li>
                   ))
