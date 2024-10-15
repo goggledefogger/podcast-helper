@@ -371,10 +371,15 @@ def delete_processed_podcast():
             return jsonify({"error": "Internal server error"}), 500
 
         # Find and remove the podcast from the dictionary
+        rss_urls_to_delete = []
         for rss_url, episodes in processed_podcasts.items():
             processed_podcasts[rss_url] = [ep for ep in episodes if not (ep['podcast_title'] == podcast_title and ep['episode_title'] == episode_title)]
             if not processed_podcasts[rss_url]:
-                del processed_podcasts[rss_url]
+                rss_urls_to_delete.append(rss_url)
+
+        # Remove empty RSS URLs
+        for rss_url in rss_urls_to_delete:
+            del processed_podcasts[rss_url]
 
         # Save the updated data
         processed_data['processed_podcasts'] = processed_podcasts
