@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPodcast, FaChevronDown, FaChevronUp, FaCopy } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaCopy } from 'react-icons/fa';
 import { API_BASE_URL } from '../api';
 import { formatDuration, formatDate } from '../utils/timeUtils';
 import './AutoProcessedPodcast.css';
