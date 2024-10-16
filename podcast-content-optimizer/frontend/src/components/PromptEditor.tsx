@@ -49,7 +49,7 @@ const PromptEditor: React.FC = () => {
   };
 
   return (
-    <div className="prompt-editor">
+    <div className="prompt-editor prompt-editor-section">
       <h2>Edit Gemini Prompt</h2>
       <div className="prompt-container">
         {isEditing ? (

@@ -172,10 +172,7 @@ const AppContent: React.FC = () => {
           )}
         </section>
 
-        <section className="prompt-editor-section">
-          <h2>Edit Processing Prompt</h2>
-          <PromptEditor />
-        </section>
+        <PromptEditor />
 
         <SearchModal
           isOpen={isSearchModalOpen}

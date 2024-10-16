@@ -5,6 +5,8 @@
   padding: 15px;
   margin-bottom: 20px;
   transition: box-shadow 0.3s ease;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .processed-item:hover {
@@ -19,13 +21,13 @@
 
 .processed-links {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
   gap: 10px;
   margin-bottom: 15px;
 }
 
 .view-link {
-  flex: 1 0 calc(50% - 5px);
+  width: 100%;
   text-align: center;
   padding: 10px;
   background-color: var(--primary-color);
@@ -52,4 +54,14 @@
 
 .delete-podcast-button:hover {
   background-color: var(--secondary-color);
+}
+
+@media (min-width: 769px) {
+  .processed-links {
+    flex-direction: row;
+  }
+
+  .view-link {
+    flex: 1;
+  }
 }

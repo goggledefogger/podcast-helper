@@ -300,6 +300,7 @@ button:disabled, select:disabled {
   .prompt-editor textarea,
   .button-container button {
     width: 100%;
+    box-sizing: border-box; /* Add this line */
   }
 
   .search-container,
@@ -311,11 +312,13 @@ button:disabled, select:disabled {
   .podcast-list,
   .processed-list {
     grid-template-columns: 1fr;
+    padding: 0; /* Remove padding from the list */
   }
 
   .podcast-item,
   .processed-item {
     padding: 15px;
+    margin-bottom: 15px; /* Add some vertical spacing between items */
   }
 
   .podcast-image {
@@ -382,6 +385,8 @@ button:disabled, select:disabled {
   .processed-podcasts,
   .prompt-editor-section {
     padding: 15px;
+    box-sizing: border-box; /* Add this line */
+    width: 100%; /* Add this line */
   }
 
   button,
@@ -1421,6 +1426,10 @@ button:disabled, select:disabled {
 .auto-processed p {
   word-break: break-all;
   margin-bottom: 15px;
+}
+
+.auto-processed-list {
+  padding: 0;
 }
 
 @media (max-width: 768px) {
