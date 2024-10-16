@@ -21,7 +21,7 @@
 
 .processed-links {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 10px;
   margin-bottom: 15px;
 }
@@ -54,14 +54,4 @@
 
 .delete-podcast-button:hover {
   background-color: var(--secondary-color);
-}
-
-@media (min-width: 769px) {
-  .processed-links {
-    flex-direction: row;
-  }
-
-  .view-link {
-    flex: 1;
-  }
 }

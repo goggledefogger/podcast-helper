@@ -6,7 +6,7 @@
 
 .auto-processed-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   cursor: pointer;
   padding: 10px;
   background-color: var(--card-background);
@@ -77,7 +77,8 @@
 
 .podcast-title-container {
   flex-grow: 1;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .podcast-title-container h4 {
@@ -90,7 +91,7 @@
 .podcast-title-container .rss-url {
   font-size: 0.8em;
   color: #666;
-  margin: 0;
+  margin: 5px 0 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
