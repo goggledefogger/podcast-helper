@@ -157,35 +157,28 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
                         logging.warning(f"Could not parse pubDate for episode: {episode_title}. Using current time.")
                         episode_published_date = datetime.now(timezone.utc)
                 else:
-                    episode_published_date = datetime.now(timezone.utc)  # Default to current time if no pubDate
+                    episode_published_date = datetime.now(timezone.utc)
 
                 logging.info(f"Checking episode: {episode_title}, Published: {episode_published_date}")
 
                 processed_episode = next(
                     (ep for ep in processed_podcasts.get(original_rss_url, [])
-                     if ep.get('episode_title') == episode_title and ep.get('status') == 'completed'),
+                     if ep.get('episode_title') == episode_title),
                     None
                 )
 
-                try:
-                    if processed_episode:
-                        logging.info(f"Episode already processed: {episode_title}")
-                        update_processed_item(item, processed_episode, namespaces)
-                    elif is_episode_being_processed(original_rss_url, episode_title):
-                        logging.info(f"Episode currently being processed: {episode_title}")
-                        channel.remove(item)
-                    elif enable_date and is_episode_new(original_rss_url, episode_published_date):
-                        logging.info(f"New episode detected for processing: {episode_title}, Published: {episode_published_date}")
-                        episodes_to_process.append((episode_title, episode_published_date))
-                        channel.remove(item)
-                    else:
-                        logging.info(f"Episode not new or already processed: {episode_title}, Published: {episode_published_date}")
-                        # Stop processing further episodes
-                        break
-                except Exception as e:
-                    logging.error(f"Error processing episode {episode_title}: {str(e)}")
-                    logging.error(traceback.format_exc())
-                    continue
+                if processed_episode and processed_episode.get('status') == 'completed':
+                    logging.info(f"Episode already processed: {episode_title}")
+                    update_processed_item(item, processed_episode, namespaces)
+                elif is_episode_being_processed(original_rss_url, episode_title):
+                    logging.info(f"Episode currently being processed: {episode_title}")
+                    channel.remove(item)
+                elif enable_date and is_episode_new(original_rss_url, episode_published_date):
+                    logging.info(f"New episode detected for processing: {episode_title}, Published: {episode_published_date}")
+                    episodes_to_process.append((episode_title, episode_published_date))
+                    channel.remove(item)
+                else:
+                    logging.info(f"Episode not new or already processed: {episode_title}, Published: {episode_published_date}")
 
         if episodes_to_process:
             logging.info(f"Found {len(episodes_to_process)} new episodes to process: {[ep[0] for ep in episodes_to_process]}")
