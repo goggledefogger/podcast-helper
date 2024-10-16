@@ -43,7 +43,7 @@
   --stage-completed: #1b5e20;
   --stage-in-progress: #1565c0;
   --stage-pending: #424242;
-  --button-background: #3f51b5; /* New variable for button background in dark mode */
+  --button-background: #3f51b5;
 }
 
 /* Apply theme to the root element */
@@ -130,77 +130,13 @@ button:hover:not(:disabled) {
 }
 
 .podcast-item, .processed-item {
-  background-color: var(--card-background);
-  border: 1px solid var(--border-color);
-}
-
-.view-link {
-  color: var(--link-color);
-}
-
-.delete-podcast-button {
-  background-color: var(--error-color);
-}
-
-.search-container, .episode-container {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.search-container label, .episode-container label {
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-input, select, button {
-  padding: 10px;
-  font-size: 16px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
-
-input:focus, select:focus {
-  outline: none;
-  border-color: #80bdff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-button:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-button:disabled {
-  background-color: #6c757d;
-  cursor: not-allowed;
-}
-
-button:disabled, select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.helper-text {
-  font-size: 14px;
-  color: #6c757d;
-  margin-top: 5px;
-}
-
-.podcast-list, .processed-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-}
-
-.podcast-item, .processed-item {
   display: flex;
   flex-direction: column;
   background-color: var(--card-background);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 15px;
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
 }
 
 .podcast-item:hover, .processed-item:hover {
@@ -268,7 +204,7 @@ button:disabled, select:disabled {
   .prompt-editor textarea,
   .button-container button {
     width: 100%;
-    box-sizing: border-box; /* Add this line */
+    box-sizing: border-box;
   }
 
   .search-container,
@@ -280,13 +216,13 @@ button:disabled, select:disabled {
   .podcast-list,
   .processed-list {
     grid-template-columns: 1fr;
-    padding: 0; /* Remove padding from the list */
+    padding: 0;
   }
 
   .podcast-item,
   .processed-item {
     padding: 15px;
-    margin-bottom: 15px; /* Add some vertical spacing between items */
+    margin-bottom: 15px;
   }
 
   .podcast-image {
@@ -353,8 +289,8 @@ button:disabled, select:disabled {
   .processed-podcasts,
   .prompt-editor-section {
     padding: 15px;
-    box-sizing: border-box; /* Add this line */
-    width: 100%; /* Add this line */
+    box-sizing: border-box;
+    width: 100%;
   }
 
   button,
@@ -446,6 +382,11 @@ button:disabled, select:disabled {
   margin: 0 auto 20px;
   padding: 0 15px;
   box-sizing: border-box;
+  text-align: center;
+  margin-bottom: 30px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
 }
 
 .search-container {
@@ -662,16 +603,13 @@ button:disabled, select:disabled {
 .content-wrapper {
   display: flex;
   gap: 30px;
+  flex-wrap: wrap;
 }
 
-.left-column {
-  flex: 1;
-  max-width: 60%;
-}
-
-.right-column {
-  flex: 1;
-  max-width: 40%;
+.left-column, .right-column {
+  flex: 1 1 300px;
+  min-width: 300px;
+  max-width: 100%;
 }
 
 .search-section,
@@ -768,13 +706,7 @@ button:disabled, select:disabled {
   flex-wrap: wrap;
 }
 
-.left-column {
-  flex: 1 1 300px;
-  min-width: 300px;
-  max-width: 100%;
-}
-
-.right-column {
+.left-column, .right-column {
   flex: 1 1 300px;
   min-width: 300px;
   max-width: 100%;
