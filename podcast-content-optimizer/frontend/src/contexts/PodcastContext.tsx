@@ -11,6 +11,7 @@ import {
   deleteJob,
   deleteProcessedPodcast
 } from '../api';
+import Notification from '../components/Notification';
 
 interface PodcastInfo {
   name: string;
@@ -68,6 +69,10 @@ interface PodcastContextType {
   fetchJobStatuses: () => Promise<void>;
   isLoading: boolean;
   fetchAllData: () => Promise<void>;
+  errorMessage: string | null;
+  setErrorMessage: React.Dispatch<React.SetStateAction<string | null>>;
+  successMessage: string | null;
+  setSuccessMessage: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 // Update the CurrentJob interface to match the API
@@ -92,6 +97,8 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const initialFetchMade = useRef(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const fetchAllData = useCallback(async (forceRefresh = false) => {
     if (!forceRefresh && initialFetchMade.current) {
@@ -101,36 +108,44 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     console.log('Fetching all data...');
     setIsLoading(true);
+    setErrorMessage(null);  // Clear any previous error messages
     try {
-      const [podcastData, jobs] = await Promise.all([
-        getProcessedPodcasts(forceRefresh),
-        fetchCurrentJobs()
-      ]);
-      console.log('Data fetched successfully');
+      // First, fetch data from Firebase
+      const podcastData = await getProcessedPodcasts(forceRefresh);
+      console.log('Data fetched from Firebase successfully');
       setProcessedPodcasts(podcastData.processed);
-      setAutoPodcasts(podcastData.autoProcessed);  // This should now be correct
+      setAutoPodcasts(podcastData.autoProcessed);
       setPodcastInfo(podcastData.podcastInfo);
-      setCurrentJobs(jobs as CurrentJob[]);
 
-      const newJobInfos: Record<string, JobInfo> = {};
-      jobs.forEach(job => {
-        newJobInfos[job.job_id] = {
-          podcastName: job.podcast_name || podcastData.podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
-          episodeTitle: job.episode_title || 'Unknown Episode',
-          rssUrl: job.rss_url
-        };
-      });
-      setJobInfos(newJobInfos);
+      // Then, try to fetch current jobs from the API
+      try {
+        const jobs = await fetchCurrentJobs();
+        setCurrentJobs(jobs as CurrentJob[]);
 
-      if (jobs.length > 0) {
-        const statuses = await apiFetchJobStatuses(jobs.map(job => job.job_id));
-        setJobStatuses(statuses);
+        const newJobInfos: Record<string, JobInfo> = {};
+        jobs.forEach(job => {
+          newJobInfos[job.job_id] = {
+            podcastName: job.podcast_name || podcastData.podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
+            episodeTitle: job.episode_title || 'Unknown Episode',
+            rssUrl: job.rss_url
+          };
+        });
+        setJobInfos(newJobInfos);
+
+        if (jobs.length > 0) {
+          const statuses = await apiFetchJobStatuses(jobs.map(job => job.job_id));
+          setJobStatuses(statuses);
+        }
+      } catch (apiError) {
+        console.error('Error fetching data from API:', apiError);
+        setErrorMessage('Unable to connect to the server. Some features may be limited. Please try again later.');
+        // Even if API fails, we still have data from Firebase, so we don't throw here
       }
 
       initialFetchMade.current = true;
     } catch (error) {
       console.error('Error fetching podcast data:', error);
-      setError('Failed to fetch podcast data. Please try again.');
+      setErrorMessage('Unable to load podcast data. Please check your internet connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -148,11 +163,11 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setEpisodes(prev => ({ ...prev, [rssUrl]: fetchedEpisodes }));
     } catch (error) {
       console.error('Error fetching episodes:', error);
-      setError('Failed to fetch episodes. Please try again.');
+      setErrorMessage('Unable to fetch episodes. The server might be down. Please try again later.');
     } finally {
       setIsLoadingEpisodes(false);
     }
-  }, [episodes, setError]);
+  }, [episodes]);
 
   const fetchJobStatuses = useCallback(async () => {
     const jobIds = [...currentJobs.map(job => job.job_id)].filter(Boolean) as string[];
@@ -176,17 +191,18 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (Object.values(data).some(status => status.status === 'completed' || status.status === 'failed')) {
         const { processed, autoProcessed, podcastInfo: newPodcastInfo } = await getProcessedPodcasts();
         setProcessedPodcasts(processed);
-        setAutoPodcasts(autoProcessed);  // This should now be correct
+        setAutoPodcasts(autoProcessed);
         setPodcastInfo(newPodcastInfo);
       }
     } catch (error) {
       console.error('Error fetching job statuses:', error);
+      setErrorMessage('Unable to fetch job statuses. The server might be down. Please try again later.');
     }
   }, [currentJobs, setJobStatuses, setCurrentJobs, setProcessedPodcasts, setAutoPodcasts, setPodcastInfo]);
 
   const handleProcessEpisode = useCallback(async (rssUrl: string, episodeIndex: number) => {
     setIsProcessingEpisode(true);
-    setError('');
+    setErrorMessage(null);
     try {
       const data = await apiProcessEpisode(rssUrl, episodeIndex);
       const newJob: CurrentJob = {
@@ -221,9 +237,10 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       // Fetch the actual job status
       fetchJobStatuses();
+      setSuccessMessage('Episode processing started successfully.');
     } catch (error) {
       console.error('Error processing episode:', error);
-      setError(error instanceof Error ? error.message : 'Failed to process episode. Please try again.');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to start episode processing. Please try again.');
     } finally {
       setIsProcessingEpisode(false);
     }
@@ -268,14 +285,12 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
         return newPodcasts;
       });
-      // You can add a success notification here if you have a notification system
-      console.log('Episode deleted successfully');
+      setSuccessMessage('Episode deleted successfully');
     } catch (error) {
       console.error('Error deleting podcast:', error);
-      setError(error instanceof Error ? error.message : 'Failed to delete podcast. Please try again.');
-      // You can add an error notification here if you have a notification system
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to delete podcast. Please try again.');
     }
-  }, [setProcessedPodcasts, setError]);
+  }, [setProcessedPodcasts]);
 
   const handleEnableAutoProcessing = useCallback(async (podcast: SearchResult) => {
     try {
@@ -291,13 +306,14 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         [podcast.rssUrl]: { name: podcast.name, imageUrl: podcast.imageUrl }
       }));
 
+      setSuccessMessage(`Auto-processing enabled for ${podcast.name}`);
       return `Auto-processing enabled for ${podcast.name}`;
     } catch (error) {
       console.error('Error enabling auto-processing:', error);
-      setError(error instanceof Error ? error.message : 'Failed to enable auto-processing. Please try again.');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to enable auto-processing. Please try again.');
       throw error;
     }
-  }, [setAutoPodcasts, setPodcastInfo, setError]);
+  }, [setAutoPodcasts, setPodcastInfo]);
 
   const contextValue = useMemo(() => ({
     podcastInfo,
@@ -328,17 +344,36 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setError,
     fetchJobStatuses,
     isLoading,
-    fetchAllData
+    fetchAllData,
+    errorMessage,
+    setErrorMessage,
+    successMessage,
+    setSuccessMessage
   }), [
     podcastInfo, processedPodcasts, autoPodcasts, currentJobs, jobStatuses, jobInfos,
     isLoadingEpisodes, isProcessingEpisode, episodes, error, isLoading,
     fetchEpisodes, handleProcessEpisode, handleSelectPodcast, handleDeleteJob,
-    handleDeletePodcast, handleEnableAutoProcessing, fetchJobStatuses, fetchAllData
+    handleDeletePodcast, handleEnableAutoProcessing, fetchJobStatuses, fetchAllData,
+    errorMessage, successMessage
   ]);
 
   return (
     <PodcastContext.Provider value={contextValue}>
       {children}
+      {errorMessage && (
+        <Notification
+          message={errorMessage}
+          type="error"
+          onClose={() => setErrorMessage(null)}
+        />
+      )}
+      {successMessage && (
+        <Notification
+          message={successMessage}
+          type="success"
+          onClose={() => setSuccessMessage(null)}
+        />
+      )}
     </PodcastContext.Provider>
   );
 };

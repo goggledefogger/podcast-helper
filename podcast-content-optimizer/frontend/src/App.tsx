@@ -210,13 +210,6 @@ const AppContent: React.FC = () => {
           )}
         </section>
 
-        {error && (
-          <div className="error-message" role="alert">
-            {error}
-            <button onClick={() => setError('')} className="close-error">×</button>
-          </div>
-        )}
-
         <section className="prompt-editor-section">
           <h2>Edit Processing Prompt</h2>
           <PromptEditor />
