@@ -120,55 +120,60 @@ const AppContent: React.FC = () => {
         )}
         <SearchSection openSearchModal={() => setIsSearchModalOpen(true)} />
 
-        <section className="current-jobs" aria-labelledby="current-jobs-heading">
-          <h2 id="current-jobs-heading">Current Processing Jobs</h2>
-          {currentJobs.map((job) => (
-            <ProcessingStatus
-              key={job.job_id}
-              jobId={job.job_id}
-              status={jobStatuses[job.job_id]}
-              onDelete={() => handleDeleteJob(job.job_id)}
-              jobInfo={{
-                podcastName: job.podcast_name || podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
-                episodeTitle: job.episode_title || 'Unknown Episode',
-                rssUrl: job.rss_url
-              }}
-              podcastImageUrl={podcastInfo[job.rss_url]?.imageUrl}
-            />
-          ))}
-          {currentJobs.length === 0 && (
-            <p className="no-jobs">No active processing jobs.</p>
+        <section className="current-jobs section-container" aria-labelledby="current-jobs-heading">
+          <h2 id="current-jobs-heading" className="section-heading">Current Processing Jobs</h2>
+          {currentJobs.length > 0 ? (
+            currentJobs.map((job) => (
+              <ProcessingStatus
+                key={job.job_id}
+                jobId={job.job_id}
+                status={jobStatuses[job.job_id]}
+                onDelete={() => handleDeleteJob(job.job_id)}
+                jobInfo={{
+                  podcastName: job.podcast_name || podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
+                  episodeTitle: job.episode_title || 'Unknown Episode',
+                  rssUrl: job.rss_url
+                }}
+                podcastImageUrl={podcastInfo[job.rss_url]?.imageUrl}
+              />
+            ))
+          ) : (
+            <div className="empty-state-card">
+              <p>No active processing jobs.</p>
+            </div>
           )}
         </section>
 
-        <section className="processed-podcasts" aria-labelledby="processed-heading">
-          <h2 id="processed-heading">Processed Podcasts</h2>
-          {(Object.keys(processedPodcasts).length > 0 || autoPodcasts.length > 0) ? (
-            <div>
-              <ManuallyProcessedPodcasts
-                processedPodcasts={processedPodcasts}
-                onDeletePodcast={handleDeletePodcast}
-              />
-
-              <section className="auto-processed-podcasts" aria-labelledby="auto-processed-heading">
-                <h2 id="auto-processed-heading">Auto-processed Podcasts</h2>
-                {autoPodcasts.length > 0 ? (
-                  <ul className="auto-processed-list">
-                    {autoPodcasts.map((podcast, index) => (
-                      <AutoProcessedPodcast
-                        key={`auto-${index}`}
-                        rssUrl={podcast.rss_url}
-                        enabledAt={podcast.enabled_at}
-                      />
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="no-podcasts">No auto-processed podcasts available. Enable auto-processing for a podcast to see it here.</p>
-                )}
-              </section>
-            </div>
+        <section className="processed-podcasts section-container" aria-labelledby="processed-heading">
+          <h2 id="processed-heading" className="section-heading">Processed Podcasts</h2>
+          {Object.keys(processedPodcasts).length > 0 ? (
+            <ManuallyProcessedPodcasts
+              processedPodcasts={processedPodcasts}
+              onDeletePodcast={handleDeletePodcast}
+            />
           ) : (
-            <p className="no-podcasts">No processed podcasts available. Process an episode to see results here.</p>
+            <div className="empty-state-card">
+              <p>No manually processed podcasts available. Process an episode to see results here.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="auto-processed-podcasts section-container" aria-labelledby="auto-processed-heading">
+          <h2 id="auto-processed-heading" className="section-heading">Auto-processed Podcasts</h2>
+          {autoPodcasts.length > 0 ? (
+            <ul className="auto-processed-list">
+              {autoPodcasts.map((podcast, index) => (
+                <AutoProcessedPodcast
+                  key={`auto-${index}`}
+                  rssUrl={podcast.rss_url}
+                  enabledAt={podcast.enabled_at}
+                />
+              ))}
+            </ul>
+          ) : (
+            <div className="empty-state-card">
+              <p>No auto-processed podcasts available. Enable auto-processing for a podcast to see it here.</p>
+            </div>
           )}
         </section>
 

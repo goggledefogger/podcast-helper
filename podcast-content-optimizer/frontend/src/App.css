@@ -193,13 +193,15 @@ button:active {
 }
 
 .search-section {
-  background-color: #f8f9fa;
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 30px;
   max-width: 600px;
   margin: 0 auto 30px;
   text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .search-container {
@@ -229,21 +231,6 @@ button:active {
   flex-shrink: 0;
   padding: 10px;
   box-sizing: border-box;
-}
-
-.delete-podcast-button {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: 10px;
-}
-
-.delete-podcast-button:hover {
-  background-color: #c82333;
 }
 
 .prompt-editor {
@@ -311,70 +298,6 @@ button:active {
   color: var(--text-color);
 }
 
-.processing-status {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.podcast-info {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.podcast-image {
-  /* Removed: Defined in ProcessingStatus.css and AutoProcessedPodcast.css */
-}
-
-.podcast-details {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.status-title {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.status-value {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.progress-bar {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.progress-fill {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.current-stage {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.processing-stages {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.stage {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.stage-icon {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.stage-name {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.status-message {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.timestamp {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
-.delete-job-button {
-  /* Removed: Defined in ProcessingStatus.css */
-}
-
 .podcast-item {
   display: flex;
   flex-direction: column;
@@ -397,38 +320,10 @@ button:active {
   transition: background-color 0.3s ease, transform 0.1s ease;
 }
 
-.view-link {
-  /* Removed: Defined in ProcessedEpisode.css and AutoProcessedPodcast.css */
+ul {
+  list-style-type: none;
+  padding-left: 0;
 }
-
-.download-link,
-.view-link {
-  /* Removed: view-link already handled above */
-}
-
-.auto-processing-badge {
-  /* Removed: Defined in SearchModal.css and AutoProcessedPodcast.css */
-}
-
-.enable-auto-processing-button {
-  /* Removed: Defined in SearchModal.css */
-}
-
-.close-modal-button {
-  /* Removed: Defined in SearchModal.css and possibly other components */
-}
-
-/* Media Queries */
-
-/* Removed component-specific media queries */
-
-/* Dark Theme Specific Styles */
-
-/* All dark theme styles related to component-specific classes have been removed */
-
-/* General cleanup: Removed any residual styles related to component-specific classes */
-
-/* Retained any remaining global styles that are not component-specific */
 
 @media (max-width: 768px) {
   .App-main {
@@ -481,22 +376,6 @@ button:active {
   .podcast-info {
     text-align: center;
     margin-bottom: 10px;
-  }
-
-  .processed-links {
-    flex-direction: row;
-    gap: 10px;
-    margin-top: 10px;
-  }
-
-  .view-link {
-    width: 100%;
-    text-align: center;
-  }
-
-  .delete-podcast-button {
-    width: 100%;
-    margin-top: 10px;
   }
 
   .prompt-editor textarea,
@@ -559,4 +438,30 @@ button:active {
   .right-column {
     max-width: 100%;
   }
+}
+
+.empty-state-card {
+  background-color: var(--stage-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  color: var(--text-color);
+  margin-bottom: 0;
+}
+
+.section-heading {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: var(--text-color);
+  font-size: 1.5em;
+}
+
+.section-container {
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

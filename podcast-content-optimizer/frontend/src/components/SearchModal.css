@@ -14,11 +14,19 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
-.search-modal h2 {
-  margin-top: 0;
-  margin-bottom: 20px;
-  font-size: 1.8em;
-  color: var(--primary-color);
+.search-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--modal-background);
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .search-form {
