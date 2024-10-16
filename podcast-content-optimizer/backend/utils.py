@@ -33,12 +33,20 @@ def get_podcast_episodes(rss_url):
         # First attempt: Parse the feed normally
         feed = feedparser.parse(rss_url)
 
-        # If there's an encoding error, try parsing with explicit UTF-8 encoding
+        # If there's an encoding error, try parsing with explicit encodings
         if feed.bozo and isinstance(feed.bozo_exception, feedparser.CharacterEncodingOverride):
-            logging.warning(f"Encoding mismatch detected. Attempting to parse with UTF-8 encoding: {rss_url}")
-            response = requests.get(rss_url)
-            response.encoding = 'utf-8'  # Force UTF-8 encoding
-            feed = feedparser.parse(response.text)
+            logging.warning(f"Encoding mismatch detected. Attempting to parse with different encodings: {rss_url}")
+
+            for encoding in ['utf-8', 'ascii', 'iso-8859-1']:
+                try:
+                    response = requests.get(rss_url)
+                    response.encoding = encoding
+                    feed = feedparser.parse(response.text)
+                    if not feed.bozo:
+                        logging.info(f"Successfully parsed feed with {encoding} encoding")
+                        break
+                except Exception as e:
+                    logging.warning(f"Failed to parse with {encoding} encoding: {str(e)}")
 
         if feed.bozo and not isinstance(feed.bozo_exception, feedparser.CharacterEncodingOverride):
             logging.error(f"Error parsing RSS feed: {feed.bozo_exception}")
@@ -56,7 +64,7 @@ def get_podcast_episodes(rss_url):
                 'title': entry.get('title', 'Untitled'),
                 'published': entry.get('published', 'Unknown date'),
                 'podcast_title': podcast_title,
-                'url': entry.get('enclosures', [{}])[0].get('href') or entry.get('link'),
+                'url': entry.get('enclosures', [{}])[0].get('href') or entry.get('link', ''),
                 'duration': get_episode_duration(entry)
             }
             if not episode['url']:
@@ -441,7 +449,7 @@ def save_processed_podcast(podcast_data):
 
         # Update podcast info, preserving the existing image URL if not provided in podcast_data
         if rss_url not in data['podcast_info']:
-            data['podcast_info'][rss_url] = {}
+            data['podcast_info'] = {}
 
         data['podcast_info'][rss_url]['name'] = podcast_data['podcast_title']
         if 'image_url' in podcast_data and podcast_data['image_url']:

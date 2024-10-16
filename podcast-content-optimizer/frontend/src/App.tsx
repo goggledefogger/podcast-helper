@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Modal from 'react-modal'; // Add this import
+import Modal from 'react-modal';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
 import PromptEditor from './components/PromptEditor';
 import AutoProcessedPodcast from './components/AutoProcessedPodcast';
 import SearchModal from './components/SearchModal';
 import { PodcastProvider, usePodcastContext } from './contexts/PodcastContext';
-import PreventDefaultLink from './components/PreventDefaultLink';
 import Loader from './components/Loader';
 import Header from './components/Header';
 import SearchSection from './components/SearchSection';
 import ManuallyProcessedPodcasts from './components/ManuallyProcessedPodcasts';
 
-// Add this line to set the app element
 Modal.setAppElement('#root');
 
 const AppContent: React.FC = () => {
@@ -24,8 +22,6 @@ const AppContent: React.FC = () => {
     jobStatuses,
     jobInfos,
     isProcessingEpisode,
-    error,
-    setError,
     handleDeleteJob,
     handleDeletePodcast,
     fetchJobStatuses,
@@ -81,7 +77,6 @@ const AppContent: React.FC = () => {
     };
   }, [currentJobs.length, fetchJobStatuses]);
 
-  const openSearchModal = () => setIsSearchModalOpen(true);
   const closeSearchModal = () => setIsSearchModalOpen(false);
 
   const clearNotification = useCallback(() => {

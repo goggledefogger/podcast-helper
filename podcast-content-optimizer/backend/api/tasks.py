@@ -11,6 +11,8 @@ def process_podcast_task(self, rss_url, episode_index, job_id):
     try:
         # Fetch episode information
         episodes = get_podcast_episodes(rss_url)
+        if not episodes:
+            raise ValueError("No episodes found in the RSS feed")
         if episode_index >= len(episodes):
             raise ValueError("Episode index out of range")
         episode = episodes[episode_index]
@@ -19,7 +21,7 @@ def process_podcast_task(self, rss_url, episode_index, job_id):
         job_info = {
             'rss_url': rss_url,
             'episode_title': episode['title'],
-            'podcast_name': episode['podcast_title']  # Use 'podcast_name' here
+            'podcast_name': episode['podcast_title']
         }
         update_job_info(job_id, job_info)
 
