@@ -417,8 +417,8 @@ def delete_processed_podcast():
                     blob.delete()
                     logging.info(f"Deleted file from Firebase Storage: {file_path}")
 
-        # Invalidate the RSS cache for this podcast
-        invalidate_rss_cache(data.get('rss_url'))
+        # Remove the call to invalidate_rss_cache
+        # invalidate_rss_cache(data.get('rss_url'))
 
         return jsonify({"message": "Podcast deleted successfully"}), 200
     except Exception as e:
