@@ -8,6 +8,9 @@ import SearchModal from './components/SearchModal';
 import { PodcastProvider, usePodcastContext } from './contexts/PodcastContext';
 import PreventDefaultLink from './components/PreventDefaultLink';
 import Loader from './components/Loader';
+import Header from './components/Header';
+import SearchSection from './components/SearchSection';
+import ManuallyProcessedPodcasts from './components/ManuallyProcessedPodcasts';
 
 // Add this line to set the app element
 Modal.setAppElement('#root');
@@ -107,12 +110,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>Podcast Content Optimizer</h1>
-        <button onClick={toggleTheme} className="theme-toggle">
-          {theme === 'light' ? '🌙' : '☀️'}
-        </button>
-      </header>
+      <Header theme={theme} toggleTheme={toggleTheme} />
       <main className="App-main">
         {notification && (
           <div className="notification">
@@ -120,12 +118,7 @@ const AppContent: React.FC = () => {
             <button onClick={() => setNotification(null)} className="close-notification">×</button>
           </div>
         )}
-        <section className="search-section" aria-labelledby="search-heading">
-          <h2 id="search-heading">Find and Process a Podcast</h2>
-          <button onClick={openSearchModal} className="open-search-button">
-            Search for Podcasts
-          </button>
-        </section>
+        <SearchSection openSearchModal={() => setIsSearchModalOpen(true)} />
 
         <section className="current-jobs" aria-labelledby="current-jobs-heading">
           <h2 id="current-jobs-heading">Current Processing Jobs</h2>
@@ -152,42 +145,10 @@ const AppContent: React.FC = () => {
           <h2 id="processed-heading">Processed Podcasts</h2>
           {(Object.keys(processedPodcasts).length > 0 || autoPodcasts.length > 0) ? (
             <div>
-              <h3>Manually Processed Episodes</h3>
-              <ul className="processed-list">
-                {Object.entries(processedPodcasts).map(([rssUrl, episodes]) => (
-                  episodes.map((podcast, index) => (
-                    <li key={`${rssUrl}-${index}`} className="processed-item">
-                      <h4>{podcast.podcast_title} - {podcast.episode_title}</h4>
-                      <div className="processed-links">
-                        <PreventDefaultLink
-                          onClick={() => window.open(podcast.edited_url, '_blank')}
-                          className="view-link"
-                        >
-                          View Edited Audio
-                        </PreventDefaultLink>
-                        <PreventDefaultLink
-                          onClick={() => window.open(podcast.transcript_file, '_blank')}
-                          className="view-link"
-                        >
-                          View Transcript
-                        </PreventDefaultLink>
-                        <PreventDefaultLink
-                          onClick={() => window.open(podcast.unwanted_content_file, '_blank')}
-                          className="view-link"
-                        >
-                          View Unwanted Content
-                        </PreventDefaultLink>
-                      </div>
-                      <button
-                        onClick={() => handleDeletePodcast(podcast.podcast_title, podcast.episode_title)}
-                        className="delete-podcast-button"
-                      >
-                        Delete Episode
-                      </button>
-                    </li>
-                  ))
-                ))}
-              </ul>
+              <ManuallyProcessedPodcasts
+                processedPodcasts={processedPodcasts}
+                onDeletePodcast={handleDeletePodcast}
+              />
 
               <section className="auto-processed-podcasts" aria-labelledby="auto-processed-heading">
                 <h2 id="auto-processed-heading">Auto-processed Podcasts</h2>

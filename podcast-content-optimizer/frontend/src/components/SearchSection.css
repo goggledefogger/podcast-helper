@@ -1,0 +1,26 @@
+.search-section {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.open-search-button {
+  font-size: 18px;
+  padding: 12px 24px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.1s;
+}
+
+.open-search-button:hover {
+  background-color: var(--secondary-color);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .open-search-button {
+    width: 100%;
+  }
+}
