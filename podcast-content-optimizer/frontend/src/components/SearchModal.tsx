@@ -1,6 +1,7 @@
 import React from 'react';
 import Modal from 'react-modal';
 import { useSearch, SearchResult } from '../hooks/useSearch';
+import Loader from './Loader';
 import './SearchModal.css';
 
 interface SearchModalProps {
@@ -55,25 +56,29 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onRequestClose, onNot
           {isSearchLoading ? 'Searching...' : 'Search'}
         </button>
       </form>
-      <div className="search-results">
-        {searchResults.map((result) => (
-          <div key={result.uuid} className="search-result">
-            <img src={result.imageUrl} alt={result.name} />
-            <h3>{result.name}</h3>
-            <p>{result.description}</p>
-            {autoPodcasts.some(podcast => podcast.rss_url === result.rssUrl) ? (
-              <span className="auto-processing-badge">Auto-processing enabled</span>
-            ) : (
-              <button
-                onClick={() => handleEnableAutoProcessing(result)}
-                className="enable-auto-processing-button"
-              >
-                Enable Auto-processing
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
+      {isSearchLoading ? (
+        <Loader />
+      ) : (
+        <div className="search-results">
+          {searchResults.map((result) => (
+            <div key={result.uuid} className="search-result">
+              <img src={result.imageUrl} alt={result.name} />
+              <h3>{result.name}</h3>
+              <p>{result.description}</p>
+              {autoPodcasts.some(podcast => podcast.rss_url === result.rssUrl) ? (
+                <span className="auto-processing-badge">Auto-processing enabled</span>
+              ) : (
+                <button
+                  onClick={() => handleEnableAutoProcessing(result)}
+                  className="enable-auto-processing-button"
+                >
+                  Enable Auto-processing
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       <button onClick={handleClose} className="close-modal-button">Close</button>
     </Modal>
   );

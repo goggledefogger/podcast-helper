@@ -96,6 +96,13 @@
   text-overflow: ellipsis;
 }
 
+.podcast-title-container .enabled-at {
+  font-size: 0.8em;
+  color: var(--text-color);
+  opacity: 0.7;
+  margin: 5px 0 0;
+}
+
 .rss-links {
   display: flex;
   flex-direction: column;

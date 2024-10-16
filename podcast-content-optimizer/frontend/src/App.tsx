@@ -7,6 +7,7 @@ import AutoProcessedPodcast from './components/AutoProcessedPodcast';
 import SearchModal from './components/SearchModal';
 import { PodcastProvider, usePodcastContext } from './contexts/PodcastContext';
 import PreventDefaultLink from './components/PreventDefaultLink';
+import Loader from './components/Loader';
 
 // Add this line to set the app element
 Modal.setAppElement('#root');
@@ -101,7 +102,7 @@ const AppContent: React.FC = () => {
   };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <Loader fullPage />;
   }
 
   return (

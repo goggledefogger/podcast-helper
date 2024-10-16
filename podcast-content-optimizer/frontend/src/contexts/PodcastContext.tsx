@@ -157,17 +157,14 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const fetchEpisodes = useCallback(async (rssUrl: string) => {
     if (episodes[rssUrl]) return;
-    setIsLoadingEpisodes(true);
     try {
       const fetchedEpisodes = await apiFetchEpisodes(rssUrl);
       setEpisodes(prev => ({ ...prev, [rssUrl]: fetchedEpisodes }));
     } catch (error) {
       console.error('Error fetching episodes:', error);
       setErrorMessage('Unable to fetch episodes. The server might be down. Please try again later.');
-    } finally {
-      setIsLoadingEpisodes(false);
     }
-  }, [episodes]);
+  }, [episodes, setErrorMessage]);
 
   const fetchJobStatuses = useCallback(async () => {
     const jobIds = [...currentJobs.map(job => job.job_id)].filter(Boolean) as string[];
@@ -300,7 +297,10 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         enabled_at: response.enabled_at
       };
 
-      setAutoPodcasts(prev => [...prev, newAutoPodcast]);
+      setAutoPodcasts(prev => {
+        const updatedPodcasts = prev.filter(p => p.rss_url !== podcast.rssUrl);
+        return [...updatedPodcasts, newAutoPodcast];
+      });
       setPodcastInfo(prev => ({
         ...prev,
         [podcast.rssUrl]: { name: podcast.name, imageUrl: podcast.imageUrl }
