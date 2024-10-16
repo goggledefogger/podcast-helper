@@ -38,12 +38,15 @@
 }
 
 .prompt-display {
-  background-color: var(--input-background);
-  color: var(--input-text);
-  border-color: var(--border-color);
+  background-color: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 10px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 300px;
+  overflow-y: auto;
 }
-
-/* ... (keep other existing styles) ... */
 
 [data-theme="dark"] .prompt-editor {
   background-color: var(--card-background);
@@ -62,5 +65,3 @@
   color: var(--input-text);
   border-color: var(--border-color);
 }
-
-/* ... (keep other existing styles) ... */

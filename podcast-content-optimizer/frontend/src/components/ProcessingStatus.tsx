@@ -1,4 +1,5 @@
 import React from 'react';
+import Loader from './Loader';
 import './ProcessingStatus.css';
 
 const STAGES = [
@@ -36,7 +37,7 @@ interface JobStatus {
 
 const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete, jobInfo, podcastImageUrl }) => {
   if (!jobInfo) {
-    return <div>Loading status...</div>;
+    return <Loader />;
   }
 
   // Use a default status if the actual status is not available yet

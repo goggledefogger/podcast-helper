@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Modal from 'react-modal'; // Add this import
+import Modal from 'react-modal';
 import './App.css';
 import ProcessingStatus from './components/ProcessingStatus';
 import PromptEditor from './components/PromptEditor';
 import AutoProcessedPodcast from './components/AutoProcessedPodcast';
 import SearchModal from './components/SearchModal';
 import { PodcastProvider, usePodcastContext } from './contexts/PodcastContext';
-import PreventDefaultLink from './components/PreventDefaultLink';
+import Loader from './components/Loader';
+import Header from './components/Header';
+import SearchSection from './components/SearchSection';
+import ManuallyProcessedPodcasts from './components/ManuallyProcessedPodcasts';
 
-// Add this line to set the app element
 Modal.setAppElement('#root');
 
 const AppContent: React.FC = () => {
@@ -20,8 +22,6 @@ const AppContent: React.FC = () => {
     jobStatuses,
     jobInfos,
     isProcessingEpisode,
-    error,
-    setError,
     handleDeleteJob,
     handleDeletePodcast,
     fetchJobStatuses,
@@ -77,7 +77,6 @@ const AppContent: React.FC = () => {
     };
   }, [currentJobs.length, fetchJobStatuses]);
 
-  const openSearchModal = () => setIsSearchModalOpen(true);
   const closeSearchModal = () => setIsSearchModalOpen(false);
 
   const clearNotification = useCallback(() => {
@@ -101,17 +100,12 @@ const AppContent: React.FC = () => {
   };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <Loader fullPage />;
   }
 
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>Podcast Content Optimizer</h1>
-        <button onClick={toggleTheme} className="theme-toggle">
-          {theme === 'light' ? '🌙' : '☀️'}
-        </button>
-      </header>
+      <Header theme={theme} toggleTheme={toggleTheme} />
       <main className="App-main">
         {notification && (
           <div className="notification">
@@ -119,108 +113,66 @@ const AppContent: React.FC = () => {
             <button onClick={() => setNotification(null)} className="close-notification">×</button>
           </div>
         )}
-        <section className="search-section" aria-labelledby="search-heading">
-          <h2 id="search-heading">Find and Process a Podcast</h2>
-          <button onClick={openSearchModal} className="open-search-button">
-            Search for Podcasts
-          </button>
-        </section>
+        <SearchSection openSearchModal={() => setIsSearchModalOpen(true)} />
 
-        <section className="current-jobs" aria-labelledby="current-jobs-heading">
-          <h2 id="current-jobs-heading">Current Processing Jobs</h2>
-          {currentJobs.map((job) => (
-            <ProcessingStatus
-              key={job.job_id}
-              jobId={job.job_id}
-              status={jobStatuses[job.job_id]}
-              onDelete={() => handleDeleteJob(job.job_id)}
-              jobInfo={{
-                podcastName: job.podcast_name || podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
-                episodeTitle: job.episode_title || 'Unknown Episode',
-                rssUrl: job.rss_url
-              }}
-              podcastImageUrl={podcastInfo[job.rss_url]?.imageUrl}
-            />
-          ))}
-          {currentJobs.length === 0 && (
-            <p className="no-jobs">No active processing jobs.</p>
-          )}
-        </section>
-
-        <section className="processed-podcasts" aria-labelledby="processed-heading">
-          <h2 id="processed-heading">Processed Podcasts</h2>
-          {(Object.keys(processedPodcasts).length > 0 || autoPodcasts.length > 0) ? (
-            <div>
-              <h3>Manually Processed Episodes</h3>
-              <ul className="processed-list">
-                {Object.entries(processedPodcasts).map(([rssUrl, episodes]) => (
-                  episodes.map((podcast, index) => (
-                    <li key={`${rssUrl}-${index}`} className="processed-item">
-                      <h4>{podcast.podcast_title} - {podcast.episode_title}</h4>
-                      <div className="processed-links">
-                        <PreventDefaultLink
-                          onClick={() => window.open(podcast.edited_url, '_blank')}
-                          className="view-link"
-                        >
-                          View Edited Audio
-                        </PreventDefaultLink>
-                        <PreventDefaultLink
-                          onClick={() => window.open(podcast.transcript_file, '_blank')}
-                          className="view-link"
-                        >
-                          View Transcript
-                        </PreventDefaultLink>
-                        <PreventDefaultLink
-                          onClick={() => window.open(podcast.unwanted_content_file, '_blank')}
-                          className="view-link"
-                        >
-                          View Unwanted Content
-                        </PreventDefaultLink>
-                      </div>
-                      <button
-                        onClick={() => handleDeletePodcast(podcast.podcast_title, podcast.episode_title)}
-                        className="delete-podcast-button"
-                      >
-                        Delete Episode
-                      </button>
-                    </li>
-                  ))
-                ))}
-              </ul>
-
-              <section className="auto-processed-podcasts" aria-labelledby="auto-processed-heading">
-                <h2 id="auto-processed-heading">Auto-processed Podcasts</h2>
-                {autoPodcasts.length > 0 ? (
-                  <ul className="auto-processed-list">
-                    {autoPodcasts.map((podcast, index) => (
-                      <AutoProcessedPodcast
-                        key={`auto-${index}`}
-                        rssUrl={podcast.rss_url}
-                        enabledAt={podcast.enabled_at}
-                      />
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="no-podcasts">No auto-processed podcasts available. Enable auto-processing for a podcast to see it here.</p>
-                )}
-              </section>
-            </div>
+        <section className="current-jobs section-container" aria-labelledby="current-jobs-heading">
+          <h2 id="current-jobs-heading" className="section-heading">Current Processing Jobs</h2>
+          {currentJobs.length > 0 ? (
+            currentJobs.map((job) => (
+              <ProcessingStatus
+                key={job.job_id}
+                jobId={job.job_id}
+                status={jobStatuses[job.job_id]}
+                onDelete={() => handleDeleteJob(job.job_id)}
+                jobInfo={{
+                  podcastName: job.podcast_name || podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
+                  episodeTitle: job.episode_title || 'Unknown Episode',
+                  rssUrl: job.rss_url
+                }}
+                podcastImageUrl={podcastInfo[job.rss_url]?.imageUrl}
+              />
+            ))
           ) : (
-            <p className="no-podcasts">No processed podcasts available. Process an episode to see results here.</p>
+            <div className="empty-state-card">
+              <p>No active processing jobs.</p>
+            </div>
           )}
         </section>
 
-        {error && (
-          <div className="error-message" role="alert">
-            {error}
-            <button onClick={() => setError('')} className="close-error">×</button>
-          </div>
-        )}
-
-        <section className="prompt-editor-section">
-          <h2>Edit Processing Prompt</h2>
-          <PromptEditor />
+        <section className="processed-podcasts section-container" aria-labelledby="processed-heading">
+          <h2 id="processed-heading" className="section-heading">Processed Podcasts</h2>
+          {Object.keys(processedPodcasts).length > 0 ? (
+            <ManuallyProcessedPodcasts
+              processedPodcasts={processedPodcasts}
+              onDeletePodcast={handleDeletePodcast}
+            />
+          ) : (
+            <div className="empty-state-card">
+              <p>No manually processed podcasts available. Process an episode to see results here.</p>
+            </div>
+          )}
         </section>
+
+        <section className="auto-processed-podcasts section-container" aria-labelledby="auto-processed-heading">
+          <h2 id="auto-processed-heading" className="section-heading">Auto-processed Podcasts</h2>
+          {autoPodcasts.length > 0 ? (
+            <ul className="auto-processed-list">
+              {autoPodcasts.map((podcast, index) => (
+                <AutoProcessedPodcast
+                  key={`auto-${index}`}
+                  rssUrl={podcast.rss_url}
+                  enabledAt={podcast.enabled_at}
+                />
+              ))}
+            </ul>
+          ) : (
+            <div className="empty-state-card">
+              <p>No auto-processed podcasts available. Enable auto-processing for a podcast to see it here.</p>
+            </div>
+          )}
+        </section>
+
+        <PromptEditor />
 
         <SearchModal
           isOpen={isSearchModalOpen}
