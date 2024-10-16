@@ -13,7 +13,7 @@ import re
 import firebase_admin
 from firebase_admin import credentials, storage
 import redis
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # Initialize Firebase app
 cred = credentials.Certificate('etc/firebaseServiceAccountKey.json')
@@ -361,13 +361,14 @@ def save_auto_processed_podcast(rss_url):
 
         if existing_entry:
             logging.info(f"[save_auto_processed_podcast] Updating existing entry for {rss_url}")
-            existing_entry['enabled_at'] = current_time
+            existing_entry['last_checked_at'] = current_time
             logging.debug(f"[save_auto_processed_podcast] Updated existing entry: {existing_entry}")
         else:
             logging.info(f"[save_auto_processed_podcast] Adding new entry for {rss_url}")
             new_entry = {
                 'rss_url': rss_url,
-                'enabled_at': current_time
+                'first_enabled_at': current_time,
+                'last_checked_at': current_time
             }
             auto_processed.append(new_entry)
             logging.debug(f"[save_auto_processed_podcast] Added new entry: {new_entry}")
@@ -405,31 +406,35 @@ def get_auto_process_enable_date(rss_url):
     data = load_processed_podcasts()
     auto_processed = data.get('auto_processed_podcasts', [])
 
+    logging.info(f"Checking auto-process enable date for RSS URL: {rss_url}")
+    logging.info(f"Auto-processed podcasts: {json.dumps(auto_processed, indent=2)}")
+
     entry = next((item for item in auto_processed if item['rss_url'] == rss_url), None)
 
-    if entry and 'enabled_at' in entry:
-        return datetime.fromisoformat(entry['enabled_at'])
+    if entry and 'first_enabled_at' in entry:
+        enable_date = datetime.fromisoformat(entry['first_enabled_at'])
+        logging.info(f"Found enable date for {rss_url}: {enable_date}")
+        return enable_date
     else:
+        logging.warning(f"No enable date found for {rss_url}")
         return None
 
-def is_episode_processed(rss_url, episode_title):
-    processed_podcasts = load_processed_podcasts()
-    return any(
-        episode['episode_title'] == episode_title and episode['status'] == 'completed'
-        for episode in processed_podcasts['processed_podcasts'].get(rss_url, [])
-    )
+def is_episode_new(rss_url, episode_published_date):
+    enable_date = get_auto_process_enable_date(rss_url)
+    if enable_date is None:
+        logging.info(f"Auto-processing not enabled for {rss_url}")
+        return False
 
-def is_episode_being_processed(rss_url, episode_title):
-    # Check if there's an active job for this episode
-    db = get_db()
-    job_key = f"job:{rss_url}:{episode_title}"
-    job_status = db.get(job_key)
-    return job_status is not None and job_status.decode() in ['queued', 'in_progress']
+    # Convert both dates to UTC for accurate comparison
+    episode_published_date = episode_published_date.replace(tzinfo=timezone.utc)
+    enable_date = enable_date.replace(tzinfo=timezone.utc)
 
-def get_db():
-    if not hasattr(get_db, 'db'):
-        get_db.db = redis.Redis(host='localhost', port=6379, db=0)
-    return get_db.db
+    # Consider episodes published within 24 hours before the enable date as new
+    time_difference = episode_published_date - enable_date
+    is_new = time_difference > timedelta(hours=-24) and episode_published_date > enable_date
+
+    logging.info(f"Checking if episode is new - Published: {episode_published_date}, Enabled at: {enable_date}, Is New: {is_new}")
+    return is_new
 
 def save_processed_podcast(podcast_data):
     try:
@@ -465,11 +470,22 @@ def save_processed_podcast(podcast_data):
         logging.error(f"Error saving processed podcast to Firebase: {str(e)}")
         logging.error(traceback.format_exc())
 
-def is_episode_new(rss_url, episode_published_date):
-    enable_date = get_auto_process_enable_date(rss_url)
-    if enable_date is None:
-        logging.info(f"Auto-processing not enabled for {rss_url}")
-        return False
-    is_new = episode_published_date > enable_date
-    logging.info(f"Checking if episode is new - Published: {episode_published_date}, Enabled at: {enable_date}, Is New: {is_new}")
-    return is_new
+def is_episode_processed(rss_url, episode_title):
+    processed_podcasts = load_processed_podcasts()
+    rss_episodes = processed_podcasts['processed_podcasts'].get(rss_url, [])
+    return any(
+        episode['episode_title'] == episode_title and episode.get('status') == 'completed'
+        for episode in rss_episodes
+    )
+
+def is_episode_being_processed(rss_url, episode_title):
+    # Check if there's an active job for this episode
+    db = get_db()
+    job_key = f"job:{rss_url}:{episode_title}"
+    job_status = db.get(job_key)
+    return job_status is not None and job_status.decode() in ['queued', 'in_progress']
+
+def get_db():
+    if not hasattr(get_db, 'db'):
+        get_db.db = redis.Redis(host='localhost', port=6379, db=0)
+    return get_db.db
