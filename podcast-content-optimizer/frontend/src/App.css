@@ -3,9 +3,9 @@
   --secondary-color: #f5a623;
   --background-color: #F7F7F7;
   --text-color: #2C3E50;
-  --text-color-secondary: #34495E;
+  --text-color-secondary: #2b2e31;
   --text-color-tertiary: #445566;
-  --card-background: #ffffff;
+  --card-background: #faf3f3;
   --border-color: #e0e0e0;
   --error-color: #FF4B4B;
   --success-color: #28a745;
@@ -50,7 +50,7 @@
   --secondary-color: #f5a623;
   --background-color: #F7F7F7;
   --text-color: #333333;
-  --card-background: #ffffff;
+  --card-background: #fdfdfd;
   --border-color: #e0e0e0;
   --error-color: #FF4B4B;
   --success-color: #28a745;
@@ -58,14 +58,13 @@
 
 :root[data-theme="dark"] {
   --primary-color: #4A90E2;
-  --secondary-color: #ffd54f;
+  --secondary-color: rgb(151, 124, 35);
   --background-color: #121212;
   --text-color: #E5E5E5;
   --card-background: #1e1e1e;
   --border-color: #333333;
   --error-color: #FF5C5C;
   --success-color: #4caf50;
-
   --input-background: #2c2c2c;
   --input-text: #ffffff;
   --button-text: #ffffff;
