@@ -1,76 +1,82 @@
 :root {
-  --primary-color: #4a90e2;
+  --primary-color: #4A90E2;
   --secondary-color: #f5a623;
-  --background-color: #f0f2f5;
-  --text-color: #333333;
+  --background-color: #F7F7F7;
+  --text-color: #2C3E50;
+  --text-color-secondary: #34495E;
+  --text-color-tertiary: #445566;
   --card-background: #ffffff;
   --border-color: #e0e0e0;
-  --error-color: #d0021b;
+  --error-color: #FF4B4B;
   --success-color: #28a745;
   --modal-background: #ffffff;
-  --modal-text: #333333;
+  --modal-text: #2C3E50;
   --button-text: #ffffff;
-  --link-color: #4a90e2;
+  --link-color: #3498DB;
   --stage-background: #f0f0f0;
-  --stage-completed: #28a745;
-  --stage-in-progress: #4a90e2;
-  --stage-pending: #e0e0e0;
+  --stage-completed: #27AE60;
+  --stage-in-progress: #3498DB;
+  --stage-pending: #BDC3C7;
+  --secondary-text: #7F8C8D;
 }
 
 [data-theme="dark"] {
-  --primary-color: #64b5f6;
+  --primary-color: #4A90E2;
   --secondary-color: #ffd54f;
   --background-color: #121212;
-  --text-color: #e0e0e0;
+  --text-color: #ECF0F1;
+  --text-color-secondary: #BDC3C7;
+  --text-color-tertiary: #95A5A6;
   --card-background: #1e1e1e;
   --border-color: #333333;
-  --error-color: #ff6b6b;
-  --success-color: #4caf50;
+  --error-color: #FF5C5C;
+  --success-color: #2ECC71;
   --input-background: #2c2c2c;
-  --input-text: #ffffff;
-  --button-text: #000000;
-  --link-color: #90caf9;
+  --input-text: #ECF0F1;
+  --button-text: #ffffff;
+  --link-color: #3498DB;
   --modal-background: #2c2c2c;
-  --modal-text: #ffffff;
+  --modal-text: #ECF0F1;
   --stage-background: #2c2c2c;
-  --stage-completed: #1b5e20;
-  --stage-in-progress: #1565c0;
-  --stage-pending: #424242;
-  --button-background: #3f51b5;
+  --stage-completed: #27AE60;
+  --stage-in-progress: #3498DB;
+  --stage-pending: #7F8C8D;
+  --button-background: #4A90E2;
+  --secondary-text: #95A5A6;
 }
 
 :root[data-theme="light"] {
-  --primary-color: #4a90e2;
+  --primary-color: #4A90E2;
   --secondary-color: #f5a623;
-  --background-color: #f0f2f5;
+  --background-color: #F7F7F7;
   --text-color: #333333;
   --card-background: #ffffff;
   --border-color: #e0e0e0;
-  --error-color: #d0021b;
+  --error-color: #FF4B4B;
   --success-color: #28a745;
 }
 
 :root[data-theme="dark"] {
-  --primary-color: #64b5f6;
+  --primary-color: #4A90E2;
   --secondary-color: #ffd54f;
   --background-color: #121212;
-  --text-color: #e0e0e0;
+  --text-color: #E5E5E5;
   --card-background: #1e1e1e;
   --border-color: #333333;
-  --error-color: #ff6b6b;
+  --error-color: #FF5C5C;
   --success-color: #4caf50;
 
   --input-background: #2c2c2c;
   --input-text: #ffffff;
-  --button-text: #000000;
-  --link-color: #90caf9;
+  --button-text: #ffffff;
+  --link-color: #4A90E2;
   --modal-background: #2c2c2c;
-  --modal-text: #ffffff;
+  --modal-text: #E5E5E5;
   --stage-background: #2c2c2c;
   --stage-completed: #1b5e20;
   --stage-in-progress: #1565c0;
   --stage-pending: #424242;
-  --button-background: #3f51b5;
+  --button-background: #4A90E2;
 }
 
 body {
@@ -100,7 +106,11 @@ h1,
 h2,
 h3,
 h4 {
-  color: var(--text-color);
+  color: var(--text-color-secondary);
+}
+
+p {
+  color: var(--text-color-tertiary);
 }
 
 input,
@@ -122,7 +132,7 @@ button {
 
 button:hover:not(:disabled) {
   background-color: var(--secondary-color);
-  color: var(--button-text);
+  color: var(--text-color);
 }
 
 button:active {
@@ -464,4 +474,52 @@ ul {
   padding: 20px;
   margin-bottom: 30px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Add styles for links */
+a {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+
+a:hover {
+  text-decoration: none;
+}
+
+/* Update button styles */
+button {
+  background-color: var(--primary-color);
+  color: var(--button-text);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.1s;
+}
+
+button:hover:not(:disabled) {
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+}
+
+/* Add styles for secondary text */
+.secondary-text {
+  color: var(--secondary-text);
+}
+
+/* Add these new styles for better contrast in form elements */
+input, select, textarea {
+  background-color: var(--input-background);
+  color: var(--input-text);
+  border: 1px solid var(--border-color);
+}
+
+/* Improve contrast for placeholder text */
+::placeholder {
+  color: var(--secondary-text);
+  opacity: 0.7;
+}
+
+/* Enhance focus states for better accessibility */
+input:focus, select:focus, textarea:focus, button:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }

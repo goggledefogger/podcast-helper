@@ -42,6 +42,7 @@
 .status-title {
   font-size: 1.2em;
   margin-bottom: 15px;
+  color: var(--text-color);
 }
 
 .status-value {
@@ -179,7 +180,7 @@
 
 .timestamp {
   font-size: 0.9em;
-  color: var(--text-color);
+  color: var(--secondary-text);
 }
 
 .delete-job-button {
@@ -271,28 +272,28 @@
 }
 
 [data-theme="dark"] .stage.completed .stage-icon {
-  background-color: #4caf50;
+  background-color: var(--success-color);
 }
 
 [data-theme="dark"] .stage.in_progress .stage-icon {
-  background-color: #2196f3;
+  background-color: var(--primary-color);
 }
 
 [data-theme="dark"] .stage.pending .stage-icon {
-  background-color: #9e9e9e;
+  background-color: var(--stage-pending);
 }
 
 [data-theme="dark"] .timestamp {
-  color: #bdbdbd;
+  color: var(--secondary-text);
 }
 
 [data-theme="dark"] .delete-job-button {
-  background-color: #ff6b6b;
-  color: #ffffff;
+  background-color: var(--error-color);
+  color: var(--button-text);
 }
 
 [data-theme="dark"] .delete-job-button:hover {
-  background-color: #ff4d4d;
+  background-color: var(--secondary-color);
 }
 
 /* Add these new styles */
