@@ -9,7 +9,8 @@ import {
   fetchCurrentJobs,
   CurrentJob as ApiCurrentJob,
   deleteJob,
-  deleteProcessedPodcast
+  deleteProcessedPodcast,
+  deleteAutoProcessedPodcast as apiDeleteAutoProcessedPodcast // Add this line
 } from '../api';
 import Notification from '../components/Notification';
 
@@ -73,6 +74,7 @@ interface PodcastContextType {
   setErrorMessage: React.Dispatch<React.SetStateAction<string | null>>;
   successMessage: string | null;
   setSuccessMessage: React.Dispatch<React.SetStateAction<string | null>>;
+  deleteAutoProcessedPodcast: (rssUrl: string) => Promise<void>;
 }
 
 // Update the CurrentJob interface to match the API
@@ -315,6 +317,17 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [setAutoPodcasts, setPodcastInfo]);
 
+  const deleteAutoProcessedPodcast = useCallback(async (rssUrl: string) => {
+    try {
+      await apiDeleteAutoProcessedPodcast(rssUrl);
+      setAutoPodcasts(prevAutoPodcasts => prevAutoPodcasts.filter(podcast => podcast.rss_url !== rssUrl));
+      setSuccessMessage('Auto-processed podcast deleted successfully');
+    } catch (error) {
+      console.error('Error deleting auto-processed podcast:', error);
+      setErrorMessage('Failed to delete auto-processed podcast. Please try again.');
+    }
+  }, []);
+
   const contextValue = useMemo(() => ({
     podcastInfo,
     setPodcastInfo,
@@ -348,13 +361,14 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     errorMessage,
     setErrorMessage,
     successMessage,
-    setSuccessMessage
+    setSuccessMessage,
+    deleteAutoProcessedPodcast
   }), [
     podcastInfo, processedPodcasts, autoPodcasts, currentJobs, jobStatuses, jobInfos,
     isLoadingEpisodes, isProcessingEpisode, episodes, error, isLoading,
     fetchEpisodes, handleProcessEpisode, handleSelectPodcast, handleDeleteJob,
     handleDeletePodcast, handleEnableAutoProcessing, fetchJobStatuses, fetchAllData,
-    errorMessage, successMessage
+    errorMessage, successMessage, deleteAutoProcessedPodcast
   ]);
 
   return (

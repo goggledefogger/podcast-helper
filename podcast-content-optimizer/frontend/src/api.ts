@@ -164,3 +164,13 @@ export const getModifiedRssFeed = async (rssUrl: string): Promise<string> => {
   }
   return await response.text();
 };
+
+// Add this new function to delete an auto-processed podcast
+export const deleteAutoProcessedPodcast = async (rssUrl: string): Promise<void> => {
+  const response = await fetchWithCredentials(`${API_BASE_URL}/api/delete_auto_processed_podcast?rss_url=${encodeURIComponent(rssUrl)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to delete auto-processed podcast');
+  }
+};

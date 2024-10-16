@@ -592,5 +592,54 @@ def save_podcast_info():
         logging.error(traceback.format_exc())  # Add this line to get more detailed error information
         return jsonify({"error": "Failed to save podcast info"}), 500
 
+# Add this new route to delete an auto-processed podcast
+@app.route('/api/delete_auto_processed_podcast', methods=['POST', 'DELETE', 'OPTIONS'])
+def delete_auto_processed_podcast():
+    logging.info(f"Received request to delete auto-processed podcast. Method: {request.method}")
+
+    if request.method == 'OPTIONS':
+        logging.info("Handling OPTIONS request for delete_auto_processed_podcast")
+        return '', 204
+
+    try:
+        logging.info(f"Request headers: {request.headers}")
+        logging.info(f"Request data: {request.data}")
+
+        if request.method == 'DELETE':
+            # For DELETE requests, the RSS URL might be in the query parameters
+            rss_url = request.args.get('rss_url')
+        else:
+            # For POST requests, get the RSS URL from the JSON body
+            data = request.json
+            rss_url = data.get('rss_url')
+
+        logging.info(f"RSS URL to delete: {rss_url}")
+
+        if not rss_url:
+            logging.error("No RSS URL provided in the request")
+            return jsonify({'error': 'RSS URL is required'}), 400
+
+        processed_data = load_processed_podcasts()
+        logging.info(f"Loaded processed data. Keys: {processed_data.keys()}")
+
+        auto_processed = processed_data.get('auto_processed_podcasts', [])
+        logging.info(f"Current auto-processed podcasts: {auto_processed}")
+
+        # Remove the podcast from the auto-processed list
+        auto_processed = [podcast for podcast in auto_processed if podcast['rss_url'] != rss_url]
+        logging.info(f"Updated auto-processed podcasts: {auto_processed}")
+
+        processed_data['auto_processed_podcasts'] = auto_processed
+
+        # Save the updated data
+        save_processed_podcasts(processed_data)
+
+        logging.info(f"Auto-processed podcast deleted successfully: {rss_url}")
+        return jsonify({'message': 'Auto-processed podcast deleted successfully'}), 200
+    except Exception as e:
+        logging.error(f"Error deleting auto-processed podcast: {str(e)}")
+        logging.error(traceback.format_exc())
+        return jsonify({'error': 'Failed to delete auto-processed podcast'}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)

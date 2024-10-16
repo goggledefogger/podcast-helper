@@ -29,9 +29,18 @@ PROCESSED_PODCASTS_FILE = 'db.json'
 def get_podcast_episodes(rss_url):
     try:
         logging.info(f"Parsing RSS feed: {rss_url}")
+
+        # First attempt: Parse the feed normally
         feed = feedparser.parse(rss_url)
 
-        if feed.bozo:
+        # If there's an encoding error, try parsing with explicit UTF-8 encoding
+        if feed.bozo and isinstance(feed.bozo_exception, feedparser.CharacterEncodingOverride):
+            logging.warning(f"Encoding mismatch detected. Attempting to parse with UTF-8 encoding: {rss_url}")
+            response = requests.get(rss_url)
+            response.encoding = 'utf-8'  # Force UTF-8 encoding
+            feed = feedparser.parse(response.text)
+
+        if feed.bozo and not isinstance(feed.bozo_exception, feedparser.CharacterEncodingOverride):
             logging.error(f"Error parsing RSS feed: {feed.bozo_exception}")
             raise ValueError(f"Invalid RSS feed: {feed.bozo_exception}")
 

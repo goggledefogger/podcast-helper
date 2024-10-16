@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaChevronDown, FaChevronUp, FaCopy } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaCopy, FaTrash } from 'react-icons/fa';
 import Loader from './Loader';
 import { API_BASE_URL } from '../api';
 import { formatDuration, formatDate } from '../utils/timeUtils';
@@ -19,11 +19,13 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl, ena
     isProcessingEpisode,
     handleProcessEpisode,
     handleSelectPodcast,
-    processedPodcasts
+    processedPodcasts,
+    deleteAutoProcessedPodcast
   } = usePodcastContext();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
   const [selectedEpisodeIndex, setSelectedEpisodeIndex] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (isExpanded && !episodes[rssUrl]) {
@@ -67,25 +69,51 @@ const AutoProcessedPodcast: React.FC<AutoProcessedPodcastProps> = ({ rssUrl, ena
     return isNaN(date.getTime()) ? 'Recently enabled' : date.toLocaleString();
   };
 
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent expanding/collapsing when clicking delete
+    if (window.confirm('Are you sure you want to delete this auto-processed podcast?')) {
+      setIsDeleting(true);
+      try {
+        await deleteAutoProcessedPodcast(rssUrl);
+      } catch (error) {
+        console.error('Error deleting auto-processed podcast:', error);
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
   return (
     <li className="auto-processed-item">
       <div className="auto-processed-header" onClick={handleToggleExpand}>
-        {podcastInfo[rssUrl]?.imageUrl && (
-          <img
-            src={podcastInfo[rssUrl].imageUrl}
-            alt={podcastInfo[rssUrl].name || 'Podcast'}
-            className="podcast-image"
-          />
-        )}
-        <div className="podcast-title-container">
-          <h4>{podcastInfo[rssUrl]?.name || 'Loading...'}</h4>
-          <p className="rss-url">{rssUrl}</p>
-          <p className="enabled-at">Enabled at: {formatEnabledAt(enabledAt)}</p>
+        <div className="auto-processed-header-content">
+          {podcastInfo[rssUrl]?.imageUrl && (
+            <img
+              src={podcastInfo[rssUrl].imageUrl}
+              alt={podcastInfo[rssUrl].name || 'Podcast'}
+              className="podcast-image"
+            />
+          )}
+          <div className="podcast-title-container">
+            <h4>{podcastInfo[rssUrl]?.name || 'Loading...'}</h4>
+            <p className="rss-url">{rssUrl}</p>
+            <p className="enabled-at">Enabled at: {formatEnabledAt(enabledAt)}</p>
+          </div>
+          {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
         </div>
-        {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
       </div>
       {isExpanded && (
         <div className="auto-processed-content">
+          <div className="auto-processed-actions">
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="delete-auto-processed-button"
+              title="Delete auto-processed podcast"
+            >
+              <FaTrash /> Delete
+            </button>
+          </div>
           {isLoadingEpisodes ? (
             <Loader />
           ) : (
