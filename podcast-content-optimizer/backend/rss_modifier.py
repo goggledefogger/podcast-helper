@@ -145,6 +145,7 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
 
         # Process items
         episodes_to_process = []
+        items_to_remove = []
         for item in channel.findall('item'):
             item_title = item.find('title')
             if item_title is not None:
@@ -172,13 +173,18 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
                     update_processed_item(item, processed_episode, namespaces)
                 elif is_episode_being_processed(original_rss_url, episode_title):
                     logging.info(f"Episode currently being processed: {episode_title}")
-                    channel.remove(item)
+                    items_to_remove.append(item)
                 elif enable_date and is_episode_new(original_rss_url, episode_published_date):
                     logging.info(f"New episode detected for processing: {episode_title}, Published: {episode_published_date}")
                     episodes_to_process.append((episode_title, episode_published_date))
-                    channel.remove(item)
+                    items_to_remove.append(item)
                 else:
                     logging.info(f"Episode not new or already processed: {episode_title}, Published: {episode_published_date}")
+                    break  # Stop processing further episodes
+
+        # Remove items outside the loop to avoid modifying the list while iterating
+        for item in items_to_remove:
+            channel.remove(item)
 
         if episodes_to_process:
             logging.info(f"Found {len(episodes_to_process)} new episodes to process: {[ep[0] for ep in episodes_to_process]}")
