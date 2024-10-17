@@ -361,13 +361,14 @@ def save_auto_processed_podcast(rss_url):
 
         if existing_entry:
             logging.info(f"[save_auto_processed_podcast] Updating existing entry for {rss_url}")
+            existing_entry['enabled_at'] = current_time
             existing_entry['last_checked_at'] = current_time
             logging.debug(f"[save_auto_processed_podcast] Updated existing entry: {existing_entry}")
         else:
             logging.info(f"[save_auto_processed_podcast] Adding new entry for {rss_url}")
             new_entry = {
                 'rss_url': rss_url,
-                'first_enabled_at': current_time,
+                'enabled_at': current_time,
                 'last_checked_at': current_time
             }
             auto_processed.append(new_entry)
@@ -411,8 +412,8 @@ def get_auto_process_enable_date(rss_url):
 
     entry = next((item for item in auto_processed if item['rss_url'] == rss_url), None)
 
-    if entry and 'first_enabled_at' in entry:
-        enable_date = datetime.fromisoformat(entry['first_enabled_at'])
+    if entry and 'enabled_at' in entry:
+        enable_date = datetime.fromisoformat(entry['enabled_at'])
         logging.info(f"Found enable date for {rss_url}: {enable_date}")
         return enable_date
     else:

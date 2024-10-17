@@ -512,6 +512,10 @@ def enable_auto_processing():
 @app.route('/api/auto_processed_podcasts', methods=['GET'])
 def get_auto_processed_podcasts():
     auto_processed_podcasts = load_auto_processed_podcasts()
+    # Ensure the 'enabled_at' field is present in the response
+    for podcast in auto_processed_podcasts:
+        if 'enabled_at' not in podcast:
+            podcast['enabled_at'] = podcast.get('first_enabled_at', 'Unknown')
     return jsonify(auto_processed_podcasts)
 
 # Add this new route for the main page
