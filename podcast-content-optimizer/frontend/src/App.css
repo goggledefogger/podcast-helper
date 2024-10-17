@@ -18,11 +18,11 @@
   --stage-in-progress: #3498DB;
   --stage-pending: #BDC3C7;
   --secondary-text: #7F8C8D;
+  --input-background: #ffffff;
+  --input-text: #2C3E50;
 }
 
 [data-theme="dark"] {
-  --primary-color: #4A90E2;
-  --secondary-color: #ffd54f;
   --background-color: #121212;
   --text-color: #ECF0F1;
   --text-color-secondary: #BDC3C7;
@@ -33,18 +33,11 @@
   --success-color: #2ECC71;
   --input-background: #2c2c2c;
   --input-text: #ECF0F1;
-  --button-text: #ffffff;
-  --link-color: #3498DB;
   --modal-background: #2c2c2c;
   --modal-text: #ECF0F1;
   --stage-background: #2c2c2c;
-  --stage-completed: #27AE60;
-  --stage-in-progress: #3498DB;
-  --stage-pending: #7F8C8D;
-  --button-background: #4A90E2;
   --secondary-text: #95A5A6;
 }
-
 
 body {
   font-family: 'Arial', sans-serif;
@@ -55,8 +48,6 @@ body {
 }
 
 .App {
-  color: var(--text-color);
-  background-color: var(--background-color);
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
@@ -69,10 +60,7 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-h1,
-h2,
-h3,
-h4 {
+h1, h2, h3, h4 {
   color: var(--text-color-secondary);
 }
 
@@ -80,13 +68,13 @@ p {
   color: var(--text-color-tertiary);
 }
 
-input,
-select,
-button,
-textarea {
+input, select, button, textarea {
   background-color: var(--input-background);
   color: var(--input-text);
   border: 1px solid var(--border-color);
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 4px;
 }
 
 button {
@@ -99,11 +87,15 @@ button {
 
 button:hover:not(:disabled) {
   background-color: var(--secondary-color);
-  color: var(--text-color);
 }
 
 button:active {
   transform: translateY(1px);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .error {
@@ -123,11 +115,6 @@ button:active {
   border: 0;
 }
 
-.processing {
-  text-align: center;
-  margin: 20px 0;
-}
-
 .loading-spinner {
   border: 4px solid #f3f3f3;
   border-top: 4px solid var(--primary-color);
@@ -139,34 +126,8 @@ button:active {
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.log-container {
-  max-height: 200px;
-  overflow-y: auto;
-  border: 1px solid #ccc;
-  padding: 10px;
-  margin-top: 10px;
-  font-family: monospace;
-  font-size: 12px;
-}
-
-.log-entry {
-  margin-bottom: 5px;
-}
-
-.job-item {
-  margin-bottom: 20px;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .search-section {
@@ -174,9 +135,8 @@ button:active {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
-  margin-bottom: 30px;
-  max-width: 600px;
   margin: 0 auto 30px;
+  max-width: 600px;
   text-align: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -199,15 +159,11 @@ button:active {
 #search-input {
   flex: 1;
   min-width: 0;
-  padding: 10px;
-  box-sizing: border-box;
 }
 
 .search-container button {
   white-space: nowrap;
   flex-shrink: 0;
-  padding: 10px;
-  box-sizing: border-box;
 }
 
 .prompt-editor {
@@ -221,7 +177,7 @@ button:active {
 
 .prompt-editor h2 {
   margin-bottom: 15px;
-  color: #333;
+  color: var(--text-color-secondary);
 }
 
 .prompt-container {
@@ -231,31 +187,7 @@ button:active {
 .prompt-editor textarea {
   width: 100%;
   min-height: 200px;
-  padding: 10px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 14px;
   resize: vertical;
-}
-
-.button-container {
-  display: flex;
-  gap: 10px;
-}
-
-.prompt-editor button {
-  padding: 8px 16px;
-  font-size: 14px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.prompt-editor button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .message {
@@ -294,23 +226,11 @@ button:active {
 .fetch-button {
   width: 100%;
   margin-top: 10px;
-  transition: background-color 0.3s ease, transform 0.1s ease;
 }
 
 ul {
   list-style-type: none;
   padding-left: 0;
-}
-
-@media (max-width: 1024px) {
-  .content-wrapper {
-    flex-direction: column;
-  }
-
-  .left-column,
-  .right-column {
-    max-width: 100%;
-  }
 }
 
 .empty-state-card {
@@ -339,7 +259,6 @@ ul {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Add styles for links */
 a {
   color: var(--link-color);
   text-decoration: underline;
@@ -349,53 +268,34 @@ a:hover {
   text-decoration: none;
 }
 
-/* Update button styles */
-button {
-  background-color: var(--primary-color);
-  color: var(--button-text);
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.1s;
-}
-
-button:hover:not(:disabled) {
-  background-color: var(--secondary-color);
-  color: var(--text-color);
-}
-
-/* Add styles for secondary text */
 .secondary-text {
   color: var(--secondary-text);
 }
 
-/* Add these new styles for better contrast in form elements */
-input, select, textarea {
-  background-color: var(--input-background);
-  color: var(--input-text);
-  border: 1px solid var(--border-color);
-}
-
-/* Improve contrast for placeholder text */
 ::placeholder {
   color: var(--secondary-text);
   opacity: 0.7;
 }
 
-/* Enhance focus states for better accessibility */
 input:focus, select:focus, textarea:focus, button:focus {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
 
-/* Add these new styles at the end of the file */
+@media (max-width: 1024px) {
+  .content-wrapper {
+    flex-direction: column;
+  }
+
+  .left-column,
+  .right-column {
+    max-width: 100%;
+  }
+}
 
 @media (max-width: 768px) {
   .App {
     padding: 10px;
-  }
-
-  .App-main {
-    padding: 15px;
   }
 
   .section-container {
@@ -412,10 +312,6 @@ input:focus, select:focus, textarea:focus, button:focus {
 @media (max-width: 480px) {
   .App {
     padding: 5px;
-  }
-
-  .App-main {
-    padding: 10px;
   }
 
   .section-container {

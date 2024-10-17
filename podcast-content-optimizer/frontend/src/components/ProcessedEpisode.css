@@ -5,8 +5,6 @@
   padding: 15px;
   margin-bottom: 20px;
   transition: box-shadow 0.3s ease;
-  box-sizing: border-box;
-  width: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -19,7 +17,6 @@
 .processed-item h4 {
   margin-top: 0;
   margin-bottom: 15px;
-  color: var(--text-color);
 }
 
 .processed-links {
@@ -27,12 +24,9 @@
   flex-direction: column;
   gap: 10px;
   margin-bottom: 10px;
-  width: 100%;
 }
 
 .view-link {
-  display: block;
-  width: 100%;
   text-align: center;
   padding: 8px 12px;
   background-color: var(--primary-color);
@@ -41,8 +35,6 @@
   border-radius: 4px;
   transition: background-color 0.2s ease;
   font-size: 14px;
-  line-height: 1.5;
-  box-sizing: border-box;
 }
 
 .view-link:hover {
@@ -50,25 +42,9 @@
 }
 
 .delete-podcast-button {
-  width: 100%;
-  padding: 8px 12px;
-  background-color: var(--error-color);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  box-sizing: border-box;
-  font-size: 14px;
-  line-height: 1.5;
   margin-top: 10px;
+  background-color: var(--error-color);
 }
-
-.delete-podcast-button:hover {
-  background-color: var(--secondary-color);
-}
-
-/* Add these new styles at the end of the file */
 
 @media (max-width: 768px) {
   .processed-item {
@@ -78,10 +54,6 @@
   .processed-item h4 {
     font-size: 1em;
     margin-bottom: 10px;
-  }
-
-  .processed-links {
-    gap: 5px;
   }
 
   .view-link,
