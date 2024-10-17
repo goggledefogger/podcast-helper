@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PreventDefaultLink from './PreventDefaultLink';
+import Loader from './Loader';
 import './ProcessedEpisode.css';
 
 interface ProcessedEpisodeProps {
@@ -10,10 +11,21 @@ interface ProcessedEpisodeProps {
     transcript_file: string;
     unwanted_content_file: string;
   };
-  onDelete: (podcastTitle: string, episodeTitle: string) => void;
+  onDelete: (podcastTitle: string, episodeTitle: string) => Promise<void>;
 }
 
 const ProcessedEpisode: React.FC<ProcessedEpisodeProps> = ({ podcast, onDelete }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete(podcast.podcast_title, podcast.episode_title);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <li className="processed-item">
       <h4>
@@ -37,9 +49,11 @@ const ProcessedEpisode: React.FC<ProcessedEpisodeProps> = ({ podcast, onDelete }
         </PreventDefaultLink>
       </div>
       <button
-        onClick={() => onDelete(podcast.podcast_title, podcast.episode_title)}
-        className="delete-podcast-button">
-        Delete Episode
+        onClick={handleDelete}
+        className="delete-podcast-button"
+        disabled={isDeleting}
+      >
+        {isDeleting ? <Loader /> : 'Delete Episode'}
       </button>
     </li>
   );

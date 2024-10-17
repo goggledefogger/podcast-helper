@@ -26,15 +26,16 @@
   margin-bottom: 10px;
 }
 
-.view-link {
+.view-link,
+.delete-podcast-button {
   text-align: center;
   padding: 8px 12px;
-  background-color: var(--primary-color);
-  color: white;
-  text-decoration: none;
   border-radius: 4px;
-  transition: background-color 0.2s ease;
   font-size: 14px;
+}
+
+.view-link {
+  background-color: var(--primary-color);
 }
 
 .view-link:hover {
@@ -44,6 +45,13 @@
 .delete-podcast-button {
   margin-top: 10px;
   background-color: var(--error-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.delete-podcast-button:hover:not(:disabled) {
+  background-color: var(--secondary-color);
 }
 
 @media (max-width: 768px) {
