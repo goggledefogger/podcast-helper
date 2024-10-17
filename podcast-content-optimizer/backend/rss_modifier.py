@@ -15,7 +15,7 @@ import urllib.parse
 from firebase_admin import storage
 import json
 from podcast_processor import process_podcast_episode
-from api.tasks import process_podcast_task
+from tasks import process_podcast_task
 import uuid
 from datetime import datetime, timezone
 

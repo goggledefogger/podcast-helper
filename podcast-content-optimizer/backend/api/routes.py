@@ -24,7 +24,7 @@ from utils import get_episode_folder
 from firebase_admin import storage
 from prompt_loader import load_prompt
 import feedparser
-from api.tasks import process_podcast_task
+from tasks import process_podcast_task
 from datetime import datetime, timedelta
 import pytz
 from utils import save_auto_processed_podcast, load_processed_podcasts

@@ -1,20 +1,18 @@
-from celery import Celery
+from celery import shared_task
 from podcast_processor import process_podcast_episode
 import logging
+from utils import initialize_firebase
 
-app = Celery('tasks', broker='redis://localhost:6379/0')
+@shared_task(name='process_podcast_task')
+def process_podcast_task(rss_url, episode_index, job_id):
+    logging.info(f"Starting podcast processing task for {rss_url}, episode {episode_index}, job {job_id}")
+    try:
+        # Initialize Firebase within the task
+        initialize_firebase()
 
-@app.task(bind=True, name='process_podcast_task', acks_late=True)
-def process_podcast_task(self, rss_url, episode_index, job_id):
-    # Generate a unique task ID
-    unique_id = f"{rss_url}:{episode_index}"
-
-    # Check if a task with this ID is already running
-    if app.AsyncResult(unique_id).state in ['PENDING', 'STARTED', 'RETRY']:
-        logging.info(f"Task for {unique_id} is already running. Skipping.")
-        return
-
-    # Set the task ID
-    self.request.id = unique_id
-
-    process_podcast_episode(rss_url, episode_index, job_id)
+        result = process_podcast_episode(rss_url, episode_index, job_id)
+        logging.info(f"Podcast processing task completed for {rss_url}, episode {episode_index}, job {job_id}")
+        return result
+    except Exception as e:
+        logging.error(f"Error in podcast processing task: {str(e)}")
+        raise

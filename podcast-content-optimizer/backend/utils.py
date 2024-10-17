@@ -14,14 +14,35 @@ import firebase_admin
 from firebase_admin import credentials, storage
 import redis
 from datetime import datetime, timezone, timedelta
+import threading
 
-# Initialize Firebase app
-cred = credentials.Certificate('etc/firebaseServiceAccountKey.json')
-firebase_admin.initialize_app(cred, {
-    'storageBucket': 'podcast-helper-435105.appspot.com'
-})
+# Global variable to hold the Firebase app
+firebase_app = None
+firebase_init_lock = threading.Lock()
 
-bucket = storage.bucket()
+def initialize_firebase():
+    global firebase_app
+    if firebase_app is None:
+        with firebase_init_lock:
+            if firebase_app is None:
+                try:
+                    cred = credentials.Certificate('etc/firebaseServiceAccountKey.json')
+                    firebase_app = firebase_admin.initialize_app(cred, {
+                        'storageBucket': 'podcast-helper-435105.appspot.com'
+                    })
+                except ValueError as e:
+                    if "The default Firebase app already exists" in str(e):
+                        firebase_app = firebase_admin.get_app()
+                    else:
+                        raise
+    return firebase_app
+
+def get_storage_bucket():
+    try:
+        return storage.bucket()
+    except ValueError:
+        initialize_firebase()
+        return storage.bucket()
 
 # Update this constant
 PROCESSED_PODCASTS_FILE = 'db.json'
@@ -266,37 +287,26 @@ def get_episode_folder(podcast_title, episode_title):
     return os.path.join('output', safe_podcast_title, safe_episode_title)
 
 def upload_to_firebase(file_path, delete_local=True):
+    if file_path.startswith('http://') or file_path.startswith('https://'):
+        logging.info(f"File is already a URL, skipping upload: {file_path}")
+        return file_path
+
+    if not os.path.exists(file_path):
+        logging.error(f"File does not exist locally: {file_path}")
+        return None
+
     try:
-        # Check if the file_path is already a URL
-        if file_path.startswith('http://') or file_path.startswith('https://'):
-            logging.info(f"File is already a URL, skipping upload: {file_path}")
-            return file_path
-
-        # Ensure the file exists locally
-        if not os.path.exists(file_path):
-            logging.error(f"File does not exist locally: {file_path}")
-            return None
-
-        # Generate a storage path (you might want to adjust this logic)
+        bucket = get_storage_bucket()
         storage_path = os.path.relpath(file_path, 'output')
         blob = bucket.blob(storage_path)
-
-        logging.info(f"Uploading file to Firebase: {file_path}")
         blob.upload_from_filename(file_path)
-
-        # Make the file public
         blob.make_public()
-
         public_url = blob.public_url
         logging.info(f"Successfully uploaded and made public file in Firebase: {file_path} -> {public_url}")
 
-        # Delete the local file if requested
         if delete_local:
-            try:
-                os.remove(file_path)
-                logging.info(f"Deleted local file after upload: {file_path}")
-            except Exception as delete_error:
-                logging.warning(f"Failed to delete local file after upload: {file_path}. Error: {str(delete_error)}")
+            os.remove(file_path)
+            logging.info(f"Deleted local file after upload: {file_path}")
 
         return public_url
     except Exception as e:
@@ -309,6 +319,7 @@ def file_exists_in_firebase(file_path):
     if file_path.startswith(bucket_name):
         file_path = file_path[len(bucket_name):].lstrip('/')
 
+    bucket = get_storage_bucket()
     blob = bucket.blob(file_path)
     exists = blob.exists()
     logging.info(f"Checking if file exists in Firebase: {file_path}, Result: {exists}")
@@ -327,6 +338,7 @@ def download_from_firebase(firebase_url, local_path):
 
         logging.info(f"Attempting to download file from Firebase: {file_path}")
 
+        bucket = get_storage_bucket()
         blob = bucket.blob(file_path)
 
         if not blob.exists():
