@@ -249,6 +249,10 @@ def process_new_episodes(rss_url, episodes_to_process):
         else:
             logging.error(f"Could not find episode {episode_title} in the feed")
 
-def get_modified_rss_feed(original_rss_url, processed_podcasts):
-    logging.info(f"Generating modified RSS feed for {original_rss_url}")
-    return create_modified_rss_feed(original_rss_url, processed_podcasts)
+def get_modified_rss_feed(rss_url, processed_podcasts):
+    logging.info(f"Generating modified RSS feed for {rss_url}")
+
+    rss_specific_podcasts = processed_podcasts.get(rss_url, [])
+    logging.info(f"Found {len(rss_specific_podcasts)} processed episodes for {rss_url}")
+
+    return create_modified_rss_feed(rss_url, {rss_url: rss_specific_podcasts})
