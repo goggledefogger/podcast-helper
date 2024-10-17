@@ -147,6 +147,44 @@ button:focus {
   outline-offset: 2px;
 }
 
+.message {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.message.success {
+  background-color: var(--success-color);
+  color: var(--text-color);
+}
+
+.message.error {
+  background-color: var(--error-color);
+  color: var(--text-color);
+}
+
+ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.section-heading {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: var(--text-color);
+  font-size: 1.5em;
+}
+
+.section-container {
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 @media (max-width: 1024px) {
   .App {
     padding: 15px;
