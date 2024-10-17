@@ -67,3 +67,43 @@
 .delete-podcast-button:hover {
   background-color: var(--secondary-color);
 }
+
+/* Add these new styles at the end of the file */
+
+@media (max-width: 768px) {
+  .processed-item {
+    padding: 10px;
+  }
+
+  .processed-item h4 {
+    font-size: 1em;
+    margin-bottom: 10px;
+  }
+
+  .processed-links {
+    gap: 5px;
+  }
+
+  .view-link,
+  .delete-podcast-button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .processed-item {
+    padding: 8px;
+  }
+
+  .processed-item h4 {
+    font-size: 0.9em;
+    margin-bottom: 8px;
+  }
+
+  .view-link,
+  .delete-podcast-button {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+}

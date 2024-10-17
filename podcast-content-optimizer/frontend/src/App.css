@@ -386,3 +386,45 @@ input:focus, select:focus, textarea:focus, button:focus {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
+
+/* Add these new styles at the end of the file */
+
+@media (max-width: 768px) {
+  .App {
+    padding: 10px;
+  }
+
+  .App-main {
+    padding: 15px;
+  }
+
+  .section-container {
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+
+  .section-heading {
+    font-size: 1.3em;
+    margin-bottom: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .App {
+    padding: 5px;
+  }
+
+  .App-main {
+    padding: 10px;
+  }
+
+  .section-container {
+    padding: 10px;
+    margin-bottom: 15px;
+  }
+
+  .section-heading {
+    font-size: 1.2em;
+    margin-bottom: 10px;
+  }
+}
