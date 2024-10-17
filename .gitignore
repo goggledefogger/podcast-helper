@@ -44,3 +44,4 @@ typings/
 *.local
 *.cache
 *.json
+.aider*
