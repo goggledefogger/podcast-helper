@@ -143,9 +143,11 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         enable_date = get_auto_process_enable_date(original_rss_url)
         logging.info(f"Auto-processing enabled date for {original_rss_url}: {enable_date}")
 
-        # Process items
+        # Initialize a flag to indicate when we've found a non-new episode
+        found_non_new_episode = False
         episodes_to_process = []
         items_to_remove = []
+
         for item in channel.findall('item'):
             item_title = item.find('title')
             if item_title is not None:
@@ -174,13 +176,15 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
                 elif is_episode_being_processed(original_rss_url, episode_title):
                     logging.info(f"Episode currently being processed: {episode_title}")
                     items_to_remove.append(item)
-                elif enable_date and is_episode_new(original_rss_url, episode_published_date):
+                elif not found_non_new_episode and enable_date and is_episode_new(original_rss_url, episode_published_date):
                     logging.info(f"New episode detected for processing: {episode_title}, Published: {episode_published_date}")
                     episodes_to_process.append((episode_title, episode_published_date))
                     items_to_remove.append(item)
                 else:
+                    found_non_new_episode = True  # We've found an episode that is not new
                     logging.info(f"Episode not new or already processed: {episode_title}, Published: {episode_published_date}")
-                    break  # Stop processing further episodes
+            else:
+                logging.warning("Item without a title found in RSS feed.")
 
         # Remove items outside the loop to avoid modifying the list while iterating
         for item in items_to_remove:
