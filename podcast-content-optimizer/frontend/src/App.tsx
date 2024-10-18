@@ -10,7 +10,6 @@ import Loader from './components/Loader';
 import Header from './components/Header';
 import SearchSection from './components/SearchSection';
 import ManuallyProcessedPodcasts from './components/ManuallyProcessedPodcasts';
-import { JobStatus } from './types'; // Make sure to import the JobStatus type
 
 Modal.setAppElement('#root');
 
@@ -53,30 +52,10 @@ const AppContent: React.FC = () => {
   };
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-
-    const startPolling = () => {
-      fetchJobStatuses();
-      intervalId = setInterval(fetchJobStatuses, 10000);
-    };
-
-    const stopPolling = () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
-    };
-
     if (currentJobs.length > 0) {
-      startPolling();
-    } else {
-      stopPolling();
+      fetchJobStatuses();
     }
-
-    return () => {
-      stopPolling();
-    };
-  }, [currentJobs.length, fetchJobStatuses]);
+  }, [currentJobs, fetchJobStatuses]);
 
   const closeSearchModal = () => setIsSearchModalOpen(false);
 
