@@ -7,7 +7,9 @@
   transition: box-shadow 0.3s ease;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   overflow: hidden;
+  min-height: 200px;
 }
 
 .processed-item:hover {
@@ -17,6 +19,13 @@
 .processed-item h4 {
   margin-top: 0;
   margin-bottom: 15px;
+}
+
+.processed-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
 }
 
 .processed-links {

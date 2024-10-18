@@ -31,30 +31,31 @@ const ProcessedEpisode: React.FC<ProcessedEpisodeProps> = ({ podcast, onDelete }
       <h4>
         {podcast.podcast_title} - {podcast.episode_title}
       </h4>
-      <div className="processed-links">
-        <PreventDefaultLink
-          onClick={() => window.open(podcast.edited_url, "_blank")}
-          className="view-link">
-          View Edited Audio
-        </PreventDefaultLink>
-        <PreventDefaultLink
-          onClick={() => window.open(podcast.transcript_file, "_blank")}
-          className="view-link">
-          View Transcript
-        </PreventDefaultLink>
-        <PreventDefaultLink
-          onClick={() => window.open(podcast.unwanted_content_file, "_blank")}
-          className="view-link">
-          View Unwanted Content
-        </PreventDefaultLink>
+      <div className="processed-item-content">
+        <div className="processed-links">
+          <PreventDefaultLink
+            onClick={() => window.open(podcast.edited_url, "_blank")}
+            className="view-link">
+            View Edited Audio
+          </PreventDefaultLink>
+          <PreventDefaultLink
+            onClick={() => window.open(podcast.transcript_file, "_blank")}
+            className="view-link">
+            View Transcript
+          </PreventDefaultLink>
+          <PreventDefaultLink
+            onClick={() => window.open(podcast.unwanted_content_file, "_blank")}
+            className="view-link">
+            View Unwanted Content
+          </PreventDefaultLink>
+        </div>
+        <button
+          onClick={handleDelete}
+          className="delete-podcast-button"
+          disabled={isDeleting}>
+          {isDeleting ? <Loader /> : "Delete Episode"}
+        </button>
       </div>
-      <button
-        onClick={handleDelete}
-        className="delete-podcast-button"
-        disabled={isDeleting}
-      >
-        {isDeleting ? <Loader /> : 'Delete Episode'}
-      </button>
     </li>
   );
 };
