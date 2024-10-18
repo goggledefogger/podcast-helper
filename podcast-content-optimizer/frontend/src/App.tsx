@@ -52,30 +52,10 @@ const AppContent: React.FC = () => {
   };
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-
-    const startPolling = () => {
-      fetchJobStatuses();
-      intervalId = setInterval(fetchJobStatuses, 10000);
-    };
-
-    const stopPolling = () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
-    };
-
     if (currentJobs.length > 0) {
-      startPolling();
-    } else {
-      stopPolling();
+      fetchJobStatuses();
     }
-
-    return () => {
-      stopPolling();
-    };
-  }, [currentJobs.length, fetchJobStatuses]);
+  }, [currentJobs, fetchJobStatuses]);
 
   const closeSearchModal = () => setIsSearchModalOpen(false);
 
@@ -99,6 +79,11 @@ const AppContent: React.FC = () => {
     setNotification(message);
   };
 
+  const activeJobs = currentJobs.filter(job => {
+    const status = jobStatuses[job.job_id];
+    return status && status.current_stage !== 'CLEANUP';
+  });
+
   if (isLoading) {
     return <Loader fullPage />;
   }
@@ -117,8 +102,8 @@ const AppContent: React.FC = () => {
 
         <section className="current-jobs section-container" aria-labelledby="current-jobs-heading">
           <h2 id="current-jobs-heading" className="section-heading">Current Processing Jobs</h2>
-          {currentJobs.length > 0 ? (
-            currentJobs.map((job) => (
+          {activeJobs.length > 0 ? (
+            activeJobs.map((job) => (
               <ProcessingStatus
                 key={job.job_id}
                 jobId={job.job_id}
@@ -181,15 +166,15 @@ const AppContent: React.FC = () => {
         />
       </main>
 
-      {isProcessingEpisode && (
+      {isProcessingEpisode && activeJobs.length > 0 && (
         <section className="processing-status" aria-labelledby="processing-status-heading">
           <h2 id="processing-status-heading">Processing Status</h2>
           <ProcessingStatus
-            jobId={currentJobs[0]?.job_id}
-            status={jobStatuses[currentJobs[0]?.job_id]}
-            onDelete={() => currentJobs[0]?.job_id && handleDeleteJob(currentJobs[0]?.job_id)}
-            jobInfo={jobInfos[currentJobs[0]?.job_id]}
-            podcastImageUrl={podcastInfo[jobInfos[currentJobs[0]?.job_id]?.rssUrl]?.imageUrl}
+            jobId={activeJobs[0].job_id}
+            status={jobStatuses[activeJobs[0].job_id]}
+            onDelete={() => handleDeleteJob(activeJobs[0].job_id)}
+            jobInfo={jobInfos[activeJobs[0].job_id]}
+            podcastImageUrl={podcastInfo[jobInfos[activeJobs[0].job_id]?.rssUrl]?.imageUrl}
           />
         </section>
       )}

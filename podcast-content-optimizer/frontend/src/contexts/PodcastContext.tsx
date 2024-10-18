@@ -154,7 +154,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   useEffect(() => {
-    fetchAllData(true);
+    fetchAllData();
   }, [fetchAllData]);
 
   const fetchEpisodes = useCallback(async (rssUrl: string) => {
@@ -169,35 +169,44 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [episodes, setErrorMessage]);
 
   const fetchJobStatuses = useCallback(async () => {
-    const jobIds = [...currentJobs.map(job => job.job_id)].filter(Boolean) as string[];
-
-    if (jobIds.length === 0) return;
+    if (currentJobs.length === 0) return;
 
     try {
-      const data = await apiFetchJobStatuses(jobIds);
+      const statuses = await apiFetchJobStatuses(currentJobs.map(job => job.job_id));
       setJobStatuses(prevStatuses => ({
         ...prevStatuses,
-        ...data
+        ...statuses
       }));
 
-      // Check for completed or failed jobs
-      Object.entries(data).forEach(([jobId, status]) => {
-        if (status.status === 'completed' || status.status === 'failed') {
-          setCurrentJobs(prevJobs => prevJobs.filter(job => job.job_id !== jobId));
+      // Check for completed jobs and update processed podcasts
+      Object.entries(statuses).forEach(([jobId, status]) => {
+        if (status.status === 'completed') {
+          const completedJob = currentJobs.find(job => job.job_id === jobId);
+          if (completedJob) {
+            fetchAllData(true); // Force refresh of all data, including processed podcasts
+            setCurrentJobs(prevJobs => prevJobs.filter(job => job.job_id !== jobId));
+          }
         }
       });
-
-      if (Object.values(data).some(status => status.status === 'completed' || status.status === 'failed')) {
-        const { processed, autoProcessed, podcastInfo: newPodcastInfo } = await getProcessedPodcasts();
-        setProcessedPodcasts(processed);
-        setAutoPodcasts(autoProcessed);
-        setPodcastInfo(newPodcastInfo);
-      }
     } catch (error) {
       console.error('Error fetching job statuses:', error);
-      setErrorMessage('Unable to fetch job statuses. The server might be down. Please try again later.');
     }
-  }, [currentJobs, setJobStatuses, setCurrentJobs, setProcessedPodcasts, setAutoPodcasts, setPodcastInfo]);
+  }, [currentJobs, fetchAllData]);
+
+  // Add this new effect to poll for status updates more frequently
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (currentJobs.length > 0) {
+      intervalId = setInterval(fetchJobStatuses, 5000); // Poll every 5 seconds
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [currentJobs, fetchJobStatuses]);
 
   const handleProcessEpisode = useCallback(async (rssUrl: string, episodeIndex: number) => {
     setIsProcessingEpisode(true);
@@ -243,7 +252,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsProcessingEpisode(false);
     }
-  }, [podcastInfo, episodes, setCurrentJobs, setJobInfos, setJobStatuses, setError, setIsProcessingEpisode, fetchJobStatuses]);
+  }, [podcastInfo, episodes, setCurrentJobs, setJobInfos, setJobStatuses, setIsProcessingEpisode, fetchJobStatuses]);
 
   const handleSelectPodcast = useCallback(async (rssUrl: string) => {
     // Implement the logic here

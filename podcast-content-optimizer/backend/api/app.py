@@ -3,6 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 import multiprocessing
+from utils import initialize_firebase  # Add this import
 
 # Set the start method to 'spawn'
 multiprocessing.set_start_method('spawn', force=True)
@@ -10,6 +11,9 @@ multiprocessing.set_start_method('spawn', force=True)
 load_dotenv()
 
 app = Flask(__name__)
+
+# Initialize Firebase
+initialize_firebase()
 
 # Configure CORS
 CORS(app, resources={

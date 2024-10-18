@@ -13,6 +13,17 @@ accept_content = ['json']
 timezone = 'UTC'
 enable_utc = True
 
+# Increase task time limit (e.g., 2 hours)
+task_time_limit = 7200
+
+# Limit concurrency to reduce memory usage
+worker_concurrency = 2
+
 # Add these lines to improve task execution
 worker_prefetch_multiplier = 1
 worker_max_tasks_per_child = 1
+
+# **Change the worker pool from 'prefork' to 'threads'**
+worker_pool = 'threads'
+# Remove or comment out the prefork-specific settings
+# worker_pool_restarts = True

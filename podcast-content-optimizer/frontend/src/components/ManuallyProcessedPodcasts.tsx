@@ -5,7 +5,7 @@ import { usePodcastContext } from '../contexts/PodcastContext';
 
 interface ManuallyProcessedPodcastsProps {
   processedPodcasts: Record<string, any[]>;
-  onDeletePodcast: (podcastTitle: string, episodeTitle: string) => void;
+  onDeletePodcast: (podcastTitle: string, episodeTitle: string) => Promise<void>;
 }
 
 const ManuallyProcessedPodcasts: React.FC<ManuallyProcessedPodcastsProps> = ({ processedPodcasts, onDeletePodcast }) => {

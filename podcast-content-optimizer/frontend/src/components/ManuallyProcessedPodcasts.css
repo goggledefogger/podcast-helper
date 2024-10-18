@@ -12,7 +12,12 @@
 @media (max-width: 768px) {
   .processed-list {
     grid-template-columns: 1fr;
-    padding: 0 15px; /* Add padding to the container */
+  }
+}
+
+@media (max-width: 480px) {
+  .processed-list {
+    gap: 15px;
   }
 }
 

@@ -2,12 +2,19 @@
   background-color: var(--card-background);
   color: var(--text-color);
   border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .prompt-editor textarea {
   background-color: var(--input-background);
   color: var(--input-text);
   border: 1px solid var(--border-color);
+  width: 100%;
+  min-height: 200px;
+  resize: vertical;
 }
 
 .prompt-editor button {
@@ -18,23 +25,6 @@
 .prompt-editor button:hover:not(:disabled) {
   background-color: var(--secondary-color);
   color: var(--button-text);
-}
-
-.message {
-  margin-top: 10px;
-  padding: 10px;
-  border-radius: 4px;
-  font-weight: bold;
-}
-
-.message.success {
-  background-color: var(--success-color);
-  color: var(--text-color);
-}
-
-.message.error {
-  background-color: rgba(220, 53, 69, 0.2);
-  color: #dc3545;
 }
 
 .prompt-display {

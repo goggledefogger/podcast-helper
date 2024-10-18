@@ -24,7 +24,7 @@ from utils import get_episode_folder
 from firebase_admin import storage
 from prompt_loader import load_prompt
 import feedparser
-from api.tasks import process_podcast_task
+from tasks import process_podcast_task
 from datetime import datetime, timedelta
 import pytz
 from utils import save_auto_processed_podcast, load_processed_podcasts
@@ -183,32 +183,29 @@ def get_modified_rss(rss_url):
     try:
         logging.info(f"Received request for modified RSS feed: {rss_url}")
 
-        # Ensure the podcast is set for auto-processing
-        save_auto_processed_podcast(rss_url)
+        # Check if this RSS URL is already set for auto-processing
+        auto_processed = load_auto_processed_podcasts()
+        existing_entry = next((item for item in auto_processed if item['rss_url'] == rss_url), None)
+
+        if not existing_entry:
+            logging.info(f"Adding new auto-processed entry for {rss_url}")
+            save_auto_processed_podcast(rss_url)
+        else:
+            logging.info(f"RSS URL {rss_url} is already set for auto-processing")
 
         processed_podcasts = load_processed_podcasts()
         logging.info(f"Loaded processed podcasts for {rss_url}")
 
-        # Ensure we're passing the correct structure to create_modified_rss_feed
-        rss_specific_podcasts = processed_podcasts['processed_podcasts'].get(rss_url, [])
-        logging.info(f"Found {len(rss_specific_podcasts)} processed episodes for {rss_url}")
-
         # Generate the modified RSS feed
-        modified_rss = get_modified_rss_feed(rss_url, {rss_url: rss_specific_podcasts})
+        modified_rss = get_modified_rss_feed(rss_url, processed_podcasts['processed_podcasts'])
 
         if modified_rss:
             logging.info(f"Successfully generated modified RSS feed for {rss_url}")
-            # Create a response object
             response = make_response(modified_rss)
-
-            # Set the content type
             response.headers['Content-Type'] = 'application/xml; charset=utf-8'
-
-            # Add cache control headers to prevent caching
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
-
             return response
         else:
             logging.error(f"Failed to create modified RSS feed for {rss_url}")
@@ -515,6 +512,10 @@ def enable_auto_processing():
 @app.route('/api/auto_processed_podcasts', methods=['GET'])
 def get_auto_processed_podcasts():
     auto_processed_podcasts = load_auto_processed_podcasts()
+    # Ensure the 'enabled_at' field is present in the response
+    for podcast in auto_processed_podcasts:
+        if 'enabled_at' not in podcast:
+            podcast['enabled_at'] = podcast.get('first_enabled_at', 'Unknown')
     return jsonify(auto_processed_podcasts)
 
 # Add this new route for the main page

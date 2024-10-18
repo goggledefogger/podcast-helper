@@ -5,11 +5,11 @@
   padding: 15px;
   margin-bottom: 20px;
   transition: box-shadow 0.3s ease;
-  box-sizing: border-box;
-  width: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   overflow: hidden;
+  min-height: 200px;
 }
 
 .processed-item:hover {
@@ -19,7 +19,13 @@
 .processed-item h4 {
   margin-top: 0;
   margin-bottom: 15px;
-  color: var(--text-color);
+}
+
+.processed-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
 }
 
 .processed-links {
@@ -27,22 +33,18 @@
   flex-direction: column;
   gap: 10px;
   margin-bottom: 10px;
-  width: 100%;
+}
+
+.view-link,
+.delete-podcast-button {
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
 }
 
 .view-link {
-  display: block;
-  width: 100%;
-  text-align: center;
-  padding: 8px 12px;
   background-color: var(--primary-color);
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
-  font-size: 14px;
-  line-height: 1.5;
-  box-sizing: border-box;
 }
 
 .view-link:hover {
@@ -50,20 +52,47 @@
 }
 
 .delete-podcast-button {
-  width: 100%;
-  padding: 8px 12px;
-  background-color: var(--error-color);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  box-sizing: border-box;
-  font-size: 14px;
-  line-height: 1.5;
   margin-top: 10px;
+  background-color: var(--error-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.delete-podcast-button:hover {
+.delete-podcast-button:hover:not(:disabled) {
   background-color: var(--secondary-color);
+}
+
+@media (max-width: 768px) {
+  .processed-item {
+    padding: 10px;
+  }
+
+  .processed-item h4 {
+    font-size: 1em;
+    margin-bottom: 10px;
+  }
+
+  .view-link,
+  .delete-podcast-button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .processed-item {
+    padding: 8px;
+  }
+
+  .processed-item h4 {
+    font-size: 0.9em;
+    margin-bottom: 8px;
+  }
+
+  .view-link,
+  .delete-podcast-button {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
 }

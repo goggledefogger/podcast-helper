@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Modal from 'react-modal';
 import { useSearch, SearchResult } from '../hooks/useSearch';
 import Loader from './Loader';
@@ -21,17 +21,23 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onRequestClose, onNot
     autoPodcasts
   } = useSearch();
 
+  const [isEnablingAuto, setIsEnablingAuto] = useState(false);
+  const [loadingPodcastUrls, setLoadingPodcastUrls] = useState<string[]>([]);
+
   const handleClose = () => {
     onRequestClose();
     setSearchQuery('');
   };
 
   const handleEnableAutoProcessing = async (result: SearchResult) => {
+    setLoadingPodcastUrls(prev => [...prev, result.rssUrl]);
     try {
       const message = await handleEnableAutoProcessingClick(result);
       onNotification(message);
     } catch (error) {
-      // Error is already set in the context
+      onNotification('Failed to enable auto-processing.');
+    } finally {
+      setLoadingPodcastUrls(prev => prev.filter(url => url !== result.rssUrl));
     }
   };
 
@@ -70,12 +76,17 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onRequestClose, onNot
                   {autoPodcasts.some(podcast => podcast.rss_url === result.rssUrl) ? (
                     <span className="auto-processing-badge">Auto-processing enabled</span>
                   ) : (
-                    <button
-                      onClick={() => handleEnableAutoProcessing(result)}
-                      className="enable-auto-processing-button"
-                    >
-                      Enable Auto-processing
-                    </button>
+                    // Conditionally display Loader or Button based on loading state
+                    loadingPodcastUrls.includes(result.rssUrl) ? (
+                      <Loader /> // Show loader if this podcast is being enabled
+                    ) : (
+                      <button
+                        onClick={() => handleEnableAutoProcessing(result)}
+                        className="enable-auto-processing-button"
+                      >
+                        Enable Auto-processing
+                      </button>
+                    )
                   )}
                 </div>
               </div>
