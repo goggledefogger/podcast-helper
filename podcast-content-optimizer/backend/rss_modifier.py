@@ -7,7 +7,7 @@ import traceback
 import requests
 import os
 from mutagen.mp3 import MP3
-from utils import format_duration, is_episode_processed, is_episode_being_processed, get_podcast_episodes, is_episode_new, get_auto_process_enable_date
+from utils import format_duration, is_episode_processed, is_episode_being_processed, get_podcast_episodes, is_episode_new, get_auto_process_enable_date, get_db
 from flask import request
 from io import StringIO
 from utils import safe_filename
@@ -240,12 +240,29 @@ def update_processed_item(item, processed_episode, namespaces):
 def process_new_episodes(rss_url, episodes_to_process):
     logging.info(f"Processing new episodes for {rss_url}")
     episodes = get_podcast_episodes(rss_url)
+    db = get_db()
+
     for episode_title, _ in episodes_to_process:
         episode_index = next((i for i, ep in enumerate(episodes) if ep['title'] == episode_title), None)
         if episode_index is not None:
-            job_id = str(uuid.uuid4())
-            process_podcast_task.delay(rss_url, episode_index, job_id)
-            logging.info(f"Initiated processing for new episode: {episode_title} with job_id: {job_id}")
+            job_key = f"job:{rss_url}:{episode_title}"
+            lock_key = f"lock:{job_key}"
+
+            # Try to acquire a lock
+            lock_acquired = db.setnx(lock_key, 'locked')
+            if lock_acquired:
+                try:
+                    # Set an expiration on the lock
+                    db.expire(lock_key, 3600)  # 1 hour expiration
+
+                    job_id = str(uuid.uuid4())
+                    process_podcast_task.delay(rss_url, episode_index, job_id)
+                    logging.info(f"Initiated processing for new episode: {episode_title} with job_id: {job_id}")
+                finally:
+                    # Release the lock
+                    db.delete(lock_key)
+            else:
+                logging.info(f"Processing already in progress for episode: {episode_title}. Skipping.")
         else:
             logging.error(f"Could not find episode {episode_title} in the feed")
 

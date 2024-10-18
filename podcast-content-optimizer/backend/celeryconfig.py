@@ -23,7 +23,7 @@ worker_concurrency = 2
 worker_prefetch_multiplier = 1
 worker_max_tasks_per_child = 1
 
-# **Change the worker pool from 'prefork' to 'threads'**
+# Change the worker pool from 'prefork' to 'threads'
 worker_pool = 'threads'
 # Remove or comment out the prefork-specific settings
 # worker_pool_restarts = True
