@@ -515,7 +515,7 @@ def get_auto_processed_podcasts():
     # Ensure the 'enabled_at' field is present in the response
     for podcast in auto_processed_podcasts:
         if 'enabled_at' not in podcast:
-            podcast['enabled_at'] = podcast.get('first_enabled_at', 'Unknown')
+            podcast['enabled_at'] = 'Unknown'
     return jsonify(auto_processed_podcasts)
 
 # Add this new route for the main page
