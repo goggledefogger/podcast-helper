@@ -13,7 +13,7 @@ def update_job_status(job_id, status, current_stage, progress, message):
         'message': message,
         'timestamp': time.time()
     }
-    redis_client.setex(f"job_status:{job_id}", 3600, json.dumps(job_status))
+    redis_client.set(f"job_status:{job_id}", json.dumps(job_status))
 
 def get_job_status(job_id):
     status = redis_client.get(f"job_status:{job_id}")
@@ -22,7 +22,6 @@ def get_job_status(job_id):
 def append_job_log(job_id, log_entry):
     key = f"job_log:{job_id}"
     redis_client.rpush(key, json.dumps(log_entry))
-    redis_client.expire(key, 3600)  # Set expiration to 1 hour
 
 def get_job_logs(job_id):
     key = f"job_log:{job_id}"
@@ -31,11 +30,9 @@ def get_job_logs(job_id):
 
 def update_job_info(job_id, job_info):
     key = f"job_info:{job_id}"
-    # Ensure rss_url is included in job_info
     if 'rss_url' not in job_info:
         logging.warning(f"rss_url not provided for job_id: {job_id}")
     redis_client.hmset(key, job_info)
-    redis_client.expire(key, 3600)  # Set expiration to 1 hour
     logging.info(f"Updated job info for job_id: {job_id}, info: {job_info}")
 
 def get_job_info(job_id):
@@ -59,6 +56,26 @@ def get_current_jobs():
     logging.info(f"Current jobs: {jobs}")
     return jobs
 
-def delete_job(job_id):
+def mark_job_completed(job_id):
+    update_job_status(job_id, 'completed', 'COMPLETION', 100, 'Podcast processing completed')
+    # We're not deleting the job data immediately after completion
+    # This allows the frontend to fetch the final status
+    logging.info(f"Marked job {job_id} as completed")
+
+def mark_job_failed(job_id, error_message):
+    update_job_status(job_id, 'failed', 'ERROR', 0, f'Error: {error_message}')
+    # We're not deleting the job data immediately after failure
+    # This allows the frontend to fetch the error status
+    logging.info(f"Marked job {job_id} as failed")
+
+def delete_job_data(job_id):
     redis_client.delete(f"job_status:{job_id}")
     redis_client.delete(f"job_log:{job_id}")
+    redis_client.delete(f"job_info:{job_id}")
+    logging.info(f"Deleted all Redis keys for job {job_id}")
+
+def delete_job(job_id):
+    # Perform any additional cleanup if needed
+    # For now, it just calls delete_job_data
+    delete_job_data(job_id)
+    logging.info(f"Deleted job {job_id}")
