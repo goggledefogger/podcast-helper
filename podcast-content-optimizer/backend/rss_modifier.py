@@ -89,7 +89,7 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         for item in channel.findall('item'):
             # Get the GUID
             guid_elem = item.find('guid')
-            if guid_elem is not None:
+            if guid_elem is not None and guid_elem.text:
                 episode_guid = guid_elem.text.strip()
                 guid_to_item[episode_guid] = item
             else:
@@ -97,7 +97,7 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
 
             # Get the title
             item_title_elem = item.find('title')
-            if item_title_elem is not None:
+            if item_title_elem is not None and item_title_elem.text:
                 episode_title = item_title_elem.text.strip()
                 title_to_item[episode_title] = item
             else:
