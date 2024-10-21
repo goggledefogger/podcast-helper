@@ -112,36 +112,30 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsLoading(true);
     setErrorMessage(null);  // Clear any previous error messages
     try {
-      // First, fetch data from Firebase
-      const podcastData = await getProcessedPodcasts(forceRefresh);
-      console.log('Data fetched from Firebase successfully');
+      const [podcastData, jobs] = await Promise.all([
+        getProcessedPodcasts(forceRefresh),
+        fetchCurrentJobs()
+      ]);
+
       setProcessedPodcasts(podcastData.processed);
       setAutoPodcasts(podcastData.autoProcessed);
       setPodcastInfo(podcastData.podcastInfo);
 
-      // Then, try to fetch current jobs from the API
-      try {
-        const jobs = await fetchCurrentJobs();
-        setCurrentJobs(jobs as CurrentJob[]);
+      setCurrentJobs(jobs as CurrentJob[]);
 
-        const newJobInfos: Record<string, JobInfo> = {};
-        jobs.forEach(job => {
-          newJobInfos[job.job_id] = {
-            podcastName: job.podcast_name || podcastData.podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
-            episodeTitle: job.episode_title || 'Unknown Episode',
-            rssUrl: job.rss_url
-          };
-        });
-        setJobInfos(newJobInfos);
+      const newJobInfos: Record<string, JobInfo> = {};
+      jobs.forEach(job => {
+        newJobInfos[job.job_id] = {
+          podcastName: job.podcast_name || podcastData.podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
+          episodeTitle: job.episode_title || 'Unknown Episode',
+          rssUrl: job.rss_url
+        };
+      });
+      setJobInfos(newJobInfos);
 
-        if (jobs.length > 0) {
-          const statuses = await apiFetchJobStatuses(jobs.map(job => job.job_id));
-          setJobStatuses(statuses);
-        }
-      } catch (apiError) {
-        console.error('Error fetching data from API:', apiError);
-        setErrorMessage('Unable to connect to the server. Some features may be limited. Please try again later.');
-        // Even if API fails, we still have data from Firebase, so we don't throw here
+      if (jobs.length > 0) {
+        const statuses = await apiFetchJobStatuses(jobs.map(job => job.job_id));
+        setJobStatuses(statuses);
       }
 
       initialFetchMade.current = true;
