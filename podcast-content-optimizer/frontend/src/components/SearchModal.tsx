@@ -21,7 +21,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onRequestClose, onNot
     autoPodcasts
   } = useSearch();
 
-  const [isEnablingAuto, setIsEnablingAuto] = useState(false);
+
   const [loadingPodcastUrls, setLoadingPodcastUrls] = useState<string[]>([]);
 
   const handleClose = () => {

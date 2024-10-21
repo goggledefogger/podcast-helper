@@ -432,22 +432,16 @@ def get_auto_process_enable_date(rss_url):
         logging.warning(f"No enable date found for {rss_url}")
         return None
 
-def is_episode_new(rss_url, episode_published_date):
-    enable_date = get_auto_process_enable_date(rss_url)
+def is_episode_new(original_rss_url, episode_published_date):
+    enable_date = get_auto_process_enable_date(original_rss_url)
     if enable_date is None:
-        logging.info(f"Auto-processing not enabled for {rss_url}")
         return False
-
-    # Convert both dates to UTC for accurate comparison
-    episode_published_date = episode_published_date.replace(tzinfo=timezone.utc)
-    enable_date = enable_date.replace(tzinfo=timezone.utc)
-
-    # Consider episodes published within 24 hours before the enable date as new
-    time_difference = episode_published_date - enable_date
-    is_new = time_difference > timedelta(hours=-24) and episode_published_date > enable_date
-
-    logging.info(f"Checking if episode is new - Published: {episode_published_date}, Enabled at: {enable_date}, Is New: {is_new}")
-    return is_new
+    # Ensure both dates are timezone-aware
+    if enable_date.tzinfo is None:
+        enable_date = enable_date.replace(tzinfo=timezone.utc)
+    if episode_published_date.tzinfo is None:
+        episode_published_date = episode_published_date.replace(tzinfo=timezone.utc)
+    return episode_published_date >= enable_date
 
 def save_processed_podcast(podcast_data):
     try:

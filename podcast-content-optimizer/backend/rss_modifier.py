@@ -80,6 +80,140 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         # Properly encode the entire original RSS URL
         encoded_rss_url = quote(original_rss_url, safe='')
 
+        enable_date = get_auto_process_enable_date(original_rss_url)
+        logging.info(f"Auto-processing enabled date for {original_rss_url}: {enable_date}")
+
+        # Build mappings from episode identifiers to items
+        guid_to_item = {}
+        title_to_item = {}
+        for item in channel.findall('item'):
+            # Get the GUID
+            guid_elem = item.find('guid')
+            if guid_elem is not None:
+                episode_guid = guid_elem.text.strip()
+                guid_to_item[episode_guid] = item
+            else:
+                episode_guid = None
+
+            # Get the title
+            item_title_elem = item.find('title')
+            if item_title_elem is not None:
+                episode_title = item_title_elem.text.strip()
+                title_to_item[episode_title] = item
+            else:
+                logging.warning("Item without a title found in RSS feed.")
+                continue  # Skip items without a title
+
+        # Get the list of processed episodes for the current RSS URL
+        processed_episodes_list = processed_podcasts.get(original_rss_url, [])
+        # Create sets of processed episode titles and GUIDs for quick lookup
+        processed_episode_titles = set()
+        processed_episode_guids = set()
+        for pe in processed_episodes_list:
+            if pe.get('status') == 'completed':
+                if 'episode_title' in pe and pe['episode_title']:
+                    processed_episode_titles.add(pe['episode_title'].strip())
+                if 'episode_guid' in pe and pe['episode_guid']:
+                    processed_episode_guids.add(pe['episode_guid'].strip())
+
+        # Sort items in reverse chronological order
+        items = channel.findall('item')
+        def parse_pub_date(pub_date_str):
+            try:
+                return datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S %z")
+            except ValueError:
+                try:
+                    dt = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S")
+                    return dt.replace(tzinfo=timezone.utc)
+                except ValueError:
+                    logging.warning(f"Could not parse pubDate: {pub_date_str}. Using current time.")
+                    return datetime.now(timezone.utc)
+
+        items_sorted = sorted(items, key=lambda x: parse_pub_date(x.find('pubDate').text if x.find('pubDate') is not None else ''), reverse=True)
+
+        episodes_to_process = []
+        items_to_remove = []
+
+        for item in items_sorted:
+            # Get the GUID
+            guid_elem = item.find('guid')
+            episode_guid = guid_elem.text.strip() if guid_elem is not None else None
+
+            # Get the title
+            item_title_elem = item.find('title')
+            episode_title = item_title_elem.text.strip() if item_title_elem is not None else None
+
+            if not episode_title:
+                logging.warning("Item without a title found in RSS feed.")
+                continue  # Skip items without a title
+
+            # Get publication date
+            pub_date_elem = item.find('pubDate')
+            episode_published_date = parse_pub_date(pub_date_elem.text) if pub_date_elem is not None else datetime.now(timezone.utc)
+
+            # Check if the episode is already processed
+            is_already_processed = False
+            if episode_guid and episode_guid in processed_episode_guids:
+                is_already_processed = True
+                logging.info(f"Episode already processed (by GUID): {episode_title}")
+            elif episode_title and episode_title in processed_episode_titles:
+                is_already_processed = True
+                logging.info(f"Episode already processed (by Title): {episode_title}")
+
+            # Check if episode is older than enabled date
+            is_older_than_enabled_date = enable_date and episode_published_date < enable_date
+
+            if is_already_processed or is_older_than_enabled_date:
+                logging.info(f"Stopping loop at episode: {episode_title}")
+                break  # Stop the loop as per the desired algorithm
+
+            # Check if the episode is being processed
+            if is_episode_being_processed(original_rss_url, episode_title):
+                logging.info(f"Episode currently being processed: {episode_title}")
+                items_to_remove.append(item)
+                continue
+
+            # Episode is new and needs processing
+            logging.info(f"New episode detected for processing: {episode_title}, Published: {episode_published_date}")
+            episodes_to_process.append((episode_title, episode_published_date))
+            items_to_remove.append(item)
+
+        # Remove items outside the loop
+        for item in items_to_remove:
+            channel.remove(item)
+
+        if episodes_to_process:
+            logging.info(f"Found {len(episodes_to_process)} new episodes to process.")
+            process_new_episodes(original_rss_url, episodes_to_process)
+        else:
+            logging.info("No new episodes found for processing")
+
+        # Swap in processed episodes
+        for processed_episode in processed_episodes_list:
+            if processed_episode.get('status') == 'completed':
+                episode_title = processed_episode.get('episode_title').strip()
+                episode_guid = processed_episode.get('episode_guid', '').strip()
+                # Use GUID for matching if available
+                if episode_guid and episode_guid in guid_to_item:
+                    item = guid_to_item[episode_guid]
+                    logging.info(f"Found item by GUID for episode: {episode_title}")
+                elif episode_title and episode_title in title_to_item:
+                    item = title_to_item[episode_title]
+                    logging.info(f"Found item by Title for episode: {episode_title}")
+                else:
+                    logging.warning(f"Processed episode not found in feed: {episode_title}")
+                    continue
+
+                logging.info(f"Updating processed episode: {episode_title}")
+                update_processed_item(item, processed_episode, NAMESPACES)
+
+                # Add the updated item back to the channel
+                channel.append(item)
+            else:
+                logging.info(f"Processed episode not completed: {processed_episode.get('episode_title')}")
+                continue
+
+        # Perform modifications on the channel and items
         # Update <itunes:new-feed-url> if it exists
         new_feed_url = channel.find('itunes:new-feed-url', namespaces=NAMESPACES)
         if new_feed_url is not None:
@@ -89,6 +223,12 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         atom_link = channel.find('atom:link[@rel="self"]', namespaces=NAMESPACES)
         if atom_link is not None:
             atom_link.set('href', f"{url_root}/api/modified_rss/{encoded_rss_url}")
+        else:
+            atom_link = ET.SubElement(channel, f"{{{NAMESPACES['atom']}}}link", attrib={
+                'href': f"{url_root}/api/modified_rss/{encoded_rss_url}",
+                'rel': 'self',
+                'type': 'application/rss+xml'
+            })
 
         # Update the channel title
         title_elem = channel.find('title')
@@ -129,73 +269,6 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
             new_feed_url = ET.SubElement(channel, f"{{{NAMESPACES['itunes']}}}new-feed-url")
         new_feed_url.text = f"{url_root}/api/modified_rss/{encoded_rss_url}"
 
-        # Update the <atom:link> element
-        atom_link = channel.find('atom:link[@rel="self"]', namespaces=NAMESPACES)
-        if atom_link is not None:
-            atom_link.set('href', f"{url_root}/api/modified_rss/{encoded_rss_url}")
-        else:
-            atom_link = ET.SubElement(channel, f"{{{NAMESPACES['atom']}}}link", attrib={
-                'href': f"{url_root}/api/modified_rss/{encoded_rss_url}",
-                'rel': 'self',
-                'type': 'application/rss+xml'
-            })
-
-        enable_date = get_auto_process_enable_date(original_rss_url)
-        logging.info(f"Auto-processing enabled date for {original_rss_url}: {enable_date}")
-
-        # Initialize a flag to indicate when we've found a non-new episode
-        found_non_new_episode = False
-        episodes_to_process = []
-        items_to_remove = []
-
-        for item in channel.findall('item'):
-            item_title = item.find('title')
-            if item_title is not None:
-                episode_title = item_title.text
-                pub_date = item.find('pubDate')
-                if pub_date is not None:
-                    try:
-                        episode_published_date = datetime.strptime(pub_date.text, "%a, %d %b %Y %H:%M:%S %z")
-                    except ValueError:
-                        logging.warning(f"Could not parse pubDate for episode: {episode_title}. Using current time.")
-                        episode_published_date = datetime.now(timezone.utc)
-                else:
-                    episode_published_date = datetime.now(timezone.utc)
-
-                logging.info(f"Checking episode: {episode_title}, Published: {episode_published_date}")
-
-                processed_episode = next(
-                    (ep for ep in processed_podcasts.get(original_rss_url, [])
-                     if ep.get('episode_title') == episode_title),
-                    None
-                )
-
-                if processed_episode and processed_episode.get('status') == 'completed':
-                    logging.info(f"Episode already processed: {episode_title}")
-                    update_processed_item(item, processed_episode, namespaces)
-                elif is_episode_being_processed(original_rss_url, episode_title):
-                    logging.info(f"Episode currently being processed: {episode_title}")
-                    items_to_remove.append(item)
-                elif not found_non_new_episode and enable_date and is_episode_new(original_rss_url, episode_published_date):
-                    logging.info(f"New episode detected for processing: {episode_title}, Published: {episode_published_date}")
-                    episodes_to_process.append((episode_title, episode_published_date))
-                    items_to_remove.append(item)
-                else:
-                    found_non_new_episode = True  # We've found an episode that is not new
-                    logging.info(f"Episode not new or already processed: {episode_title}, Published: {episode_published_date}")
-            else:
-                logging.warning("Item without a title found in RSS feed.")
-
-        # Remove items outside the loop to avoid modifying the list while iterating
-        for item in items_to_remove:
-            channel.remove(item)
-
-        if episodes_to_process:
-            logging.info(f"Found {len(episodes_to_process)} new episodes to process: {[ep[0] for ep in episodes_to_process]}")
-            process_new_episodes(original_rss_url, episodes_to_process)
-        else:
-            logging.info("No new episodes found for processing")
-
         # Update namespace-specific identifiers
         for prefix, uri in namespaces.items():
             for id_type in ['organizationId', 'networkId', 'programId']:
@@ -207,39 +280,74 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         modified_rss = ET.tostring(root, encoding='unicode', method='xml')
         logging.info(f"Modified RSS feed created. Length: {len(modified_rss)}")
         return modified_rss
+
     except Exception as e:
         logging.error(f"Error in create_modified_rss_feed: {str(e)}")
         logging.error(traceback.format_exc())
         return None
 
 def update_processed_item(item, processed_episode, namespaces):
+    logging.info(f"Updating episode: {processed_episode.get('episode_title')}")
+
     # Update the enclosure URL to the Firebase Storage URL
     enclosure = item.find('enclosure')
-    if enclosure is not None and processed_episode.get('edited_url'):
-        enclosure.set('url', processed_episode['edited_url'])
+    if enclosure is not None:
+        edited_url = processed_episode.get('edited_url')
+        if edited_url:
+            old_url = enclosure.get('url')
+            enclosure.set('url', edited_url)
+            logging.info(f"Updated enclosure URL from {old_url} to {edited_url}")
+        else:
+            logging.warning(f"No 'edited_url' for episode: {processed_episode.get('episode_title')}")
+    else:
+        logging.warning("No enclosure element found in item.")
 
     # Add "(Optimized)" to the title
     item_title = item.find('title')
     if item_title is not None:
+        old_title = item_title.text
         item_title.text = f"{item_title.text} (Optimized)"
+        logging.info(f"Updated title from '{old_title}' to '{item_title.text}'")
+    else:
+        logging.warning("No title element found in item.")
 
     # Update other elements for processed episodes
     guid = item.find('guid')
     if guid is not None:
+        old_guid = guid.text
         guid.text = f"{guid.text}_optimized"
+        logging.info(f"Updated GUID from {old_guid} to {guid.text}")
+    else:
+        logging.warning("No GUID element found in item.")
 
     pub_date = item.find('pubDate')
     if pub_date is not None:
-        pub_date.text = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
+        old_pub_date = pub_date.text
+        new_pub_date = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
+        pub_date.text = new_pub_date
+        logging.info(f"Updated pubDate from {old_pub_date} to {new_pub_date}")
+    else:
+        logging.warning("No pubDate element found in item.")
 
     itunes_title = item.find('itunes:title', namespaces=namespaces)
     if itunes_title is not None:
+        old_itunes_title = itunes_title.text
         itunes_title.text = f"{itunes_title.text} (Optimized)"
+        logging.info(f"Updated iTunes title from '{old_itunes_title}' to '{itunes_title.text}'")
+    else:
+        logging.warning("No itunes:title element found in item.")
 
     # Update the duration if available
     duration_elem = item.find('itunes:duration', namespaces=namespaces)
-    if duration_elem is not None and 'duration' in processed_episode:
-        duration_elem.text = format_duration(processed_episode['duration'])
+    if duration_elem is not None:
+        if 'duration' in processed_episode:
+            old_duration = duration_elem.text
+            duration_elem.text = format_duration(processed_episode['duration'])
+            logging.info(f"Updated duration from {old_duration} to {duration_elem.text}")
+        else:
+            logging.warning(f"No 'duration' in processed_episode for {processed_episode.get('episode_title')}")
+    else:
+        logging.warning("No itunes:duration element found in item.")
 
 def process_new_episodes(rss_url, episodes_to_process):
     logging.info(f"Processing new episodes for {rss_url}")
