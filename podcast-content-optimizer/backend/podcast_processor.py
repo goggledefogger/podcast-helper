@@ -7,7 +7,7 @@ from utils import (
     file_exists_in_firebase, download_from_firebase, load_processed_podcasts,
     get_db
 )
-from job_manager import update_job_status
+from job_manager import update_job_status, update_job_info, mark_job_completed, mark_job_failed
 import whisper
 import os
 import shutil
@@ -22,6 +22,8 @@ from datetime import datetime
 def process_podcast_episode(rss_url, episode_index=0, job_id=None):
     logging.info(f"Starting to process podcast episode from RSS: {rss_url}")
 
+    db = get_db()
+
     try:
         # Get available episodes
         episodes = run_with_animation(get_podcast_episodes, rss_url)
@@ -32,12 +34,19 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         podcast_title = episodes[0]['podcast_title']
         episode_title = chosen_episode['title']
 
-        # Set job status in Redis
-        db = get_db()
+        # Now that we have episode_title, we can create the job_key and lock_key
         job_key = f"job:{rss_url}:{episode_title}"
+        lock_key = f"lock:{job_key}"
+
+        # Update job info early in the process
+        update_job_info(job_id, {
+            'podcast_name': podcast_title,
+            'episode_title': episode_title,
+            'rss_url': rss_url,
+            'image_url': episodes[0].get('image_url', '')
+        })
 
         # Try to acquire a lock for this job
-        lock_key = f"lock:{job_key}"
         lock_acquired = db.setnx(lock_key, 'locked')
         if not lock_acquired:
             logging.info(f"Job already in progress for {episode_title}. Skipping.")
@@ -223,7 +232,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
                 "timestamp": datetime.now().isoformat(),
                 "edited_url": podcast_data['output_file'],
                 "transcript_file": podcast_data['transcript_file'],
-                "unwanted_content_file": podcast_data['unwanted_content_file']
+                "unwanted_content_file": podcast_data['unwanted_content_file'],
+                "image_url": podcast_data.get('image_url', '')
             }
 
             logging.info(f"Podcast processing completed successfully. Result: {result}")
@@ -231,8 +241,6 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
             # Update and save the final processed podcast data
             podcast_data.update(result)
             save_processed_podcast(podcast_data)
-
-            update_job_status(job_id, 'completed', 'COMPLETION', 100, 'Podcast processing completed')
 
             # Cleanup local files
             logging.info("STAGE:CLEANUP:Starting cleanup of local files")
@@ -257,8 +265,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
             logging.info("STAGE:CLEANUP:Completed cleanup of local files")
             update_job_status(job_id, 'in_progress', 'CLEANUP', 98, 'Local files cleaned up')
 
-            # Update job status when completed
-            db.set(job_key, 'completed')
+            # Mark the job as completed
+            mark_job_completed(job_id)
 
             return result
 
@@ -269,7 +277,5 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
     except Exception as e:
         logging.error(f"Error in podcast processing: {str(e)}")
         logging.error(traceback.format_exc())
-        update_job_status(job_id, 'failed', 'ERROR', 0, f'Error: {str(e)}')
-        # Update job status when failed
-        db.set(job_key, 'failed')
+        mark_job_failed(job_id, str(e))
         raise

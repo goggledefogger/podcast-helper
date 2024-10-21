@@ -313,3 +313,10 @@
   padding: 10px;
   border-radius: 8px;
 }
+
+.rss-url {
+  font-size: 0.8em;
+  color: var(--secondary-text);
+  word-break: break-all;
+  margin-top: 5px;
+}

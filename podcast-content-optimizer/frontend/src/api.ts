@@ -51,7 +51,8 @@ export interface CurrentJob {
   status: 'queued' | 'in_progress' | 'completed' | 'failed';
   podcast_name: string;
   episode_title: string;
-  rss_url: string;
+  rss_url: string;  // Ensure this is included
+  image_url: string;
 }
 
 export const fetchCurrentJobs = async (): Promise<CurrentJob[]> => {

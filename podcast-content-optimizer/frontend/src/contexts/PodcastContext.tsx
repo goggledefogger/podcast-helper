@@ -23,6 +23,7 @@ interface JobInfo {
   podcastName: string;
   episodeTitle: string;
   rssUrl: string;
+  imageUrl: string;
 }
 
 interface Episode {
@@ -77,11 +78,11 @@ interface PodcastContextType {
   deleteAutoProcessedPodcast: (rssUrl: string) => Promise<void>;
 }
 
-// Update the CurrentJob interface to match the API
 interface CurrentJob extends ApiCurrentJob {
   podcast_name: string;
   episode_title: string;
   rss_url: string;
+  image_url: string;
 }
 
 const PodcastContext = createContext<PodcastContextType | undefined>(undefined);
@@ -112,36 +113,32 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsLoading(true);
     setErrorMessage(null);  // Clear any previous error messages
     try {
-      // First, fetch data from Firebase
-      const podcastData = await getProcessedPodcasts(forceRefresh);
-      console.log('Data fetched from Firebase successfully');
+      const [podcastData, jobs] = await Promise.all([
+        getProcessedPodcasts(forceRefresh),
+        fetchCurrentJobs()
+      ]);
+
       setProcessedPodcasts(podcastData.processed);
       setAutoPodcasts(podcastData.autoProcessed);
       setPodcastInfo(podcastData.podcastInfo);
 
-      // Then, try to fetch current jobs from the API
-      try {
-        const jobs = await fetchCurrentJobs();
-        setCurrentJobs(jobs as CurrentJob[]);
+      setCurrentJobs(jobs as CurrentJob[]);
 
-        const newJobInfos: Record<string, JobInfo> = {};
-        jobs.forEach(job => {
-          newJobInfos[job.job_id] = {
-            podcastName: job.podcast_name || podcastData.podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
-            episodeTitle: job.episode_title || 'Unknown Episode',
-            rssUrl: job.rss_url
-          };
-        });
-        setJobInfos(newJobInfos);
+      const newJobInfos: Record<string, JobInfo> = {};
+      jobs.forEach(job => {
+        const podcastInfoData = podcastData.podcastInfo[job.rss_url] || {};
+        newJobInfos[job.job_id] = {
+          podcastName: job.podcast_name || podcastInfoData.name || 'Unknown Podcast',
+          episodeTitle: job.episode_title || 'Unknown Episode',
+          rssUrl: job.rss_url || '',
+          imageUrl: job.image_url || podcastInfoData.imageUrl || ''
+        };
+      });
+      setJobInfos(newJobInfos);
 
-        if (jobs.length > 0) {
-          const statuses = await apiFetchJobStatuses(jobs.map(job => job.job_id));
-          setJobStatuses(statuses);
-        }
-      } catch (apiError) {
-        console.error('Error fetching data from API:', apiError);
-        setErrorMessage('Unable to connect to the server. Some features may be limited. Please try again later.');
-        // Even if API fails, we still have data from Firebase, so we don't throw here
+      if (jobs.length > 0) {
+        const statuses = await apiFetchJobStatuses(jobs.map(job => job.job_id));
+        setJobStatuses(statuses);
       }
 
       initialFetchMade.current = true;
@@ -213,12 +210,14 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setErrorMessage(null);
     try {
       const data = await apiProcessEpisode(rssUrl, episodeIndex);
+      const podcastInfoData = podcastInfo[rssUrl] || {};
       const newJob: CurrentJob = {
         job_id: data.job_id,
         status: 'queued',
-        podcast_name: podcastInfo[rssUrl]?.name || 'Unknown Podcast',
+        podcast_name: podcastInfoData.name || 'Unknown Podcast',
         episode_title: episodes[rssUrl][episodeIndex].title,
-        rss_url: rssUrl
+        rss_url: rssUrl,  // Ensure this is set correctly
+        image_url: podcastInfoData.imageUrl || ''
       };
       setCurrentJobs(prev => [...prev, newJob]);
 
@@ -239,7 +238,8 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         [data.job_id]: {
           podcastName: newJob.podcast_name,
           episodeTitle: newJob.episode_title,
-          rssUrl: newJob.rss_url
+          rssUrl: rssUrl,  // Ensure this is set correctly
+          imageUrl: podcastInfoData.imageUrl || ''
         }
       }));
 

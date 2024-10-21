@@ -6,7 +6,7 @@ from utils import get_podcast_episodes, url_to_file_path, file_path_to_url, load
 from rss_modifier import create_modified_rss_feed, get_modified_rss_feed
 from llm_processor import find_unwanted_content
 from audio_editor import edit_audio
-from job_manager import update_job_status, get_job_status, append_job_log, get_job_logs, get_current_jobs, delete_job
+from job_manager import update_job_status, get_job_status, append_job_log, get_job_logs, get_current_jobs, delete_job, get_job_info
 import json
 import logging
 import queue
@@ -333,8 +333,14 @@ def search_podcasts(query):
 @app.route('/api/current_jobs', methods=['GET'])
 def get_current_jobs_route():
     jobs = get_current_jobs()
-    logging.info(f"Returning current jobs: {jobs}")
-    return jsonify(jobs), 200
+    detailed_jobs = []
+    for job in jobs:
+        job_info = get_job_info(job['job_id'])
+        if job_info:
+            job.update(job_info)
+        detailed_jobs.append(job)
+    logging.info(f"Returning current jobs: {detailed_jobs}")
+    return jsonify(detailed_jobs), 200
 
 @app.route('/api/delete_job/<job_id>', methods=['DELETE', 'OPTIONS'])
 def delete_job_route(job_id):

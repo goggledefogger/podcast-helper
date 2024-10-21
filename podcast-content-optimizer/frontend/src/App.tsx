@@ -84,6 +84,9 @@ const AppContent: React.FC = () => {
     return status && status.current_stage !== 'CLEANUP';
   });
 
+  console.log('Active jobs:', activeJobs);
+  console.log('Job infos:', jobInfos);
+
   if (isLoading) {
     return <Loader fullPage />;
   }
@@ -109,12 +112,7 @@ const AppContent: React.FC = () => {
                 jobId={job.job_id}
                 status={jobStatuses[job.job_id]}
                 onDelete={() => handleDeleteJob(job.job_id)}
-                jobInfo={{
-                  podcastName: job.podcast_name || podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
-                  episodeTitle: job.episode_title || 'Unknown Episode',
-                  rssUrl: job.rss_url
-                }}
-                podcastImageUrl={podcastInfo[job.rss_url]?.imageUrl}
+                jobInfo={jobInfos[job.job_id]}
               />
             ))
           ) : (
@@ -174,7 +172,6 @@ const AppContent: React.FC = () => {
             status={jobStatuses[activeJobs[0].job_id]}
             onDelete={() => handleDeleteJob(activeJobs[0].job_id)}
             jobInfo={jobInfos[activeJobs[0].job_id]}
-            podcastImageUrl={podcastInfo[jobInfos[activeJobs[0].job_id]?.rssUrl]?.imageUrl}
           />
         </section>
       )}
