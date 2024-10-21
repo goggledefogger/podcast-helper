@@ -15,7 +15,6 @@ Modal.setAppElement('#root');
 
 const AppContent: React.FC = () => {
   const {
-    podcastInfo,
     processedPodcasts,
     autoPodcasts,
     currentJobs,
