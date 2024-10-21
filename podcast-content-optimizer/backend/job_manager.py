@@ -31,6 +31,9 @@ def get_job_logs(job_id):
 
 def update_job_info(job_id, job_info):
     key = f"job_info:{job_id}"
+    # Ensure rss_url is included in job_info
+    if 'rss_url' not in job_info:
+        logging.warning(f"rss_url not provided for job_id: {job_id}")
     redis_client.hmset(key, job_info)
     redis_client.expire(key, 3600)  # Set expiration to 1 hour
     logging.info(f"Updated job info for job_id: {job_id}, info: {job_info}")

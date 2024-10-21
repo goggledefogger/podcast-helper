@@ -38,10 +38,15 @@ interface JobStatus {
 const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDelete, jobInfo }) => {
   const { podcastInfo } = usePodcastContext();
 
-  const podcastData = podcastInfo[jobInfo.rssUrl] || {};
-  const podcastName = jobInfo.podcastName || podcastData.name || 'Unknown Podcast';
-  const episodeTitle = jobInfo.episodeTitle || 'Unknown Episode';
-  const imageUrl = jobInfo.imageUrl || podcastData.imageUrl;
+  console.log('ProcessingStatus - jobInfo:', jobInfo);
+  console.log('ProcessingStatus - podcastInfo:', podcastInfo);
+
+  const podcastName = jobInfo?.podcastName || 'Unknown Podcast';
+  const episodeTitle = jobInfo?.episodeTitle || 'Unknown Episode';
+  const imageUrl = jobInfo?.imageUrl || podcastInfo[jobInfo?.rssUrl]?.imageUrl || '';
+  const rssUrl = jobInfo?.rssUrl || '';
+
+  console.log('ProcessingStatus - Resolved data:', { podcastName, episodeTitle, imageUrl, rssUrl });
 
   // Use a default status if the actual status is not available yet
   const currentStatus: JobStatus = status || {
@@ -78,6 +83,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDe
         <div className="podcast-details">
           <h3>{podcastName}</h3>
           <h4>{episodeTitle}</h4>
+          {rssUrl && <p className="rss-url">{rssUrl}</p>}
         </div>
       </div>
       <h3 className="status-title">Processing Status: <span className={`status-value ${currentStatus.status}`}>{currentStatus.status}</span></h3>

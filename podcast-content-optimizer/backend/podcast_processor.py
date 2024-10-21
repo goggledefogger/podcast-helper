@@ -7,7 +7,7 @@ from utils import (
     file_exists_in_firebase, download_from_firebase, load_processed_podcasts,
     get_db
 )
-from job_manager import update_job_status
+from job_manager import update_job_status, update_job_info
 import whisper
 import os
 import shutil
@@ -31,6 +31,14 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
         chosen_episode = episodes[episode_index]
         podcast_title = episodes[0]['podcast_title']
         episode_title = chosen_episode['title']
+
+        # Update job info early in the process
+        update_job_info(job_id, {
+            'podcast_name': podcast_title,
+            'episode_title': episode_title,
+            'rss_url': rss_url,  # Ensure this is included
+            'image_url': episodes[0].get('image_url', '')
+        })
 
         # Set job status in Redis
         db = get_db()
@@ -223,7 +231,8 @@ def process_podcast_episode(rss_url, episode_index=0, job_id=None):
                 "timestamp": datetime.now().isoformat(),
                 "edited_url": podcast_data['output_file'],
                 "transcript_file": podcast_data['transcript_file'],
-                "unwanted_content_file": podcast_data['unwanted_content_file']
+                "unwanted_content_file": podcast_data['unwanted_content_file'],
+                "image_url": podcast_data.get('image_url', '')  # Add this line to include the image URL
             }
 
             logging.info(f"Podcast processing completed successfully. Result: {result}")

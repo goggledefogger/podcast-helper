@@ -84,6 +84,9 @@ const AppContent: React.FC = () => {
     return status && status.current_stage !== 'CLEANUP';
   });
 
+  console.log('Active jobs:', activeJobs);
+  console.log('Job infos:', jobInfos);
+
   if (isLoading) {
     return <Loader fullPage />;
   }

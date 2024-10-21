@@ -23,7 +23,7 @@ interface JobInfo {
   podcastName: string;
   episodeTitle: string;
   rssUrl: string;
-  imageUrl: string;  // Add this line
+  imageUrl: string;
 }
 
 interface Episode {
@@ -78,11 +78,11 @@ interface PodcastContextType {
   deleteAutoProcessedPodcast: (rssUrl: string) => Promise<void>;
 }
 
-// Update the CurrentJob interface to match the API
 interface CurrentJob extends ApiCurrentJob {
   podcast_name: string;
   episode_title: string;
   rss_url: string;
+  image_url: string;
 }
 
 const PodcastContext = createContext<PodcastContextType | undefined>(undefined);
@@ -130,8 +130,8 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         newJobInfos[job.job_id] = {
           podcastName: job.podcast_name || podcastInfoData.name || 'Unknown Podcast',
           episodeTitle: job.episode_title || 'Unknown Episode',
-          rssUrl: job.rss_url,
-          imageUrl: podcastInfoData.imageUrl || ''
+          rssUrl: job.rss_url || '',
+          imageUrl: job.image_url || podcastInfoData.imageUrl || ''
         };
       });
       setJobInfos(newJobInfos);
@@ -216,7 +216,8 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         status: 'queued',
         podcast_name: podcastInfoData.name || 'Unknown Podcast',
         episode_title: episodes[rssUrl][episodeIndex].title,
-        rss_url: rssUrl
+        rss_url: rssUrl,  // Ensure this is set correctly
+        image_url: podcastInfoData.imageUrl || ''
       };
       setCurrentJobs(prev => [...prev, newJob]);
 
@@ -237,7 +238,7 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         [data.job_id]: {
           podcastName: newJob.podcast_name,
           episodeTitle: newJob.episode_title,
-          rssUrl: newJob.rss_url,
+          rssUrl: rssUrl,  // Ensure this is set correctly
           imageUrl: podcastInfoData.imageUrl || ''
         }
       }));
