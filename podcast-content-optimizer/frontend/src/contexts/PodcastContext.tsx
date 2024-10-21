@@ -23,6 +23,7 @@ interface JobInfo {
   podcastName: string;
   episodeTitle: string;
   rssUrl: string;
+  imageUrl: string;  // Add this line
 }
 
 interface Episode {
@@ -125,10 +126,12 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       const newJobInfos: Record<string, JobInfo> = {};
       jobs.forEach(job => {
+        const podcastInfoData = podcastData.podcastInfo[job.rss_url] || {};
         newJobInfos[job.job_id] = {
-          podcastName: job.podcast_name || podcastData.podcastInfo[job.rss_url]?.name || 'Unknown Podcast',
+          podcastName: job.podcast_name || podcastInfoData.name || 'Unknown Podcast',
           episodeTitle: job.episode_title || 'Unknown Episode',
-          rssUrl: job.rss_url
+          rssUrl: job.rss_url,
+          imageUrl: podcastInfoData.imageUrl || ''
         };
       });
       setJobInfos(newJobInfos);
@@ -207,10 +210,11 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setErrorMessage(null);
     try {
       const data = await apiProcessEpisode(rssUrl, episodeIndex);
+      const podcastInfoData = podcastInfo[rssUrl] || {};
       const newJob: CurrentJob = {
         job_id: data.job_id,
         status: 'queued',
-        podcast_name: podcastInfo[rssUrl]?.name || 'Unknown Podcast',
+        podcast_name: podcastInfoData.name || 'Unknown Podcast',
         episode_title: episodes[rssUrl][episodeIndex].title,
         rss_url: rssUrl
       };
@@ -233,7 +237,8 @@ export const PodcastProvider: React.FC<{ children: React.ReactNode }> = ({ child
         [data.job_id]: {
           podcastName: newJob.podcast_name,
           episodeTitle: newJob.episode_title,
-          rssUrl: newJob.rss_url
+          rssUrl: newJob.rss_url,
+          imageUrl: podcastInfoData.imageUrl || ''
         }
       }));
 

@@ -17,6 +17,7 @@ interface JobInfo {
   podcastName: string;
   episodeTitle: string;
   rssUrl: string;
+  imageUrl: string;
 }
 
 interface ProcessingStatusProps {
@@ -40,7 +41,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({ jobId, status, onDe
   const podcastData = podcastInfo[jobInfo.rssUrl] || {};
   const podcastName = jobInfo.podcastName || podcastData.name || 'Unknown Podcast';
   const episodeTitle = jobInfo.episodeTitle || 'Unknown Episode';
-  const imageUrl = podcastData.imageUrl;
+  const imageUrl = jobInfo.imageUrl || podcastData.imageUrl;
 
   // Use a default status if the actual status is not available yet
   const currentStatus: JobStatus = status || {
