@@ -18,19 +18,27 @@ const ManuallyProcessedPodcasts: React.FC<ManuallyProcessedPodcastsProps> = ({ p
     );
   };
 
+  // Flatten and sort all processed episodes
+  const sortedEpisodes = Object.entries(processedPodcasts)
+    .flatMap(([rssUrl, episodes]) =>
+      episodes.map(episode => ({ ...episode, rssUrl }))
+    )
+    .sort((a, b) => {
+      // Use the 'timestamp' field for sorting
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    })
+    .filter(episode => !isEpisodeInProgress(episode.podcast_title, episode.episode_title));
+
   return (
     <section className="manually-processed-podcasts" aria-labelledby="manually-processed-heading">
       <h3 id="manually-processed-heading">Manually Processed Episodes</h3>
       <ul className="processed-list">
-        {Object.entries(processedPodcasts).map(([rssUrl, episodes]) => (
-          episodes.filter(podcast => !isEpisodeInProgress(podcast.podcast_title, podcast.episode_title))
-            .map((podcast, index) => (
-              <ProcessedEpisode
-                key={`${rssUrl}-${index}`}
-                podcast={podcast}
-                onDelete={onDeletePodcast}
-              />
-            ))
+        {sortedEpisodes.map((episode, index) => (
+          <ProcessedEpisode
+            key={`${episode.rssUrl}-${index}`}
+            podcast={episode}
+            onDelete={onDeletePodcast}
+          />
         ))}
       </ul>
     </section>
