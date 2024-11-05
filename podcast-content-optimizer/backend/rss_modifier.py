@@ -50,6 +50,13 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
     logging.info(f"Creating modified RSS feed for {original_rss_url}")
 
     try:
+        # Check if podcast is in auto-processed list
+        processed_data = load_processed_podcasts()
+        auto_processed = processed_data.get('auto_processed_podcasts', [])
+        if not any(p['rss_url'] == original_rss_url for p in auto_processed):
+            logging.info(f"RSS URL {original_rss_url} is not in auto-processed list, skipping feed creation")
+            return None
+
         # Parse the original RSS feed
         response = requests.get(original_rss_url)
         response.raise_for_status()
@@ -106,6 +113,7 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
 
         # Get the list of processed episodes for the current RSS URL
         processed_episodes_list = processed_podcasts.get(original_rss_url, [])
+
         # Create sets of processed episode titles and GUIDs for quick lookup
         processed_episode_titles = set()
         processed_episode_guids = set()
@@ -210,7 +218,7 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
                 # Add the updated item back to the channel
                 channel.append(item)
             else:
-                logging.info(f"Processed episode not completed: {processed_episode.get('episode_title')}")
+                logging.info(f"Processed episode not completed or deleted: {processed_episode.get('episode_title')}")
                 continue
 
         # Perform modifications on the channel and items
@@ -289,24 +297,33 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
 def update_processed_item(item, processed_episode, namespaces):
     logging.info(f"Updating episode: {processed_episode.get('episode_title')}")
 
-    # Update the enclosure URL to the Firebase Storage URL
+    # Update the enclosure URL
     enclosure = item.find('enclosure')
     if enclosure is not None:
-        edited_url = processed_episode.get('edited_url')
-        if edited_url:
-            old_url = enclosure.get('url')
-            enclosure.set('url', edited_url)
-            logging.info(f"Updated enclosure URL from {old_url} to {edited_url}")
+        if processed_episode.get('status') == 'deleted':
+            # Remove the 'url' attribute since the file is deleted
+            if 'url' in enclosure.attrib:
+                del enclosure.attrib['url']
+                logging.info(f"Removed enclosure URL for deleted episode: {processed_episode.get('episode_title')}")
         else:
-            logging.warning(f"No 'edited_url' for episode: {processed_episode.get('episode_title')}")
+            edited_url = processed_episode.get('edited_url')
+            if edited_url:
+                old_url = enclosure.get('url')
+                enclosure.set('url', edited_url)
+                logging.info(f"Updated enclosure URL from {old_url} to {edited_url}")
+            else:
+                logging.warning(f"No 'edited_url' for episode: {processed_episode.get('episode_title')}")
     else:
         logging.warning("No enclosure element found in item.")
 
-    # Add "(Optimized)" to the title
+    # Update the title
     item_title = item.find('title')
     if item_title is not None:
         old_title = item_title.text
-        item_title.text = f"{item_title.text} (Optimized)"
+        if processed_episode.get('status') == 'deleted':
+            item_title.text = f"{item_title.text} (Opt / Deleted)"
+        else:
+            item_title.text = f"{item_title.text} (Optimized)"
         logging.info(f"Updated title from '{old_title}' to '{item_title.text}'")
     else:
         logging.warning("No title element found in item.")
@@ -348,6 +365,20 @@ def update_processed_item(item, processed_episode, namespaces):
             logging.warning(f"No 'duration' in processed_episode for {processed_episode.get('episode_title')}")
     else:
         logging.warning("No itunes:duration element found in item.")
+
+    # Additional modifications for deleted episodes
+    if processed_episode.get('status') == 'deleted':
+        # Remove the 'enclosure' element entirely if desired
+        if enclosure is not None:
+            item.remove(enclosure)
+            logging.info(f"Removed enclosure element for deleted episode: {processed_episode.get('episode_title')}")
+
+        # Optionally, update the description to indicate deletion
+        description_elem = item.find('description')
+        if description_elem is not None:
+            description_elem.text = f"This episode has been deleted."
+            logging.info(f"Updated description for deleted episode: {processed_episode.get('episode_title')}")
+
 
 def process_new_episodes(rss_url, episodes_to_process):
     logging.info(f"Processing new episodes for {rss_url}")

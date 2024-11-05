@@ -2,7 +2,18 @@ from flask import jsonify, request, Response, send_from_directory, abort, curren
 from celery_app import app as celery_app
 from api.app import app, CORS
 from podcast_processor import process_podcast_episode
-from utils import get_podcast_episodes, url_to_file_path, file_path_to_url, load_auto_processed_podcasts, save_auto_processed_podcasts, is_episode_processed, load_processed_podcasts, get_db, save_processed_podcasts
+from utils import (
+    get_podcast_episodes,
+    url_to_file_path,
+    file_path_to_url,
+    load_auto_processed_podcasts,
+    save_auto_processed_podcasts,
+    is_episode_processed,
+    load_processed_podcasts,
+    get_db,
+    save_processed_podcasts,
+    safe_filename
+)
 from rss_modifier import create_modified_rss_feed, get_modified_rss_feed
 from llm_processor import find_unwanted_content
 from audio_editor import edit_audio
@@ -157,9 +168,24 @@ def get_episodes():
 
 @app.route('/api/processed_podcasts', methods=['GET'])
 def get_processed_podcasts():
-    processed_podcasts = load_processed_podcasts()
-    logging.info(f"Fetched processed podcasts for {len(processed_podcasts['processed_podcasts'])} RSS URLs")
-    return jsonify(processed_podcasts), 200
+    processed_data = load_processed_podcasts()
+    processed_podcasts = processed_data.get('processed_podcasts', {})
+    logging.info(f"Fetched processed podcasts for {len(processed_podcasts)} RSS URLs")
+
+    # Filter out episodes with 'status' == 'deleted'
+    filtered_podcasts = {}
+    for rss_url, episodes in processed_podcasts.items():
+        filtered_episodes = [ep for ep in episodes if ep.get('status') != 'deleted']
+        if filtered_episodes:
+            filtered_podcasts[rss_url] = filtered_episodes
+
+    response_data = {
+        'processed_podcasts': filtered_podcasts,
+        'podcast_info': processed_data.get('podcast_info', {}),
+        'prompts': processed_data.get('prompts', {})
+    }
+
+    return jsonify(response_data), 200
 
 @app.route('/output/<path:filename>')
 def serve_output_file(filename):
@@ -395,22 +421,20 @@ def delete_processed_podcast():
             logging.error(f"Expected processed_podcasts to be a dict, got {type(processed_podcasts)}")
             return jsonify({"error": "Internal server error"}), 500
 
-        # Find and remove the podcast from the dictionary
-        rss_urls_to_delete = []
+        # Mark the episode as 'deleted' and set 'show_in_ui' to False
         for rss_url, episodes in processed_podcasts.items():
-            processed_podcasts[rss_url] = [ep for ep in episodes if not (ep['podcast_title'] == podcast_title and ep['episode_title'] == episode_title)]
-            if not processed_podcasts[rss_url]:
-                rss_urls_to_delete.append(rss_url)
-
-        # Remove empty RSS URLs
-        for rss_url in rss_urls_to_delete:
-            del processed_podcasts[rss_url]
+            for ep in episodes:
+                if ep['podcast_title'] == podcast_title and ep['episode_title'] == episode_title:
+                    ep['status'] = 'deleted'
+                    ep['show_in_ui'] = False
+                    logging.info(f"Set status to 'deleted' and 'show_in_ui' to False for episode: {episode_title}")
+                    break  # Assuming episode titles are unique per RSS URL
 
         # Save the updated data
         processed_data['processed_podcasts'] = processed_podcasts
         save_processed_podcasts(processed_data)
 
-        # Delete files from Firebase Storage
+        # Hard delete files from Firebase Storage
         episode_folder = get_episode_folder(podcast_title, episode_title)
         for root, dirs, files in os.walk(episode_folder):
             for file in files:
@@ -420,8 +444,10 @@ def delete_processed_podcast():
                     blob.delete()
                     logging.info(f"Deleted file from Firebase Storage: {file_path}")
 
-        # Remove the call to invalidate_rss_cache
-        # invalidate_rss_cache(data.get('rss_url'))
+        # Optionally, delete local files as well
+        if os.path.exists(episode_folder):
+            shutil.rmtree(episode_folder)
+            logging.info(f"Deleted local episode folder: {episode_folder}")
 
         return jsonify({"message": "Podcast deleted successfully"}), 200
     except Exception as e:
@@ -609,14 +635,9 @@ def delete_auto_processed_podcast():
         return '', 204
 
     try:
-        logging.info(f"Request headers: {request.headers}")
-        logging.info(f"Request data: {request.data}")
-
         if request.method == 'DELETE':
-            # For DELETE requests, the RSS URL might be in the query parameters
             rss_url = request.args.get('rss_url')
         else:
-            # For POST requests, get the RSS URL from the JSON body
             data = request.json
             rss_url = data.get('rss_url')
 
@@ -627,22 +648,41 @@ def delete_auto_processed_podcast():
             return jsonify({'error': 'RSS URL is required'}), 400
 
         processed_data = load_processed_podcasts()
-        logging.info(f"Loaded processed data. Keys: {processed_data.keys()}")
 
+        # Remove from auto-processed list
         auto_processed = processed_data.get('auto_processed_podcasts', [])
-        logging.info(f"Current auto-processed podcasts: {auto_processed}")
-
-        # Remove the podcast from the auto-processed list
         auto_processed = [podcast for podcast in auto_processed if podcast['rss_url'] != rss_url]
-        logging.info(f"Updated auto-processed podcasts: {auto_processed}")
-
         processed_data['auto_processed_podcasts'] = auto_processed
+
+        # Remove all processed episodes for this RSS URL
+        if 'processed_podcasts' in processed_data:
+            if rss_url in processed_data['processed_podcasts']:
+                del processed_data['processed_podcasts'][rss_url]
+
+        # Clear any processing locks in Redis for this RSS URL
+        db = get_db()
+        pattern = f"lock:job:{rss_url}:*"
+        for key in db.scan_iter(pattern):
+            db.delete(key)
+
+        # Clear any job status entries for this RSS URL
+        pattern = f"job_status:{rss_url}:*"
+        for key in db.scan_iter(pattern):
+            db.delete(key)
+
+        # Delete all files from Firebase Storage for this podcast
+        bucket = storage.bucket()
+        blobs = bucket.list_blobs(prefix=safe_filename(rss_url))
+        for blob in blobs:
+            blob.delete()
+            logging.info(f"Deleted file from Firebase Storage: {blob.name}")
 
         # Save the updated data
         save_processed_podcasts(processed_data)
 
-        logging.info(f"Auto-processed podcast deleted successfully: {rss_url}")
+        logging.info(f"Auto-processed podcast and all related data deleted successfully: {rss_url}")
         return jsonify({'message': 'Auto-processed podcast deleted successfully'}), 200
+
     except Exception as e:
         logging.error(f"Error deleting auto-processed podcast: {str(e)}")
         logging.error(traceback.format_exc())
