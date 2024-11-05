@@ -145,11 +145,11 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
         for item in items_sorted:
             # Get the GUID
             guid_elem = item.find('guid')
-            episode_guid = guid_elem.text.strip() if guid_elem is not None else None
+            episode_guid = guid_elem.text.strip() if (guid_elem is not None and guid_elem.text) else None
 
             # Get the title
             item_title_elem = item.find('title')
-            episode_title = item_title_elem.text.strip() if item_title_elem is not None else None
+            episode_title = item_title_elem.text.strip() if (item_title_elem is not None and item_title_elem.text) else None
 
             if not episode_title:
                 logging.warning("Item without a title found in RSS feed.")
@@ -157,23 +157,27 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
 
             # Get publication date
             pub_date_elem = item.find('pubDate')
-            episode_published_date = parse_pub_date(pub_date_elem.text) if pub_date_elem is not None else datetime.now(timezone.utc)
-
-            # Check if the episode is already processed
-            is_already_processed = False
-            if episode_guid and episode_guid in processed_episode_guids:
-                is_already_processed = True
-                logging.info(f"Episode already processed (by GUID): {episode_title}")
-            elif episode_title and episode_title in processed_episode_titles:
-                is_already_processed = True
-                logging.info(f"Episode already processed (by Title): {episode_title}")
+            episode_published_date = parse_pub_date(pub_date_elem.text) if (pub_date_elem is not None and pub_date_elem.text) else datetime.now(timezone.utc)
 
             # Check if episode is older than enabled date
             is_older_than_enabled_date = enable_date and episode_published_date < enable_date
+            if is_older_than_enabled_date:
+                logging.info(f"Stopping at episode older than enable date: {episode_title}")
+                break  # Stop processing when we hit episodes older than the enable date
 
-            if is_already_processed or is_older_than_enabled_date:
-                logging.info(f"Stopping loop at episode: {episode_title}")
-                break  # Stop the loop as per the desired algorithm
+            # Check if the episode is already processed
+            is_already_processed = False
+            is_deleted = False
+            for processed_episode in processed_episodes_list:
+                if ((episode_guid and processed_episode.get('episode_guid') == episode_guid) or
+                    (episode_title and processed_episode.get('episode_title') == episode_title)):
+                    is_already_processed = True
+                    is_deleted = processed_episode.get('status') == 'deleted'
+                    break
+
+            # Don't remove deleted episodes from the feed
+            if is_already_processed and is_deleted:
+                continue
 
             # Check if the episode is being processed
             if is_episode_being_processed(original_rss_url, episode_title):
@@ -181,45 +185,44 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
                 items_to_remove.append(item)
                 continue
 
-            # Episode is new and needs processing
-            logging.info(f"New episode detected for processing: {episode_title}, Published: {episode_published_date}")
-            episodes_to_process.append((episode_title, episode_published_date))
-            items_to_remove.append(item)
+            # Only add to processing queue if not already processed
+            if not is_already_processed:
+                logging.info(f"New episode detected for processing: {episode_title}, Published: {episode_published_date}")
+                episodes_to_process.append((episode_title, episode_published_date))
+                items_to_remove.append(item)
 
-        # Remove items outside the loop
+        # Remove items that are being processed
         for item in items_to_remove:
             channel.remove(item)
 
+        # Process new episodes if any
         if episodes_to_process:
             logging.info(f"Found {len(episodes_to_process)} new episodes to process.")
             process_new_episodes(original_rss_url, episodes_to_process)
         else:
             logging.info("No new episodes found for processing")
 
-        # Swap in processed episodes
+        # Add back all processed episodes (including deleted ones)
         for processed_episode in processed_episodes_list:
-            if processed_episode.get('status') == 'completed':
-                episode_title = processed_episode.get('episode_title').strip()
+            if processed_episode.get('status') in ['completed', 'deleted']:
+                episode_title = processed_episode.get('episode_title', '').strip()
                 episode_guid = processed_episode.get('episode_guid', '').strip()
-                # Use GUID for matching if available
+
+                # Find the original item
+                item = None
                 if episode_guid and episode_guid in guid_to_item:
                     item = guid_to_item[episode_guid]
                     logging.info(f"Found item by GUID for episode: {episode_title}")
                 elif episode_title and episode_title in title_to_item:
                     item = title_to_item[episode_title]
                     logging.info(f"Found item by Title for episode: {episode_title}")
+
+                if item is not None:
+                    logging.info(f"Updating processed episode: {episode_title} (Status: {processed_episode.get('status')})")
+                    update_processed_item(item, processed_episode, NAMESPACES)
+                    channel.append(item)
                 else:
-                    logging.warning(f"Processed episode not found in feed: {episode_title}")
-                    continue
-
-                logging.info(f"Updating processed episode: {episode_title}")
-                update_processed_item(item, processed_episode, NAMESPACES)
-
-                # Add the updated item back to the channel
-                channel.append(item)
-            else:
-                logging.info(f"Processed episode not completed or deleted: {processed_episode.get('episode_title')}")
-                continue
+                    logging.warning(f"Could not find original item for processed episode: {episode_title}")
 
         # Perform modifications on the channel and items
         # Update <itunes:new-feed-url> if it exists

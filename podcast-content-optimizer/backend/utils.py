@@ -487,11 +487,34 @@ def is_episode_processed(rss_url, episode_title):
     )
 
 def is_episode_being_processed(rss_url, episode_title):
-    # Check if there's an active job for this episode
-    db = get_db()
-    job_key = f"job:{rss_url}:{episode_title}"
-    job_status = db.get(job_key)
-    return job_status is not None and job_status.decode() in ['queued', 'in_progress']
+    try:
+        db = get_db()
+
+        # Check for active processing lock
+        lock_key = f"lock:job:{rss_url}:{episode_title}"
+        if db.exists(lock_key):
+            # Verify the lock hasn't expired
+            ttl = db.ttl(lock_key)
+            if ttl > 0:
+                return True
+            else:
+                # Clean up expired lock
+                db.delete(lock_key)
+                return False
+
+        # Check job status
+        status_key = f"job_status:{rss_url}:{episode_title}"
+        if db.exists(status_key):
+            status = db.get(status_key)
+            if status:
+                status = json.loads(status)
+                # Only return True if the job is actually in progress
+                return status.get('status') in ['processing', 'pending']
+
+        return False
+    except Exception as e:
+        logging.error(f"Error checking if episode is being processed: {str(e)}")
+        return False
 
 def get_db():
     if not hasattr(get_db, 'db'):
