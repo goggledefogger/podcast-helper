@@ -481,7 +481,8 @@ def is_episode_processed(rss_url, episode_title):
     processed_podcasts = load_processed_podcasts()
     rss_episodes = processed_podcasts['processed_podcasts'].get(rss_url, [])
     return any(
-        episode['episode_title'] == episode_title and episode.get('status') == 'completed'
+        episode['episode_title'] == episode_title and
+        episode.get('status') == 'completed'  # Only check for completed status
         for episode in rss_episodes
     )
 

@@ -21,10 +21,11 @@ const ManuallyProcessedPodcasts: React.FC<ManuallyProcessedPodcastsProps> = ({ p
   // Flatten and sort all processed episodes
   const sortedEpisodes = Object.entries(processedPodcasts)
     .flatMap(([rssUrl, episodes]) =>
-      episodes.map(episode => ({ ...episode, rssUrl }))
+      episodes
+        .filter(episode => episode.status === 'completed')
+        .map(episode => ({ ...episode, rssUrl }))
     )
     .sort((a, b) => {
-      // Use the 'timestamp' field for sorting
       return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
     })
     .filter(episode => !isEpisodeInProgress(episode.podcast_title, episode.episode_title));
