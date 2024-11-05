@@ -162,8 +162,9 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
             # Check if episode is older than enabled date
             is_older_than_enabled_date = enable_date and episode_published_date < enable_date
             if is_older_than_enabled_date:
-                logging.info(f"Stopping at episode older than enable date: {episode_title}")
-                break  # Stop processing when we hit episodes older than the enable date
+                logging.info(f"Episode older than enable date: {episode_title}")
+                # Keep episodes older than enable date in the feed without modification
+                continue
 
             # Check if the episode is already processed
             is_already_processed = False
@@ -175,14 +176,18 @@ def create_modified_rss_feed(original_rss_url, processed_podcasts):
                     is_deleted = processed_episode.get('status') == 'deleted'
                     break
 
-            # Don't remove deleted episodes from the feed
-            if is_already_processed and is_deleted:
+            # Remove episode from feed if it's:
+            # 1. Currently being processed OR
+            # 2. Not processed yet and newer than enable date
+            if is_episode_being_processed(original_rss_url, episode_title) or (not is_already_processed and not is_older_than_enabled_date):
+                logging.info(f"Removing episode from feed: {episode_title} (Being processed: {is_episode_being_processed(original_rss_url, episode_title)})")
+                items_to_remove.append(item)
+                if not is_already_processed:
+                    episodes_to_process.append((episode_title, episode_published_date))
                 continue
 
-            # Check if the episode is being processed
-            if is_episode_being_processed(original_rss_url, episode_title):
-                logging.info(f"Episode currently being processed: {episode_title}")
-                items_to_remove.append(item)
+            # Don't remove deleted episodes from the feed
+            if is_already_processed and is_deleted:
                 continue
 
             # Only add to processing queue if not already processed
