@@ -1,84 +1,90 @@
-.search-modal {
+.ReactModal__Content {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   background-color: var(--modal-background);
-  color: var(--modal-text);
-  padding: 30px;
-  border-radius: 12px;
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-
-.search-modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: var(--modal-background);
-  padding: 20px;
+  padding: 25px;
   border-radius: 8px;
-  max-width: 500px;
   width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.search-form {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.search-input {
-  flex-grow: 1;
-  padding: 10px 15px;
-  font-size: 16px;
+  max-width: 400px;
+  outline: none;
+  box-sizing: border-box;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background-color: var(--input-background);
-  color: var(--input-text);
 }
 
-.search-button {
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: var(--primary-color);
-  color: var(--button-text);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
+.ReactModal__Overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
 
-.search-button:hover:not(:disabled) {
-  background-color: var(--secondary-color);
-}
-
-.search-results {
+.search-modal-content {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.search-result {
-  background-color: var(--card-background);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 15px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  transition: box-shadow 0.3s ease;
+.search-modal-content h2 {
+  margin: 0 0 10px 0;
+  font-size: 1.5em;
+  color: var(--text-color);
 }
 
-.search-result:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+.search-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 16px;
+  box-sizing: border-box;
+  margin-bottom: 15px;
+}
+
+.search-button {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.close-button {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--border-color);
+  color: var(--text-color);
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.search-results {
+  margin-top: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.search-result-item {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .search-result-image {
@@ -86,146 +92,107 @@
   height: 120px;
   object-fit: cover;
   border-radius: 4px;
-  margin-right: 15px;
+  margin-bottom: 10px;
 }
 
-.search-result-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.search-result h3 {
-  margin: 0 0 10px 0;
-  font-size: 1.2em;
+.search-result-title {
+  font-size: 1em;
+  font-weight: bold;
+  margin: 0 0 8px 0;
   color: var(--text-color);
 }
 
-.search-result p {
-  margin: 0 0 15px 0;
+.search-result-description {
   font-size: 0.9em;
-  color: var(--text-color);
-  opacity: 0.8;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin: 0;
+  color: var(--text-color-secondary);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
-}
-
-.search-result-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.auto-processing-badge {
-  background-color: var(--success-color);
-  color: white;
-  padding: 5px 10px;
-  border-radius: 15px;
-  font-size: 0.8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .enable-auto-processing-button {
+  margin-top: 12px;
+  padding: 8px 16px;
   background-color: var(--primary-color);
-  color: var(--button-text);
+  color: white;
   border: none;
-  padding: 8px 15px;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.enable-auto-processing-button:hover {
-  background-color: var(--secondary-color);
+  font-size: 0.9em;
+  width: 100%;
 }
 
 .close-modal-button {
-  display: block;
-  width: 100%;
-  padding: 10px;
-  margin-top: 20px;
-  background-color: var(--border-color);
-  color: var(--text-color);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
+  margin-top: 10px;
 }
 
-.close-modal-button:hover {
-  background-color: var(--secondary-color);
-  color: var(--button-text);
-}
-
-.search-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-}
-
-/* Responsive adjustments */
 @media (max-width: 768px) {
-  .search-modal {
+  .ReactModal__Content {
+    width: 85%;
     padding: 20px;
+    max-height: 85vh;
+    overflow-y: auto;
   }
 
-  .search-form {
-    flex-direction: column;
-  }
-
-  .search-input,
-  .search-button {
-    width: 100%;
-  }
-
-  .search-results {
-    grid-template-columns: 1fr;
-  }
-
-  .search-result {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .search-result-image {
-    width: 100%;
-    height: auto;
-    margin-right: 0;
+  .search-modal-content h2 {
+    font-size: 1.3em;
     margin-bottom: 15px;
   }
 
-  .search-result-actions {
-    justify-content: flex-start;
-    margin-top: 10px;
+  .search-result-image {
+    width: 100px;
+    height: 100px;
   }
 }
 
-/* Dark theme adjustments */
-[data-theme="dark"] .search-modal {
-  background-color: var(--card-background);
+@media (max-width: 480px) {
+  .ReactModal__Content {
+    width: 90%;
+    padding: 15px;
+    margin: 0;
+  }
+
+  .search-modal-content {
+    gap: 15px;
+  }
+
+  .search-input {
+    margin-bottom: 10px;
+  }
+
+  .search-button,
+  .close-button {
+    padding: 10px;
+  }
+
+  .search-result-image {
+    width: 80px;
+    height: 80px;
+  }
+
+  .search-result-title {
+    font-size: 0.9em;
+  }
+
+  .search-result-description {
+    font-size: 0.8em;
+    -webkit-line-clamp: 2;
+  }
 }
 
-[data-theme="dark"] .search-input {
-  background-color: var(--input-background);
-  color: var(--input-text);
-  border-color: var(--border-color);
+/* Add smooth transition for modal */
+.ReactModal__Overlay {
+  opacity: 0;
+  transition: opacity 200ms ease-in-out;
 }
 
-[data-theme="dark"] .search-result {
-  background-color: var(--card-background);
-  border-color: var(--border-color);
+.ReactModal__Overlay--after-open {
+  opacity: 1;
 }
 
-[data-theme="dark"] .close-modal-button {
-  background-color: var(--primary-color);
-  color: var(--button-text);
-}
-
-[data-theme="dark"] .close-modal-button:hover {
-  background-color: var(--secondary-color);
+.ReactModal__Overlay--before-close {
+  opacity: 0;
 }

@@ -243,50 +243,67 @@
     grid-template-columns: 1fr;
   }
 
+  .auto-processed-item {
+    margin-bottom: 15px;
+  }
+
   .auto-processed-header {
-    flex-direction: column;
-    align-items: flex-start;
+    padding: 12px;
   }
 
   .auto-processed-header-content {
-    width: 100%;
-    margin-bottom: 10px;
+    gap: 10px;
   }
 
   .podcast-image {
     width: 40px;
     height: 40px;
-    margin-right: 10px;
   }
 
   .podcast-title-container h4 {
     font-size: 1em;
+    word-break: break-word;
   }
 
-  .podcast-title-container .rss-url,
-  .podcast-title-container .enabled-at {
-    font-size: 0.7em;
+  .rss-url,
+  .enabled-at {
+    font-size: 0.75em;
+    word-break: break-all;
   }
 
   .auto-processed-content {
-    padding: 10px;
+    padding: 12px;
   }
 
   .rss-link-container {
-    margin-bottom: 15px;
+    margin-bottom: 12px;
   }
 
   .rss-url-wrapper {
     flex-direction: column;
   }
 
-  .rss-url-input,
-  .copy-button {
-    width: 100%;
-    margin-bottom: 5px;
+  .rss-url-input {
+    font-size: 0.9em;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auto-processed-header {
+    padding: 10px;
   }
 
-  .copy-button {
-    border-radius: 4px;
+  .auto-processed-content {
+    padding: 10px;
+  }
+
+  .podcast-title-container h4 {
+    font-size: 0.9em;
+  }
+
+  .rss-url,
+  .enabled-at {
+    font-size: 0.7em;
   }
 }
