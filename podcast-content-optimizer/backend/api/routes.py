@@ -214,11 +214,10 @@ def get_modified_rss(rss_url):
         existing_entry = next((item for item in auto_processed if item['rss_url'] == rss_url), None)
 
         if not existing_entry:
-            logging.info(f"Adding new auto-processed entry for {rss_url}")
-            save_auto_processed_podcast(rss_url)
-        else:
-            logging.info(f"RSS URL {rss_url} is already set for auto-processing")
+            logging.info(f"RSS URL {rss_url} is not set for auto-processing")
+            return jsonify({"error": "RSS URL is not set for auto-processing"}), 404
 
+        # Proceed to generate the modified RSS feed
         processed_podcasts = load_processed_podcasts()
         logging.info(f"Loaded processed podcasts for {rss_url}")
 
@@ -625,7 +624,6 @@ def save_podcast_info():
         logging.error(traceback.format_exc())  # Add this line to get more detailed error information
         return jsonify({"error": "Failed to save podcast info"}), 500
 
-# Add this new route to delete an auto-processed podcast
 @app.route('/api/delete_auto_processed_podcast', methods=['POST', 'DELETE', 'OPTIONS'])
 def delete_auto_processed_podcast():
     logging.info(f"Received request to delete auto-processed podcast. Method: {request.method}")

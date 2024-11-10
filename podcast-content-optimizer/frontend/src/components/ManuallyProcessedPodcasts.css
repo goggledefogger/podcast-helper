@@ -1,23 +1,32 @@
 .manually-processed-podcasts {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
 .processed-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
   padding: 0;
 }
 
 @media (max-width: 768px) {
+  .manually-processed-podcasts {
+    margin-bottom: 15px;
+  }
+
   .processed-list {
     grid-template-columns: 1fr;
+    gap: 15px;
   }
 }
 
 @media (max-width: 480px) {
+  .manually-processed-podcasts {
+    margin-bottom: 12px;
+  }
+
   .processed-list {
-    gap: 15px;
+    gap: 12px;
   }
 }
 

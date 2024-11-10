@@ -200,51 +200,71 @@
 }
 
 @media (max-width: 768px) {
-  .processing-stages {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .stage {
-    width: 60px;
-    margin: 5px;
-  }
-
-  .stage:not(:last-child)::after {
-    display: none;
-  }
-
-  .stage.in_progress {
-    transform: scale(1.1);
+  .processing-status {
+    padding: 15px;
+    margin-bottom: 15px;
   }
 
   .podcast-info {
     flex-direction: column;
     align-items: flex-start;
+    margin-bottom: 15px;
   }
 
   .podcast-image {
+    width: 60px;
+    height: 60px;
     margin-bottom: 10px;
     margin-right: 0;
   }
 
+  .podcast-details {
+    width: 100%;
+  }
+
   .podcast-details h3 {
-    font-size: 1.2em;
+    font-size: 1.1em;
+    word-break: break-word;
   }
 
   .podcast-details h4 {
-    font-size: 1em;
+    font-size: 0.9em;
+    word-break: break-word;
   }
 
-  .status-title,
-  .current-stage,
+  .rss-url {
+    font-size: 0.75em;
+    word-break: break-all;
+    max-width: 100%;
+  }
+
+  .processing-stages {
+    padding: 5px 0;
+    overflow-x: auto;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .stage {
+    min-width: 60px;
+    margin: 0 5px;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .processing-status {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .stage-name {
+    font-size: 0.55em;
+  }
+
   .status-message,
   .timestamp {
-    font-size: 0.9em;
-  }
-
-  .delete-job-button {
-    width: 100%;
+    font-size: 0.8em;
   }
 }
 
