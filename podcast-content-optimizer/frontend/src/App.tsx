@@ -121,20 +121,6 @@ const AppContent: React.FC = () => {
           )}
         </section>
 
-        <section className="processed-podcasts section-container" aria-labelledby="processed-heading">
-          <h2 id="processed-heading" className="section-heading">Processed Podcasts</h2>
-          {Object.keys(processedPodcasts).length > 0 ? (
-            <ManuallyProcessedPodcasts
-              processedPodcasts={processedPodcasts}
-              onDeletePodcast={handleDeletePodcast}
-            />
-          ) : (
-            <div className="empty-state-card">
-              <p>No manually processed podcasts available. Process an episode to see results here.</p>
-            </div>
-          )}
-        </section>
-
         <section className="auto-processed-podcasts section-container" aria-labelledby="auto-processed-heading">
           <h2 id="auto-processed-heading" className="section-heading">Auto-processed Podcasts</h2>
           {autoPodcasts.length > 0 ? (
@@ -150,6 +136,20 @@ const AppContent: React.FC = () => {
           ) : (
             <div className="empty-state-card">
               <p>No auto-processed podcasts available. Enable auto-processing for a podcast to see it here.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="processed-podcasts section-container" aria-labelledby="processed-heading">
+          <h2 id="processed-heading" className="section-heading">Processed Podcasts</h2>
+          {Object.keys(processedPodcasts).length > 0 ? (
+            <ManuallyProcessedPodcasts
+              processedPodcasts={processedPodcasts}
+              onDeletePodcast={handleDeletePodcast}
+            />
+          ) : (
+            <div className="empty-state-card">
+              <p>No manually processed podcasts available. Process an episode to see results here.</p>
             </div>
           )}
         </section>
